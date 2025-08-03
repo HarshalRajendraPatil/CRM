@@ -99,6 +99,27 @@ const emailTemplates = {
         <p style="color: #666; font-size: 12px;">This is an automated email from CRM Platform.</p>
       </div>
     `
+  }),
+
+  projectInvitation: (invitationUrl, projectName, inviterName, message = '') => ({
+    subject: `Invitation to join ${projectName} on CRM Platform`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #333;">You've been invited to join a project</h2>
+        <p>Hi there,</p>
+        <p><strong>${inviterName}</strong> has invited you to join <strong>${projectName}</strong> on CRM Platform.</p>
+        ${message ? `<p style="padding: 15px; background-color: #f8f9fa; border-left: 4px solid #6366f1; font-style: italic;">"${message}"</p>` : ''}
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${invitationUrl}" style="background-color: #6366f1; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; display: inline-block;">Accept Invitation</a>
+        </div>
+        <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
+        <p style="word-break: break-all; color: #666;">${invitationUrl}</p>
+        <p>This invitation will expire in 7 days.</p>
+        <p>If you don't have an account yet, you'll be able to create one when you accept the invitation.</p>
+        <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+        <p style="color: #666; font-size: 12px;">This is an automated email from CRM Platform.</p>
+      </div>
+    `
   })
 };
 
@@ -146,10 +167,15 @@ export const sendEmailVerifiedEmail = async (email, name) => {
   return sendEmail(email, 'emailVerified', { name });
 };
 
+export const sendProjectInvitationEmail = async (email, invitationUrl, projectName, inviterName, message = '') => {
+  return sendEmail(email, 'projectInvitation', {url: invitationUrl, projectName, inviterName, message });
+};
+
 export default {
   sendEmail,
   sendWelcomeEmail,
   sendPasswordResetEmail,
   sendPasswordChangedEmail,
-  sendEmailVerifiedEmail
+  sendEmailVerifiedEmail,
+  sendProjectInvitationEmail
 }; 

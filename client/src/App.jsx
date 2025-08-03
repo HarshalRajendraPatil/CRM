@@ -11,11 +11,15 @@ import ForgotPassword from './pages/auth/ForgotPassword';
 import ResetPassword from './pages/auth/ResetPassword';
 import VerifyEmail from './pages/auth/VerifyEmail';
 import Dashboard from './pages/Dashboard';
-import MyCrm from './pages/MyCrm';
+
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import UserDetail from './pages/admin/UserDetail';
 import CreateUser from './pages/admin/CreateUser';
+import Projects from './pages/projects/Projects';
+import ProjectDetail from './pages/projects/ProjectDetail';
+import InvitationPage from './pages/invitations/InvitationPage';
+import UserInvitations from './pages/invitations/UserInvitations';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -106,14 +110,38 @@ function App() {
           } 
         />
         
-        {/* My CRM route */}
+        
+        
+        {/* Projects routes */}
         <Route 
-          path="/my-crm" 
+          path="/projects" 
           element={
             <ProtectedRoute>
-              <MyCrm />
+              <Projects />
             </ProtectedRoute>
           } 
+        />
+        <Route 
+          path="/projects/:id" 
+          element={
+            <ProtectedRoute>
+              <ProjectDetail />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Invitations routes */}
+        <Route 
+          path="/invitations" 
+          element={
+            <ProtectedRoute>
+              <UserInvitations />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/invitations/:token" 
+          element={<InvitationPage />} 
         />
         
         {/* Admin routes */}

@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
+import projectRoutes from './routes/projects.js';
+import invitationRoutes from './routes/invitations.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 
 // Load environment variables
@@ -55,6 +57,8 @@ app.get('/health', (req, res) => {
 // API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/projects', projectRoutes);
+app.use('/api/invitations', invitationRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
