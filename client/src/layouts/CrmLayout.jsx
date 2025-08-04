@@ -1,145 +1,155 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { logout } from '../store/authSlice';
 import NotificationBell from '../components/notifications/NotificationBell';
 import socketService from '../utils/socketService';
 
-const DashboardLayout = ({ children }) => {
+const CrmLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const { projectId } = useParams();
   const { user } = useSelector((state) => state.auth);
+  const { currentProject, isLoading } = useSelector((state) => state.projects);
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  
-  // Check if user is system admin
-  const isSystemAdmin = user?.roleGlobal === 'system-admin';
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Initialize socket connection
   useEffect(() => {
-    // Initialize socket connection
-    socketService.initializeSocket();
-    
-    // Join project room if inside a project
-    if (isInsideProject) {
-      const projectId = location.pathname.split('/')[2];
+    // Join project room for real-time notifications
+    if (projectId) {
       socketService.joinProjectRoom(projectId);
     }
     
     // Cleanup on unmount
     return () => {
-      if (isInsideProject) {
-        const projectId = location.pathname.split('/')[2];
+      if (projectId) {
         socketService.leaveProjectRoom(projectId);
       }
     };
-  }, [location.pathname]);
-
+  }, [projectId]);
+  
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
-
+  
   const toggleProfileMenu = () => {
     setProfileMenuOpen(!profileMenuOpen);
   };
-
+  
   const handleLogout = () => {
     dispatch(logout());
     navigate('/login');
   };
-
-  // Check if we're inside a project
-  const isInsideProject = location.pathname.includes('/projects/') && location.pathname.split('/').length > 3;
   
-  // Navigation items
-  const projectNavigationItems = [
-    { name: 'Dashboard', path: location.pathname, icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-      </svg>
-    )},
-    { name: 'Contacts', path: `${location.pathname}/contacts`, icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-      </svg>
-    )},
-    { name: 'Deals', path: `${location.pathname}/deals`, icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-      </svg>
-    )},
-    { name: 'Tasks', path: `${location.pathname}/tasks`, icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
-      </svg>
-    )},
-    { name: 'Reports', path: `${location.pathname}/reports`, icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-      </svg>
-    )},
-    { name: 'Team', path: `${location.pathname}/team`, icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-      </svg>
-    )},
-    { name: 'Settings', path: `${location.pathname}/settings`, icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-      </svg>
-    )},
-    { name: 'Back to Projects', path: '/projects', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path>
-      </svg>
-    )}
-  ];
+  const handleSearch = (e) => {
+    e.preventDefault();
+    // Implement search functionality
+    console.log('Searching for:', searchQuery);
+  };
   
-  const mainNavigationItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-      </svg>
-    )},
-    // Only show Admin Dashboard link for system admins
-    ...(isSystemAdmin ? [{
-      name: 'Admin Dashboard',
-      path: '/admin/dashboard',
+  const handleBackToProjects = () => {
+    navigate('/projects');
+  };
+  
+  // Navigation items for CRM
+  const navigationItems = [
+    { 
+      name: 'Dashboard', 
+      path: `/crm/${projectId}/dashboard`, 
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
         </svg>
       )
-    }] : []),
-    { name: 'My Projects', path: '/projects', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-      </svg>
-    )},
-    { name: 'Invitations', path: '/invitations', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
-      </svg>
-    )},
-    { name: 'Profile', path: '/profile', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
-      </svg>
-    )},
-    { name: 'Settings', path: '/settings', icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-      </svg>
-    )}
+    },
+    { 
+      name: 'Contacts', 
+      path: `/crm/${projectId}/contacts`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Leads', 
+      path: `/crm/${projectId}/leads`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Deals', 
+      path: `/crm/${projectId}/deals`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Tasks', 
+      path: `/crm/${projectId}/tasks`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Calendar', 
+      path: `/crm/${projectId}/calendar`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Reports', 
+      path: `/crm/${projectId}/reports`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Pipelines', 
+      path: `/crm/${projectId}/pipelines`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Settings', 
+      path: `/crm/${projectId}/settings`, 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Back to Projects', 
+      path: '/projects', 
+      icon: (
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path>
+        </svg>
+      )
+    }
   ];
   
-  // Choose which navigation items to display based on whether we're inside a project
-  const navigationItems = isInsideProject ? projectNavigationItems : mainNavigationItems;
-
   const isActive = (path) => {
     return location.pathname === path;
   };
@@ -163,7 +173,9 @@ const DashboardLayout = ({ children }) => {
           </div>
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
-              <span className="text-xl font-bold text-indigo-600">CRM Platform</span>
+              <span className="text-xl font-bold text-indigo-600">
+                {currentProject?.name || 'CRM Project'}
+              </span>
             </div>
             <nav className="mt-5 px-2 space-y-1">
               {navigationItems.map((item) => (
@@ -175,7 +187,7 @@ const DashboardLayout = ({ children }) => {
                       ? 'bg-indigo-50 text-indigo-600'
                       : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
                   }`}
-      >
+                >
                   <div className={`mr-4 flex-shrink-0 ${
                     isActive(item.path) ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
                   }`}>
@@ -187,7 +199,7 @@ const DashboardLayout = ({ children }) => {
             </nav>
           </div>
           <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
-          <div className="flex items-center">
+            <div className="flex items-center">
               <div>
                 <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
                   <span className="text-indigo-800 font-medium text-sm">
@@ -201,8 +213,8 @@ const DashboardLayout = ({ children }) => {
               </div>
             </div>
           </div>
-          </div>
         </div>
+      </div>
 
       {/* Static sidebar for desktop */}
       <div className="hidden lg:flex lg:flex-shrink-0">
@@ -210,12 +222,14 @@ const DashboardLayout = ({ children }) => {
           <div className="flex-1 flex flex-col min-h-0 border-r border-gray-200 bg-white">
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
-                <span className="text-xl font-bold text-indigo-600">CRM Platform</span>
+                <span className="text-xl font-bold text-indigo-600">
+                  {currentProject?.name || 'CRM Project'}
+                </span>
               </div>
               <nav className="mt-5 flex-1 px-2 bg-white space-y-1">
                 {navigationItems.map((item) => (
-            <Link
-              key={item.name}
+                  <Link
+                    key={item.name}
                     to={item.path}
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
                       isActive(item.path)
@@ -226,12 +240,12 @@ const DashboardLayout = ({ children }) => {
                     <div className={`mr-3 flex-shrink-0 ${
                       isActive(item.path) ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
                     }`}>
-                {item.icon}
-              </div>
+                      {item.icon}
+                    </div>
                     {item.name}
-            </Link>
-          ))}
-        </nav>
+                  </Link>
+                ))}
+              </nav>
             </div>
             <div className="flex-shrink-0 flex border-t border-gray-200 p-4">
               <div className="flex items-center">
@@ -255,7 +269,7 @@ const DashboardLayout = ({ children }) => {
                     {user?.name}
                   </p>
                   <p className="text-xs font-medium text-gray-500 group-hover:text-gray-700">
-                    {isSystemAdmin ? 'System Admin' : 'User'}
+                    {user?.email}
                   </p>
                 </div>
               </div>
@@ -267,37 +281,52 @@ const DashboardLayout = ({ children }) => {
       {/* Main content */}
       <div className="flex flex-col w-0 flex-1 overflow-hidden">
         <div className="relative z-10 flex-shrink-0 flex h-16 bg-white shadow">
-              <button
+          <button
             className="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-500 lg:hidden"
-                onClick={toggleSidebar}
-              >
+            onClick={toggleSidebar}
+          >
             <span className="sr-only">Open sidebar</span>
             <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
-                </svg>
-              </button>
+            </svg>
+          </button>
+          
           <div className="flex-1 px-4 flex justify-between">
             <div className="flex-1 flex">
-              <div className="w-full flex md:ml-0">
+              <form className="w-full flex md:ml-0" onSubmit={handleSearch}>
                 <label htmlFor="search-field" className="sr-only">Search</label>
                 <div className="relative w-full text-gray-400 focus-within:text-gray-600">
                   <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
                     <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                       <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
-                  </svg>
+                    </svg>
                   </div>
-                <input
+                  <input
                     id="search-field"
                     className="block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent sm:text-sm"
-                  placeholder="Search"
+                    placeholder="Search contacts, leads, deals..."
                     type="search"
                     name="search"
-                />
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
                 </div>
-              </div>
+              </form>
             </div>
+            
             <div className="ml-4 flex items-center md:ml-6">
-              {/* Notification Bell Component */}
+              {/* Back to Projects button */}
+              <button
+                onClick={handleBackToProjects}
+                className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
+              >
+                <span className="sr-only">Back to Projects</span>
+                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                </svg>
+              </button>
+              
+              {/* Notification Bell */}
               <NotificationBell />
 
               {/* Profile dropdown */}
@@ -307,13 +336,13 @@ const DashboardLayout = ({ children }) => {
                   onClick={toggleProfileMenu}
                 >
                   <span className="sr-only">Open user menu</span>
-                    {user?.profileImage ? (
+                  {user?.profileImage ? (
                     <img
                       className="h-8 w-8 rounded-full"
                       src={user.profileImage}
                       alt={user.name}
                     />
-                    ) : (
+                  ) : (
                     <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
                       <span className="text-indigo-800 font-medium text-sm">
                         {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
@@ -325,12 +354,12 @@ const DashboardLayout = ({ children }) => {
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
                     <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Your Profile</Link>
                     <Link to="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</Link>
-                      <button
-                        onClick={handleLogout}
-                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      >
-                        Sign out
-                      </button>
+                    <button
+                      onClick={handleLogout}
+                      className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Sign out
+                    </button>
                   </div>
                 )}
               </div>
@@ -339,11 +368,11 @@ const DashboardLayout = ({ children }) => {
         </div>
 
         <main className="flex-1 relative overflow-y-auto focus:outline-none">
-            {children}
+          {children}
         </main>
       </div>
     </div>
   );
 };
 
-export default DashboardLayout; 
+export default CrmLayout;

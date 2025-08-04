@@ -6,6 +6,7 @@ import {
   validateObjectId,
   validateColor
 } from '../utils/projectValidation.js';
+import notificationService from '../utils/notificationService.js';
 
 // @desc    Create a new pipeline in a project
 // @route   POST /api/projects/:projectId/pipelines
@@ -75,6 +76,19 @@ export const createPipeline = asyncHandler(async (req, res) => {
   
   // Get the newly created pipeline
   const createdPipeline = project.pipelines[project.pipelines.length - 1];
+  
+  // Create notification for all project members
+  try {
+    await notificationService.createPipelineNotification(
+      'created',
+      createdPipeline,
+      projectId,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create pipeline notification:', error);
+    // Continue with the response even if notification creation fails
+  }
   
   res.status(201).json({
     success: true,
@@ -252,8 +266,21 @@ export const updatePipeline = asyncHandler(async (req, res) => {
     }
   }
   
-  await project.save();
+    await project.save();
   
+  // Create notification for pipeline update
+  try {
+    await notificationService.createPipelineNotification(
+      'updated',
+      pipeline,
+      projectId,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create pipeline update notification:', error);
+    // Continue with the response even if notification creation fails
+  }
+
   res.json({
     success: true,
     message: 'Pipeline updated successfully',
@@ -319,9 +346,25 @@ export const deletePipeline = asyncHandler(async (req, res) => {
     }
   }
   
+  // Store pipeline info before deletion for notification
+  const pipelineToDelete = { ...pipeline.toObject() };
+  
   // Remove pipeline from project
   project.pipelines.pull(pipelineId);
   await project.save();
+  
+  // Create notification for pipeline deletion
+  try {
+    await notificationService.createPipelineNotification(
+      'deleted',
+      pipelineToDelete,
+      projectId,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create pipeline deletion notification:', error);
+    // Continue with the response even if notification creation fails
+  }
   
   res.json({
     success: true,
@@ -396,6 +439,20 @@ export const createStage = asyncHandler(async (req, res) => {
   
   // Get the newly created stage
   const createdStage = pipeline.stages[pipeline.stages.length - 1];
+  
+  // Create notification for stage creation
+  try {
+    await notificationService.createStageNotification(
+      'created',
+      createdStage,
+      pipelineId,
+      projectId,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create stage creation notification:', error);
+    // Continue with the response even if notification creation fails
+  }
   
   res.status(201).json({
     success: true,
@@ -530,6 +587,20 @@ export const updateStage = asyncHandler(async (req, res) => {
   
   await project.save();
   
+  // Create notification for stage update
+  try {
+    await notificationService.createStageNotification(
+      'updated',
+      stage,
+      pipelineId,
+      projectId,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create stage update notification:', error);
+    // Continue with the response even if notification creation fails
+  }
+  
   res.json({
     success: true,
     message: 'Stage updated successfully',
@@ -607,6 +678,9 @@ export const deleteStage = asyncHandler(async (req, res) => {
     }
   }
   
+  // Store stage info before deletion for notification
+  const stageToDelete = { ...stage.toObject() };
+  
   // Get the order of the stage to be deleted
   const deletedOrder = stage.order;
   
@@ -621,6 +695,20 @@ export const deleteStage = asyncHandler(async (req, res) => {
   });
   
   await project.save();
+  
+  // Create notification for stage deletion
+  try {
+    await notificationService.createStageNotification(
+      'deleted',
+      stageToDelete,
+      pipelineId,
+      projectId,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create stage deletion notification:', error);
+    // Continue with the response even if notification creation fails
+  }
   
   res.json({
     success: true,

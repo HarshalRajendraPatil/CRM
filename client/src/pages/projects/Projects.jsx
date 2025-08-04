@@ -144,7 +144,7 @@ const Projects = () => {
                         <Link to={`/projects/${project._id}`} className="text-indigo-600 hover:text-indigo-900">
                           View
                         </Link>
-                        <Link to={`/invitations`} className="text-indigo-600 hover:text-indigo-900">
+                        <Link to={`/crm/${project._id}/dashboard`} className="text-indigo-600 hover:text-indigo-900">
                           Enter
                         </Link>
                       </div>

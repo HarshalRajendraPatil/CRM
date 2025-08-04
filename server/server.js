@@ -1,18 +1,27 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import http from 'http';
 import connectDB from './config/database.js';
 import authRoutes from './routes/auth.js';
 import userRoutes from './routes/users.js';
 import projectRoutes from './routes/projects.js';
 import invitationRoutes from './routes/invitations.js';
+import notificationRoutes from './routes/notifications.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
+import { initSocketServer } from './utils/socketService.js';
 
 // Load environment variables
 dotenv.config();
 
 // Create Express app
 const app = express();
+
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+initSocketServer(server);
 
 // Connect to database
 connectDB();
@@ -59,6 +68,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -93,7 +103,7 @@ process.on('uncaughtException', (err) => {
 
 // Start server
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Health check: http://localhost:${PORT}/health`);

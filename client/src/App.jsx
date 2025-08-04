@@ -20,6 +20,11 @@ import Projects from './pages/projects/Projects';
 import ProjectDetail from './pages/projects/ProjectDetail';
 import InvitationPage from './pages/invitations/InvitationPage';
 import UserInvitations from './pages/invitations/UserInvitations';
+import NotificationsPage from './pages/NotificationsPage';
+
+// CRM pages
+import CrmDashboard from './pages/crm/CrmDashboard';
+import CrmContacts from './pages/crm/CrmContacts';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -110,7 +115,35 @@ function App() {
           } 
         />
         
+        {/* Notifications route */}
+        <Route 
+          path="/notifications" 
+          element={
+            <ProtectedRoute>
+              <NotificationsPage />
+            </ProtectedRoute>
+          } 
+        />
         
+        {/* CRM routes */}
+        <Route path="/crm/:projectId">
+          <Route 
+            path="dashboard" 
+            element={
+              <ProtectedRoute>
+                <CrmDashboard />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="contacts" 
+            element={
+              <ProtectedRoute>
+                <CrmContacts />
+              </ProtectedRoute>
+            } 
+          />
+        </Route>
         
         {/* Projects routes */}
         <Route 

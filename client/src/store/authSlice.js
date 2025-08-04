@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import authService from '../services/authService';
+import { handleLogout } from '../utils/authUtils';
 
 // Get user from localStorage
 const user = JSON.parse(localStorage.getItem('user'));
@@ -58,6 +59,9 @@ export const logout = createAsyncThunk(
     } catch (error) {
       // Even if API call fails, we still want to log out locally
       console.error('Logout error:', error);
+    } finally {
+      // Clean up socket connection and local storage
+      handleLogout();
     }
   }
 );

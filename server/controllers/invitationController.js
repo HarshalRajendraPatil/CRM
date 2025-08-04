@@ -12,6 +12,7 @@ import {
   calculateExpirationDate
 } from '../utils/invitationUtils.js';
 import { sendProjectInvitationEmail } from '../utils/emailService.js';
+import notificationService from '../utils/notificationService.js';
 
 // @desc    Create a new invitation
 // @route   POST /api/invitations
@@ -131,6 +132,16 @@ export const createInvitation = asyncHandler(async (req, res) => {
   } catch (error) {
     console.error('Failed to send invitation email:', error);
     // Continue with the invitation creation even if email fails
+  }
+  
+  // Create notification if the invited user exists
+  if (invitedUser) {
+    try {
+      await notificationService.createInvitationNotification(invitation);
+    } catch (error) {
+      console.error('Failed to create invitation notification:', error);
+      // Continue with the invitation creation even if notification creation fails
+    }
   }
   
   res.status(201).json({

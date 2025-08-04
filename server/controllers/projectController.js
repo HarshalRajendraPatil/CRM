@@ -9,6 +9,7 @@ import {
   validateMemberRole,
   sanitizeProjectData
 } from '../utils/projectValidation.js';
+import notificationService from '../utils/notificationService.js';
 
 // @desc    Create a new project/tenant
 // @route   POST /api/projects
@@ -357,6 +358,19 @@ export const updateProjectMember = asyncHandler(async (req, res) => {
       arrayFilters: [{ 'elem.tenant': project._id }]
     }
   );
+  
+  // Create notification for role change
+  try {
+    await notificationService.createRoleChangeNotification(
+      userId,
+      project._id,
+      role,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create role change notification:', error);
+    // Continue with the response even if notification creation fails
+  }
   
   res.json({
     success: true,
