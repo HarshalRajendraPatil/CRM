@@ -3,39 +3,18 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { logout } from '../store/authSlice';
 import NotificationBell from '../components/notifications/NotificationBell';
-import socketService from '../utils/socketService';
 
 const DashboardLayout = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  
+  const isInsideProject = location.pathname.includes('/projects/') && location.pathname.split('/').length > 3;
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   
   // Check if user is system admin
   const isSystemAdmin = user?.roleGlobal === 'system-admin';
-  
-  // Initialize socket connection
-  useEffect(() => {
-    // Initialize socket connection
-    socketService.initializeSocket();
-    
-    // Join project room if inside a project
-    if (isInsideProject) {
-      const projectId = location.pathname.split('/')[2];
-      socketService.joinProjectRoom(projectId);
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      if (isInsideProject) {
-        const projectId = location.pathname.split('/')[2];
-        socketService.leaveProjectRoom(projectId);
-      }
-    };
-  }, [location.pathname]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
@@ -49,9 +28,6 @@ const DashboardLayout = ({ children }) => {
     dispatch(logout());
     navigate('/login');
   };
-
-  // Check if we're inside a project
-  const isInsideProject = location.pathname.includes('/projects/') && location.pathname.split('/').length > 3;
   
   // Navigation items
   const projectNavigationItems = [

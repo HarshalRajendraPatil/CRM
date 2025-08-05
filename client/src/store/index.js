@@ -5,6 +5,7 @@ import projectReducer from './projectSlice';
 import invitationReducer from './invitationSlice';
 import notificationReducer from './notificationSlice';
 import crmReducer from './crmSlice';
+import companyReducer from './companySlice';
 
 // Configure store with reducers
 const store = configureStore({
@@ -15,8 +16,9 @@ const store = configureStore({
     invitations: invitationReducer,
     notifications: notificationReducer,
     crm: crmReducer,
+    companies: companyReducer,
   },
   devTools: import.meta.env.DEV, // Enable Redux DevTools only in development
 });
 
-export default store; 
+export default store;

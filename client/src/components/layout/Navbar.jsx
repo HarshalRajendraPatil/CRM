@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/authSlice';
+import NotificationBell from '../notifications/NotificationBell';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -78,6 +79,7 @@ const Navbar = () => {
           <div className="hidden md:flex md:items-center md:space-x-4">
             {isAuthenticated ? (
               <>
+                <NotificationBell />
                 <div className="relative">
                   <button
                     onClick={() => setIsProfileOpen(!isProfileOpen)}

@@ -13,6 +13,11 @@ const notificationSchema = new mongoose.Schema(
       ref: 'Project',
       index: true
     },
+    company: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Company',
+      index: true
+    },
     sender: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
@@ -31,7 +36,7 @@ const notificationSchema = new mongoose.Schema(
       enum: [
         'project_invitation',
         'project_role_change',
-        'project_removed',
+        'project_member_removed',
         'pipeline_created',
         'pipeline_updated',
         'pipeline_deleted',
@@ -48,7 +53,15 @@ const notificationSchema = new mongoose.Schema(
         'task_assigned',
         'comment_added',
         'mention',
-        'system_alert'
+        'system_alert',
+        'company_created',
+        'company_updated',
+        'company_deleted',
+        'company_note_added',
+        'contact_created',
+        'contact_updated',
+        'contact_deleted',
+        'contact_note_added'
       ],
       index: true
     },
@@ -122,6 +135,7 @@ notificationSchema.statics.getNotificationsByUser = async function(userId, optio
     .limit(limit)
     .populate('sender', 'name email profileImage')
     .populate('project', 'name')
+    .populate('company', 'name industry')
     .exec();
 };
 

@@ -5,6 +5,7 @@ import CrmLayout from '../../layouts/CrmLayout';
 import { getProjectById } from '../../store/projectSlice';
 import { getProjectPipelines } from '../../store/projectSlice';
 import Alert from '../../components/ui/Alert';
+import CompanyOverviewCard from './components/CompanyOverviewCard';
 
 // Stats card component
 const StatCard = ({ title, value, icon, change, changeType }) => {
@@ -306,6 +307,12 @@ const CrmDashboard = () => {
             </div>
           </div>
           
+          {/* Company Overview */}
+          <div className="mt-8">
+            <h2 className="text-lg leading-6 font-medium text-gray-900 mb-4">Company Management</h2>
+            <CompanyOverviewCard projectId={projectId} />
+          </div>
+
           {/* Main content area */}
           <div className="mt-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Pipelines summary */}

@@ -25,6 +25,8 @@ import NotificationsPage from './pages/NotificationsPage';
 // CRM pages
 import CrmDashboard from './pages/crm/CrmDashboard';
 import CrmContacts from './pages/crm/CrmContacts';
+import Companies from './pages/crm/companies/Companies';
+import CompanyDetail from './pages/crm/companies/CompanyDetail';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -140,6 +142,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <CrmContacts />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="companies" 
+            element={
+              <ProtectedRoute>
+                <Companies />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="companies/:companyId" 
+            element={
+              <ProtectedRoute>
+                <CompanyDetail />
               </ProtectedRoute>
             } 
           />

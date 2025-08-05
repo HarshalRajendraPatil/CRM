@@ -332,8 +332,6 @@ export const updateProjectMember = asyncHandler(async (req, res) => {
   ) {
     throw new AuthorizationError('You do not have permission to update members in this project');
   }
-
-  console.log(project.members, userId);
   
   // Find member in project
   const memberIndex = project.members.findIndex(
@@ -419,9 +417,6 @@ export const removeProjectMember = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You do not have permission to remove members from this project');
   }
 
-  console.log(project.members, userId);
-
-
   // Find member in project
   const memberIndex = project.members.findIndex(
     member => member.user.toString() === userId
@@ -439,6 +434,18 @@ export const removeProjectMember = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(userId, {
     $pull: { memberTenants: { tenant: project._id } }
   });
+
+  // Create notification for member removal// Create notification for role change
+  try {
+    await notificationService.createMemberRemovalNotification(
+      userId,
+      project._id,
+      req.user._id
+    );
+  } catch (error) {
+    console.error('Failed to create member removal notification:', error);
+    // Continue with the response even if notification creation fails
+  }
   
   res.json({
     success: true,

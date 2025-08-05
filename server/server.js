@@ -8,6 +8,7 @@ import userRoutes from './routes/users.js';
 import projectRoutes from './routes/projects.js';
 import invitationRoutes from './routes/invitations.js';
 import notificationRoutes from './routes/notifications.js';
+import companyRoutes from './routes/companies.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
 
@@ -69,6 +70,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/companies', companyRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
