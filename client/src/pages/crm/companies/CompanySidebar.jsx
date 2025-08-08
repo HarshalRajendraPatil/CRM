@@ -4,6 +4,7 @@ import { createCompany, updateCompany } from '../../../store/companySlice';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Alert from '../../../components/ui/Alert';
+import { getProjectCompanies, getCompanyStats } from '../../../store/companySlice';
 
 const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
   const dispatch = useDispatch();
@@ -145,20 +146,18 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
       newErrors.email = 'Please enter a valid email address';
     }
 
-    if (formData.phone && !/^[+]?[(]?[0-9]{3}[)]?[-\s.]?[0-9]{3}[-\s.]?[0-9]{4,6}$/.test(formData.phone)) {
-      newErrors.phone = 'Please enter a valid phone number';
-    }
-
     if (formData.logo && !/^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_+.~#?&//=]*)$/.test(formData.logo)) {
       newErrors.logo = 'Please enter a valid image URL';
     }
 
     setErrors(newErrors);
+    console.log('newErrors', newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   // Handle form submission
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
+
     e.preventDefault();
     
     if (!validateForm()) return;
@@ -183,18 +182,30 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
     }
 
     if (isEditing) {
-      dispatch(updateCompany({ id: company._id, companyData }))
+      await dispatch(updateCompany({ id: company._id, companyData }))
         .unwrap()
         .then(() => {
           onClose();
         });
     } else {
-      dispatch(createCompany(companyData))
+      await dispatch(createCompany(companyData))
         .unwrap()
         .then(() => {
           onClose();
         });
     }
+
+    await dispatch(getProjectCompanies({
+      projectId,
+      params: {
+        limit: 20,
+        skip: 0,
+        sort: 'name',
+        order: 'asc'
+      }
+    }));
+    const stats = await dispatch(getCompanyStats(projectId));
+    onClose();
   };
 
   // Industry options
@@ -228,6 +239,16 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
     '10000+'
   ];
 
+  const annualRevenueOptions = [
+    '<1M',
+    '1M-10M',
+    '10M-50M',
+    '50M-100M',
+    '500M-1B',
+    '>1B',
+    'Unknown'
+  ];
+
   // Status options
   const statusOptions = [
     { value: 'lead', label: 'Lead' },
@@ -244,7 +265,7 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
       {/* Backdrop */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 transition-opacity"
+          className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 z-40 transition-opacity"
           onClick={onClose}
         ></div>
       )}
@@ -273,11 +294,12 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
               {/* Company Name */}
               <div>
                 <Input
-                  label="Company Name *"
+                  label="Company Name"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   error={errors.name}
+                  placeholder="Enter company name"
                   required
                 />
               </div>
@@ -292,7 +314,7 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
                   name="industry"
                   value={formData.industry}
                   onChange={handleChange}
-                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  className="block w-full pl-1 pr-1 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="">Select Industry</option>
                   {industryOptions.map((industry) => (
@@ -403,7 +425,7 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
                   name="status"
                   value={formData.status}
                   onChange={handleChange}
-                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   {statusOptions.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -423,7 +445,7 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
                   name="size"
                   value={formData.size}
                   onChange={handleChange}
-                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
                 >
                   <option value="">Select Size</option>
                   {sizeOptions.map((size) => (
@@ -436,13 +458,23 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
 
               {/* Annual Revenue */}
               <div>
-                <Input
-                  label="Annual Revenue"
+                <label htmlFor="annualRevenue" className="block text-sm font-medium text-gray-700 mb-1">
+                  Annual Revenue
+                </label>
+                <select
+                  id="annualRevenue"
                   name="annualRevenue"
                   value={formData.annualRevenue}
                   onChange={handleChange}
-                  placeholder="e.g. $1,000,000"
-                />
+                  className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                >
+                  <option value="">Select Annual Revenue</option>
+                  {annualRevenueOptions.map((revenue) => (
+                    <option key={revenue} value={revenue}>
+                      {revenue}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               {/* Description */}
@@ -456,7 +488,7 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
                   rows={3}
                   value={formData.description}
                   onChange={handleChange}
-                  className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                  className="shadow-sm focus:ring-indigo-500 p-1 focus:border-indigo-500 block w-full sm:text-sm border border-gray-300 rounded-md"
                   placeholder="Add a description about this company..."
                 />
               </div>
@@ -484,7 +516,7 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
                     value={tagInput}
                     onChange={handleTagInputChange}
                     onKeyDown={handleTagKeyDown}
-                    className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-l-md"
+                    className="shadow-sm focus:ring-indigo-500 p-1 focus:border-indigo-500 block w-full sm:text-sm border border-gray-300 rounded-l-md"
                     placeholder="Add a tag..."
                   />
                   <button

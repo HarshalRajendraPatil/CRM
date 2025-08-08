@@ -4,6 +4,7 @@ import { createProject, reset } from '../../store/projectSlice';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Alert from '../../components/ui/Alert';
+import { getMyProjects } from '../../store/projectSlice';
 
 const CreateProjectSidebar = ({ isOpen, onClose }) => {
   const [formData, setFormData] = useState({
@@ -74,7 +75,7 @@ const CreateProjectSidebar = ({ isOpen, onClose }) => {
     return Object.keys(newErrors).length === 0;
   };
   
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -87,7 +88,8 @@ const CreateProjectSidebar = ({ isOpen, onClose }) => {
       tags: formData.tags ? formData.tags.split(',').map(tag => tag.trim()) : []
     };
     
-    dispatch(createProject(processedData));
+    await dispatch(createProject(processedData));
+    await dispatch(getMyProjects());
   };
 
   return (

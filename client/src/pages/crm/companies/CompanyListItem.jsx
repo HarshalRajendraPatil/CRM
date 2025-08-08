@@ -48,7 +48,7 @@ const CompanyListItem = ({ company, projectId }) => {
           <div className="ml-4">
             <div className="text-sm font-medium text-gray-900">
               <Link to={`/crm/${projectId}/companies/${company._id}`} className="hover:text-indigo-600">
-                {company.name}
+                {company.name.length > 20 ? company.name.slice(0, 20) + '...' : company.name}
               </Link>
             </div>
             {company.website && (
@@ -93,19 +93,6 @@ const CompanyListItem = ({ company, projectId }) => {
           {company.status || 'Unknown'}
         </span>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-        <div className="flex flex-wrap gap-1">
-          {company.tags && company.tags.map((tag, index) => (
-            <span
-              key={index}
-              className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-indigo-100 text-indigo-800"
-            >
-              {tag}
-            </span>
-          ))}
-          {(!company.tags || company.tags.length === 0) && '-'}
-        </div>
-      </td>
       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
         <Menu as="div" className="relative inline-block text-left">
           <div>
@@ -135,18 +122,6 @@ const CompanyListItem = ({ company, projectId }) => {
                       } block px-4 py-2 text-sm`}
                     >
                       View Details
-                    </Link>
-                  )}
-                </Menu.Item>
-                <Menu.Item>
-                  {({ active }) => (
-                    <Link
-                      to={`/crm/${projectId}/companies/${company._id}/edit`}
-                      className={`${
-                        active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
-                      } block px-4 py-2 text-sm`}
-                    >
-                      Edit
                     </Link>
                   )}
                 </Menu.Item>

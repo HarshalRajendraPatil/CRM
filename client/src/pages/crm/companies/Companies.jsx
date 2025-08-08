@@ -15,7 +15,6 @@ const Companies = () => {
   const { projectId } = useParams();
   const dispatch = useDispatch();
   const { companies, stats, isLoading, isError, message, pagination } = useSelector((state) => state.companies);
-  const { project } = useSelector((state) => state.projects);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
@@ -186,29 +185,11 @@ const Companies = () => {
                   }
                 />
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={toggleViewMode}
-                  className="p-2 rounded-md text-gray-500 hover:bg-gray-100"
-                  title={viewMode === 'list' ? 'Switch to grid view' : 'Switch to list view'}
-                >
-                  {viewMode === 'list' ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M5 3a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V5a2 2 0 00-2-2H5zM5 11a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2H5zM11 5a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V5zM11 13a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                </button>
-                <span className="text-gray-300">|</span>
-                <CompanyFilters 
-                  filters={filters} 
-                  onFilterChange={handleFilterChange} 
-                  industries={stats?.byIndustry ? Object.keys(stats.byIndustry) : []}
-                />
-              </div>
+              <CompanyFilters 
+                filters={filters} 
+                onFilterChange={handleFilterChange} 
+                industries={stats?.byIndustry ? Object.keys(stats.byIndustry) : []}
+              />
             </div>
           </div>
         </div>
@@ -232,7 +213,7 @@ const Companies = () => {
             <p className="text-gray-500 mb-4">Get started by adding your first company</p>
             <Button variant="primary" onClick={toggleSidebar}>Add Company</Button>
           </div>
-        ) : viewMode === 'list' ? (
+        ) : (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -240,7 +221,7 @@ const Companies = () => {
                   <tr>
                     <th
                       scope="col"
-                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
+                      className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
                       onClick={() => handleSortChange('name')}
                     >
                       <div className="flex items-center">
@@ -283,12 +264,6 @@ const Companies = () => {
                         )}
                       </div>
                     </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tags
-                    </th>
-                    <th scope="col" className="relative px-6 py-3">
-                      <span className="sr-only">Actions</span>
-                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -316,79 +291,7 @@ const Companies = () => {
               </div>
             )}
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {companies.map((company) => (
-              <div key={company._id} className="bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
-                <Link to={`/crm/${projectId}/companies/${company._id}`} className="block p-4">
-                  <div className="flex items-center mb-3">
-                    {company.logo ? (
-                      <img src={company.logo} alt={company.name} className="h-10 w-10 rounded-md object-cover mr-3" />
-                    ) : (
-                      <div className="h-10 w-10 rounded-md bg-indigo-100 flex items-center justify-center mr-3">
-                        <span className="text-indigo-700 font-medium text-lg">
-                          {company.name.charAt(0)}
-                        </span>
-                      </div>
-                    )}
-                    <div>
-                      <h3 className="text-sm font-medium text-gray-900 truncate">{company.name}</h3>
-                      <p className="text-xs text-gray-500">{company.industry || 'No industry'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="text-xs text-gray-500 mb-2">
-                    {company.email && (
-                      <div className="flex items-center mb-1">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                        </svg>
-                        <span className="truncate">{company.email}</span>
-                      </div>
-                    )}
-                    {company.phone && (
-                      <div className="flex items-center">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                        </svg>
-                        <span className="truncate">{company.phone}</span>
-                      </div>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center justify-between mt-3">
-                    <div>
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        company.status === 'active' ? 'bg-green-100 text-green-800' :
-                        company.status === 'inactive' ? 'bg-gray-100 text-gray-800' :
-                        company.status === 'lead' ? 'bg-yellow-100 text-yellow-800' :
-                        company.status === 'customer' ? 'bg-blue-100 text-blue-800' :
-                        company.status === 'partner' ? 'bg-purple-100 text-purple-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {company.status || 'Unknown'}
-                      </span>
-                    </div>
-                    <div className="flex -space-x-1 overflow-hidden">
-                      {company.tags && company.tags.slice(0, 3).map((tag, index) => (
-                        <span
-                          key={index}
-                          className="inline-block h-6 w-6 rounded-full bg-indigo-100 text-xs text-indigo-800 flex items-center justify-center border border-white"
-                          title={tag}
-                        >
-                          {tag.charAt(0).toUpperCase()}
-                        </span>
-                      ))}
-                      {company.tags && company.tags.length > 3 && (
-                        <span className="inline-block h-6 w-6 rounded-full bg-gray-100 text-xs text-gray-800 flex items-center justify-center border border-white">
-                          +{company.tags.length - 3}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            ))}
+        )}
             
             {/* Load More */}
             {pagination.hasMore && (
@@ -402,8 +305,6 @@ const Companies = () => {
                 </Button>
               </div>
             )}
-          </div>
-        )}
       </div>
 
       {/* Create/Edit Company Sidebar */}

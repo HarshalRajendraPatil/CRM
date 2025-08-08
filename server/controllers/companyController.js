@@ -1,5 +1,6 @@
 import Company from '../models/Company.model.js';
 import Project from '../models/Project.model.js';
+import mongoose from 'mongoose';
 import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
 import { validateCompanyData, sanitizeCompanyData } from '../utils/companyValidation.js';
 import { validateObjectId } from '../utils/validation.js';
@@ -174,7 +175,7 @@ export const getCompanyById = asyncHandler(async (req, res) => {
   }
   
   // Find project
-  const project = company.project;
+  const project = await Project.findById(company.project);
   
   // Check if user has permission to view this company
   if (
@@ -368,7 +369,7 @@ export const addCompanyNote = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to add notes to this company
-  const project = company.project;
+  const project = await Project.findById(company.project);
   
   if (
     !project.hasPermission(req.user._id, 'viewer') && 
@@ -442,7 +443,7 @@ export const getCompanyNotes = asyncHandler(async (req, res) => {
   }
   
   // Check if user has permission to view notes for this company
-  const project = company.project;
+  const project = await Project.findById(company.project);
   
   if (
     !project.hasPermission(req.user._id, 'viewer') && 

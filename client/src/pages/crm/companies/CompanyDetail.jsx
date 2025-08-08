@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getCompanyById, getCompanyNotes, addCompanyNote, deleteCompany, clearCompany } from '../../../store/companySlice';
 import CrmLayout from '../../../layouts/CrmLayout';
 import Button from '../../../components/ui/Button';
-import Input from '../../../components/ui/Input';
 import Alert from '../../../components/ui/Alert';
 import CompanySidebar from './CompanySidebar';
 
@@ -384,7 +383,7 @@ const CompanyDetail = () => {
                     <textarea
                       value={noteContent}
                       onChange={(e) => setNoteContent(e.target.value)}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md"
+                      className="shadow-sm focus:ring-indigo-500 border border-gray-300 focus:border-indigo-500 block w-full sm:text-sm border-gray-300 rounded-md p-1"
                       placeholder="Add a note about this company..."
                       rows={3}
                       required
@@ -494,7 +493,7 @@ const CompanyDetail = () => {
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <>
-          <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowDeleteConfirm(false)}></div>
+          <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 z-40" onClick={() => setShowDeleteConfirm(false)}></div>
           <div className="fixed inset-0 flex items-center justify-center z-50">
             <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
               <div className="text-center">
