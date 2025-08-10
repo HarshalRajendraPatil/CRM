@@ -24,7 +24,7 @@ import NotificationsPage from './pages/NotificationsPage';
 
 // CRM pages
 import CrmDashboard from './pages/crm/CrmDashboard';
-import CrmContacts from './pages/crm/CrmContacts';
+import Contacts from './pages/crm/contacts/Contacts';
 import Companies from './pages/crm/companies/Companies';
 import CompanyDetail from './pages/crm/companies/CompanyDetail';
 
@@ -141,7 +141,7 @@ function App() {
             path="contacts" 
             element={
               <ProtectedRoute>
-                <CrmContacts />
+                <Contacts />
               </ProtectedRoute>
             } 
           />

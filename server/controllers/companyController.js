@@ -5,6 +5,7 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import { validateCompanyData, sanitizeCompanyData } from '../utils/companyValidation.js';
 import { validateObjectId } from '../utils/validation.js';
 import notificationService from '../utils/notificationService.js';
+import { logActivity } from '../utils/activityLogger.js';
 
 // @desc    Create a new company
 // @route   POST /api/companies
@@ -82,6 +83,22 @@ export const createCompany = asyncHandler(async (req, res) => {
     message: 'Company created successfully',
     data: { company }
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId,
+      companyId: company._id,
+      entityType: 'company',
+      entityId: company._id,
+      type: 'created',
+      actorId: req.user._id,
+      title: `Company created: ${company.name}`,
+      description: 'New company created',
+      source: 'api',
+      metadata: { companyId: company._id }
+    });
+  } catch (_) {}
 });
 
 // @desc    Get all companies for a project
@@ -280,6 +297,22 @@ export const updateCompany = asyncHandler(async (req, res) => {
     message: 'Company updated successfully',
     data: { company: updatedCompany }
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId: company.project._id,
+      companyId: company._id,
+      entityType: 'company',
+      entityId: company._id,
+      type: 'updated',
+      actorId: req.user._id,
+      title: `Company updated: ${updatedCompany.name}`,
+      description: 'Company fields updated',
+      source: 'api',
+      metadata: { companyId: company._id }
+    });
+  } catch (_) {}
 });
 
 // @desc    Delete company
@@ -337,6 +370,22 @@ export const deleteCompany = asyncHandler(async (req, res) => {
     success: true,
     message: 'Company deleted successfully'
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId,
+      companyId: id,
+      entityType: 'company',
+      entityId: id,
+      type: 'deleted',
+      actorId: req.user._id,
+      title: `Company deleted: ${companyName}`,
+      description: 'Company removed from project',
+      source: 'api',
+      metadata: { companyId: id }
+    });
+  } catch (_) {}
 });
 
 // @desc    Add note to company
@@ -419,6 +468,22 @@ export const addCompanyNote = asyncHandler(async (req, res) => {
     message: 'Note added successfully',
     data: { note: newNote }
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId: company.project._id,
+      companyId: company._id,
+      entityType: 'company',
+      entityId: company._id,
+      type: 'note_added',
+      actorId: req.user._id,
+      title: 'Note added to company',
+      description: newNote?.content?.slice(0, 140) || 'Note added',
+      source: 'api',
+      metadata: { noteId: newNote?._id }
+    });
+  } catch (_) {}
 });
 
 // @desc    Get company notes
@@ -526,6 +591,22 @@ export const addCompanyTag = asyncHandler(async (req, res) => {
     message: 'Tag added successfully',
     data: { company }
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId: company.project._id,
+      companyId: company._id,
+      entityType: 'company',
+      entityId: company._id,
+      type: 'tag_added',
+      actorId: req.user._id,
+      title: 'Tag added',
+      description: `Tag added: ${tag.trim()}`,
+      source: 'api',
+      metadata: { tag: tag.trim() }
+    });
+  } catch (_) {}
 });
 
 // @desc    Remove tag from company
@@ -574,6 +655,22 @@ export const removeCompanyTag = asyncHandler(async (req, res) => {
     message: 'Tag removed successfully',
     data: { company }
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId: company.project._id,
+      companyId: company._id,
+      entityType: 'company',
+      entityId: company._id,
+      type: 'tag_removed',
+      actorId: req.user._id,
+      title: 'Tag removed',
+      description: `Tag removed: ${tag}`,
+      source: 'api',
+      metadata: { tag }
+    });
+  } catch (_) {}
 });
 
 // @desc    Add custom field to company
@@ -640,6 +737,22 @@ export const addCustomField = asyncHandler(async (req, res) => {
     message: 'Custom field added successfully',
     data: { company }
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId: company.project._id,
+      companyId: company._id,
+      entityType: 'company',
+      entityId: company._id,
+      type: 'custom_field_added',
+      actorId: req.user._id,
+      title: 'Custom field added',
+      description: `Key: ${key.trim()}`,
+      source: 'api',
+      metadata: { key: key.trim() }
+    });
+  } catch (_) {}
 });
 
 // @desc    Remove custom field from company
@@ -693,6 +806,22 @@ export const removeCustomField = asyncHandler(async (req, res) => {
     message: 'Custom field removed successfully',
     data: { company }
   });
+
+  // Log activity
+  try {
+    await logActivity({
+      projectId: company.project._id,
+      companyId: company._id,
+      entityType: 'company',
+      entityId: company._id,
+      type: 'custom_field_removed',
+      actorId: req.user._id,
+      title: 'Custom field removed',
+      description: `Key: ${key}`,
+      source: 'api',
+      metadata: { key }
+    });
+  } catch (_) {}
 });
 
 // @desc    Get company statistics for a project

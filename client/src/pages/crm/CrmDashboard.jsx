@@ -5,7 +5,7 @@ import CrmLayout from '../../layouts/CrmLayout';
 import { getProjectById } from '../../store/projectSlice';
 import { getProjectPipelines } from '../../store/projectSlice';
 import Alert from '../../components/ui/Alert';
-import CompanyOverviewCard from './components/CompanyOverviewCard';
+import CompanyOverviewCard from './companies/CompanyOverviewCard';
 
 // Stats card component
 const StatCard = ({ title, value, icon, change, changeType }) => {
