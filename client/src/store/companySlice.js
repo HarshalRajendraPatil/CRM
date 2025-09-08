@@ -7,6 +7,7 @@ const initialState = {
   company: null,
   notes: [],
   stats: null,
+  insights: null,
   isLoading: false,
   isSuccess: false,
   isError: false,
@@ -170,6 +171,71 @@ export const getCompanyStats = createAsyncThunk(
       return await companyService.getCompanyStats(projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch company statistics';
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Get company insights for a project
+export const getCompanyInsights = createAsyncThunk(
+  'companies/getCompanyInsights',
+  async (projectId, thunkAPI) => {
+    try {
+      return await companyService.getCompanyInsights(projectId);
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Failed to fetch company insights';
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Bulk update companies
+export const bulkUpdateCompanies = createAsyncThunk(
+  'companies/bulkUpdateCompanies',
+  async ({ companyIds, updates }, thunkAPI) => {
+    try {
+      return await companyService.bulkUpdateCompanies(companyIds, updates);
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Failed to bulk update companies';
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Bulk delete companies
+export const bulkDeleteCompanies = createAsyncThunk(
+  'companies/bulkDeleteCompanies',
+  async (companyIds, thunkAPI) => {
+    try {
+      return await companyService.bulkDeleteCompanies(companyIds);
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Failed to bulk delete companies';
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Update a company note
+export const updateCompanyNote = createAsyncThunk(
+  'companies/updateCompanyNote',
+  async ({ id, noteId, noteData }, thunkAPI) => {
+    try {
+      return await companyService.updateCompanyNote(id, noteId, noteData);
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Failed to update note';
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Delete a company note
+export const deleteCompanyNote = createAsyncThunk(
+  'companies/deleteCompanyNote',
+  async ({ id, noteId }, thunkAPI) => {
+    try {
+      return await companyService.deleteCompanyNote(id, noteId);
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Failed to delete note';
       return thunkAPI.rejectWithValue(message);
     }
   }
@@ -419,6 +485,92 @@ const companySlice = createSlice({
         state.stats = action.payload.data;
       })
       .addCase(getCompanyStats.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // Get company insights
+      .addCase(getCompanyInsights.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(getCompanyInsights.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.insights = action.payload.data.insights;
+      })
+      .addCase(getCompanyInsights.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // Update company note
+      .addCase(updateCompanyNote.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(updateCompanyNote.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        
+        // Update the note in the notes array
+        const noteIndex = state.notes.findIndex(note => note._id === action.payload.data.note._id);
+        if (noteIndex !== -1) {
+          state.notes[noteIndex] = action.payload.data.note;
+        }
+      })
+      .addCase(updateCompanyNote.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // Delete company note
+      .addCase(deleteCompanyNote.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(deleteCompanyNote.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        
+        // Remove the note from the notes array
+        const noteId = action.meta.arg.noteId;
+        state.notes = state.notes.filter(note => note._id !== noteId);
+      })
+      .addCase(deleteCompanyNote.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // Bulk update companies
+      .addCase(bulkUpdateCompanies.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(bulkUpdateCompanies.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        // Refresh companies list to reflect changes
+        // The companies will be refreshed when the component re-renders
+      })
+      .addCase(bulkUpdateCompanies.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // Bulk delete companies
+      .addCase(bulkDeleteCompanies.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(bulkDeleteCompanies.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        // Remove deleted companies from the list
+        const deletedIds = action.meta.arg;
+        state.companies = state.companies.filter(company => !deletedIds.includes(company._id));
+      })
+      .addCase(bulkDeleteCompanies.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;

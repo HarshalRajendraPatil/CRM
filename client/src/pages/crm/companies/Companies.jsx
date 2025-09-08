@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useParams, Link } from 'react-router-dom';
-import { getProjectCompanies, getCompanyStats, clearCompanies } from '../../../store/companySlice';
+import { getProjectCompanies, getCompanyStats, clearCompanies, bulkUpdateCompanies, bulkDeleteCompanies } from '../../../store/companySlice';
 import CrmLayout from '../../../layouts/CrmLayout';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -10,6 +10,7 @@ import CompanyListItem from './CompanyListItem';
 import CompanySidebar from './CompanySidebar';
 import CompanyFilters from './CompanyFilters';
 import CompanyStatsCards from './CompanyStatsCards';
+import CompanyStats from './CompanyStats';
 
 const Companies = () => {
   const { projectId } = useParams();
@@ -23,9 +24,10 @@ const Companies = () => {
     tags: []
   });
   const [showSidebar, setShowSidebar] = useState(false);
-  const [viewMode, setViewMode] = useState('list'); // 'list' or 'grid'
   const [sortBy, setSortBy] = useState('name');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [showAdvancedStats, setShowAdvancedStats] = useState(false);
+  const [selectedCompanies, setSelectedCompanies] = useState([]);
 
   // Load companies and stats on component mount
   useEffect(() => {
@@ -130,15 +132,73 @@ const Companies = () => {
     }
   };
 
+  // Bulk action functions
+  const handleSelectCompany = (companyId) => {
+    setSelectedCompanies(prev => 
+      prev.includes(companyId) 
+        ? prev.filter(id => id !== companyId)
+        : [...prev, companyId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedCompanies.length === companies.length) {
+      setSelectedCompanies([]);
+    } else {
+      setSelectedCompanies(companies.map(company => company._id));
+    }
+  };
+
+  const handleBulkStatusUpdate = async (newStatus) => {
+    try {
+      await dispatch(bulkUpdateCompanies({ 
+        companyIds: selectedCompanies, 
+        updates: { status: newStatus } 
+      }));
+      
+      // Clear selection after successful update
+      setSelectedCompanies([]);
+      
+      // Refresh companies list
+      dispatch(getProjectCompanies({
+        projectId,
+        params: {
+          limit: 20,
+          skip: 0,
+          sort: sortBy,
+          order: sortOrder
+        }
+      }));
+    } catch (error) {
+      console.error('Bulk status update failed:', error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (window.confirm(`Are you sure you want to delete ${selectedCompanies.length} companies?`)) {
+      try {
+        await dispatch(bulkDeleteCompanies(selectedCompanies)).unwrap();
+        
+        // Clear selection after successful delete
+        setSelectedCompanies([]);
+      } catch (error) {
+        console.error('Bulk delete failed:', error);
+      }
+    }
+  };
+
+  const handleBulkExport = () => {
+    // TODO: Implement bulk export
+    console.log('Bulk export:', selectedCompanies);
+    // This would export selected companies to CSV/Excel
+  };
+
   // Toggle sidebar
   const toggleSidebar = () => {
     setShowSidebar(!showSidebar);
   };
 
-  // Toggle view mode
-  const toggleViewMode = () => {
-    setViewMode(viewMode === 'list' ? 'grid' : 'list');
-  };
+
 
   return (
     <CrmLayout>
@@ -165,8 +225,27 @@ const Companies = () => {
           </div>
         </div>
 
-        {/* Stats Cards */}
-        {stats && <CompanyStatsCards stats={stats} />}
+        {/* Stats Section */}
+        {stats && (
+          <div className="mb-6">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-medium text-gray-900">Company Statistics</h2>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowAdvancedStats(!showAdvancedStats)}
+              >
+                {showAdvancedStats ? 'Show Basic Stats' : 'Show Advanced Stats'}
+              </Button>
+            </div>
+            
+            {showAdvancedStats ? (
+              <CompanyStats stats={stats} projectId={projectId} />
+            ) : (
+              <CompanyStatsCards stats={stats} />
+            )}
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="bg-white rounded-lg shadow-sm mb-6">
@@ -194,6 +273,63 @@ const Companies = () => {
           </div>
         </div>
 
+        {/* Bulk Actions */}
+        {selectedCompanies.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <span className="text-sm font-medium text-blue-900">
+                  {selectedCompanies.length} company{selectedCompanies.length !== 1 ? 'ies' : 'y'} selected
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleBulkStatusUpdate('active')}
+                >
+                  Mark Active
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleBulkStatusUpdate('lead')}
+                >
+                  Mark Lead
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => handleBulkStatusUpdate('customer')}
+                >
+                  Mark Customer
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleBulkExport}
+                >
+                  Export
+                </Button>
+                <Button
+                  variant="danger"
+                  size="sm"
+                  onClick={handleBulkDelete}
+                >
+                  Delete
+                </Button>
+                <Button
+                  variant="light"
+                  size="sm"
+                  onClick={() => setSelectedCompanies([])}
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Error Message */}
         {isError && (
           <Alert variant="danger" message={message} className="mb-6" />
@@ -219,6 +355,14 @@ const Companies = () => {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <input
+                        type="checkbox"
+                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                        checked={selectedCompanies.length === companies.length && companies.length > 0}
+                        onChange={handleSelectAll}
+                      />
+                    </th>
                     <th
                       scope="col"
                       className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer"
@@ -272,6 +416,8 @@ const Companies = () => {
                       key={company._id} 
                       company={company} 
                       projectId={projectId}
+                      isSelected={selectedCompanies.includes(company._id)}
+                      onSelect={handleSelectCompany}
                     />
                   ))}
                 </tbody>

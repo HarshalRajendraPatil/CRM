@@ -9,8 +9,9 @@ import projectRoutes from './routes/projects.js';
 import invitationRoutes from './routes/invitations.js';
 import notificationRoutes from './routes/notifications.js';
 import companyRoutes from './routes/companies.js';
-import contactRoutes from './routes/contacts.js';
-import activityRoutes from './routes/activities.js';
+import leadRoutes from './routes/leads.js';
+import customerRoutes from './routes/customers.js';
+
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
 
@@ -73,8 +74,9 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/companies', companyRoutes);
-app.use('/api/contacts', contactRoutes);
-app.use('/api/activities', activityRoutes);
+app.use('/api/leads', leadRoutes);
+app.use('/api/customers', customerRoutes);
+
 
 // Root endpoint
 app.get('/', (req, res) => {

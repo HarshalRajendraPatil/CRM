@@ -28,15 +28,22 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
     status: 'lead',
     size: '',
     annualRevenue: '',
+    founded: '',
     description: '',
     tags: [],
-    logo: ''
+    logo: '',
+    socialMedia: [],
+    customFields: {}
   });
 
   // Validation state
   const [errors, setErrors] = useState({});
   const [tagInput, setTagInput] = useState('');
   const [showAddressDetails, setShowAddressDetails] = useState(false);
+  const [showSocialMedia, setShowSocialMedia] = useState(false);
+  const [showCustomFields, setShowCustomFields] = useState(false);
+  const [socialMediaInput, setSocialMediaInput] = useState({ platform: '', url: '', handle: '' });
+  const [customFieldInput, setCustomFieldInput] = useState({ key: '', value: '' });
 
   // Populate form if editing
   useEffect(() => {
@@ -57,9 +64,12 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
         status: company.status || 'lead',
         size: company.size || '',
         annualRevenue: company.annualRevenue || '',
+        founded: company.founded || '',
         description: company.description || '',
         tags: company.tags || [],
-        logo: company.logo || ''
+        logo: company.logo || '',
+        socialMedia: company.socialMedia || [],
+        customFields: company.customFields || {}
       });
 
       // Show address details if any address field is filled
@@ -126,6 +136,47 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
       e.preventDefault();
       addTag();
     }
+  };
+
+  // Social media functions
+  const addSocialMedia = () => {
+    if (socialMediaInput.platform && socialMediaInput.url) {
+      setFormData({
+        ...formData,
+        socialMedia: [...formData.socialMedia, { ...socialMediaInput }]
+      });
+      setSocialMediaInput({ platform: '', url: '', handle: '' });
+    }
+  };
+
+  const removeSocialMedia = (index) => {
+    setFormData({
+      ...formData,
+      socialMedia: formData.socialMedia.filter((_, i) => i !== index)
+    });
+  };
+
+  // Custom fields functions
+  const addCustomField = () => {
+    if (customFieldInput.key && customFieldInput.value) {
+      setFormData({
+        ...formData,
+        customFields: {
+          ...formData.customFields,
+          [customFieldInput.key]: customFieldInput.value
+        }
+      });
+      setCustomFieldInput({ key: '', value: '' });
+    }
+  };
+
+  const removeCustomField = (key) => {
+    const newCustomFields = { ...formData.customFields };
+    delete newCustomFields[key];
+    setFormData({
+      ...formData,
+      customFields: newCustomFields
+    });
   };
 
   // Validate form
@@ -204,7 +255,38 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
         order: 'asc'
       }
     }));
-    const stats = await dispatch(getCompanyStats(projectId));
+
+    await dispatch(getCompanyStats(projectId));
+    setFormData({
+      name: '',
+      industry: '',
+      website: '',
+      email: '',
+      phone: '',
+      address: {
+        street: '',
+        city: '',
+        state: '',
+        zipCode: '',
+        country: ''
+      },
+      status: 'lead',
+      size: '',
+      annualRevenue: '',
+      founded: '',
+      description: '',
+      tags: [],
+      logo: '',
+      socialMedia: [],
+      customFields: {}
+    })
+    setErrors({});
+    setTagInput('');
+    setSocialMediaInput({ platform: '', url: '', handle: '' });
+    setCustomFieldInput({ key: '', value: '' });
+    setShowAddressDetails(false);
+    setShowSocialMedia(false);
+    setShowCustomFields(false);
     onClose();
   };
 
@@ -477,6 +559,20 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
                 </select>
               </div>
 
+              {/* Founded Year */}
+              <div>
+                <Input
+                  label="Founded Year"
+                  name="founded"
+                  type="number"
+                  value={formData.founded}
+                  onChange={handleChange}
+                  placeholder="e.g., 1995"
+                  min="1800"
+                  max={new Date().getFullYear()}
+                />
+              </div>
+
               {/* Description */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -547,6 +643,150 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              {/* Social Media */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-700">Social Media</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowSocialMedia(!showSocialMedia)}
+                    className="text-sm text-indigo-600 hover:text-indigo-500"
+                  >
+                    {showSocialMedia ? 'Hide' : 'Add'}
+                  </button>
+                </div>
+
+                {showSocialMedia && (
+                  <div className="mt-2 space-y-3">
+                    <div className="grid grid-cols-1 gap-3">
+                      <select
+                        value={socialMediaInput.platform}
+                        onChange={(e) => setSocialMediaInput({ ...socialMediaInput, platform: e.target.value })}
+                        className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      >
+                        <option value="">Select Platform</option>
+                        <option value="linkedin">LinkedIn</option>
+                        <option value="twitter">Twitter</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="youtube">YouTube</option>
+                        <option value="other">Other</option>
+                      </select>
+                      <input
+                        type="url"
+                        value={socialMediaInput.url}
+                        onChange={(e) => setSocialMediaInput({ ...socialMediaInput, url: e.target.value })}
+                        placeholder="URL"
+                        className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      />
+                      <input
+                        type="text"
+                        value={socialMediaInput.handle}
+                        onChange={(e) => setSocialMediaInput({ ...socialMediaInput, handle: e.target.value })}
+                        placeholder="Handle (optional)"
+                        className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addSocialMedia}
+                      className="w-full px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Add Social Media
+                    </button>
+                  </div>
+                )}
+
+                {/* Display added social media */}
+                {formData.socialMedia.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {formData.socialMedia.map((social, index) => (
+                      <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900 capitalize">{social.platform}</div>
+                          <div className="text-xs text-gray-500">{social.url}</div>
+                          {social.handle && <div className="text-xs text-gray-500">@{social.handle}</div>}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeSocialMedia(index)}
+                          className="ml-2 text-red-600 hover:text-red-800"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Fields */}
+              <div>
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-gray-700">Custom Fields</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomFields(!showCustomFields)}
+                    className="text-sm text-indigo-600 hover:text-indigo-500"
+                  >
+                    {showCustomFields ? 'Hide' : 'Add'}
+                  </button>
+                </div>
+
+                {showCustomFields && (
+                  <div className="mt-2 space-y-3">
+                    <div className="grid grid-cols-1 gap-3">
+                      <input
+                        type="text"
+                        value={customFieldInput.key}
+                        onChange={(e) => setCustomFieldInput({ ...customFieldInput, key: e.target.value })}
+                        placeholder="Field Name"
+                        className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      />
+                      <input
+                        type="text"
+                        value={customFieldInput.value}
+                        onChange={(e) => setCustomFieldInput({ ...customFieldInput, value: e.target.value })}
+                        placeholder="Field Value"
+                        className="block w-full pl-1 pr-10 py-2 text-base border border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={addCustomField}
+                      className="w-full px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      Add Custom Field
+                    </button>
+                  </div>
+                )}
+
+                {/* Display added custom fields */}
+                {Object.keys(formData.customFields).length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {Object.entries(formData.customFields).map(([key, value]) => (
+                      <div key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900">{key}</div>
+                          <div className="text-xs text-gray-500">{value}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeCustomField(key)}
+                          className="ml-2 text-red-600 hover:text-red-800"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

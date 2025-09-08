@@ -99,6 +99,8 @@ export const requireTenantRole = (...roles) => {
       });
     }
 
+    console.log(req.params)
+
     const tenantId = req.params.tenantId || req.body.tenantId || req.query.tenantId;
     
     if (!tenantId) {

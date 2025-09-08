@@ -5,7 +5,7 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import { validateCompanyData, sanitizeCompanyData } from '../utils/companyValidation.js';
 import { validateObjectId } from '../utils/validation.js';
 import notificationService from '../utils/notificationService.js';
-import { logActivity } from '../utils/activityLogger.js';
+
 
 // @desc    Create a new company
 // @route   POST /api/companies
@@ -48,6 +48,7 @@ export const createCompany = asyncHandler(async (req, res) => {
   
   // Validate company data
   const validation = validateCompanyData(companyData);
+  console.log(validation);
   if (!validation.isValid) {
     throw new ValidationError('Validation failed', validation.errors);
   }
@@ -84,21 +85,7 @@ export const createCompany = asyncHandler(async (req, res) => {
     data: { company }
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId,
-      companyId: company._id,
-      entityType: 'company',
-      entityId: company._id,
-      type: 'created',
-      actorId: req.user._id,
-      title: `Company created: ${company.name}`,
-      description: 'New company created',
-      source: 'api',
-      metadata: { companyId: company._id }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Get all companies for a project
@@ -298,21 +285,7 @@ export const updateCompany = asyncHandler(async (req, res) => {
     data: { company: updatedCompany }
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId: company.project._id,
-      companyId: company._id,
-      entityType: 'company',
-      entityId: company._id,
-      type: 'updated',
-      actorId: req.user._id,
-      title: `Company updated: ${updatedCompany.name}`,
-      description: 'Company fields updated',
-      source: 'api',
-      metadata: { companyId: company._id }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Delete company
@@ -371,21 +344,7 @@ export const deleteCompany = asyncHandler(async (req, res) => {
     message: 'Company deleted successfully'
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId,
-      companyId: id,
-      entityType: 'company',
-      entityId: id,
-      type: 'deleted',
-      actorId: req.user._id,
-      title: `Company deleted: ${companyName}`,
-      description: 'Company removed from project',
-      source: 'api',
-      metadata: { companyId: id }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Add note to company
@@ -469,21 +428,7 @@ export const addCompanyNote = asyncHandler(async (req, res) => {
     data: { note: newNote }
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId: company.project._id,
-      companyId: company._id,
-      entityType: 'company',
-      entityId: company._id,
-      type: 'note_added',
-      actorId: req.user._id,
-      title: 'Note added to company',
-      description: newNote?.content?.slice(0, 140) || 'Note added',
-      source: 'api',
-      metadata: { noteId: newNote?._id }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Get company notes
@@ -523,6 +468,158 @@ export const getCompanyNotes = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: { notes }
+  });
+});
+
+// @desc    Update company note
+// @route   PUT /api/companies/:id/notes/:noteId
+// @access  Private (project members with appropriate permissions)
+export const updateCompanyNote = asyncHandler(async (req, res) => {
+  const { id, noteId } = req.params;
+  const { content } = req.body;
+  
+  // Validate company ID
+  const validation = validateObjectId(id);
+  if (!validation.isValid) {
+    throw new ValidationError(validation.message);
+  }
+  
+  // Validate note ID
+  const noteValidation = validateObjectId(noteId);
+  if (!noteValidation.isValid) {
+    throw new ValidationError(noteValidation.message);
+  }
+  
+  // Validate note content
+  if (!content || typeof content !== 'string' || content.trim().length === 0) {
+    throw new ValidationError('Note content is required');
+  }
+  
+  if (content.length > 5000) {
+    throw new ValidationError('Note content cannot exceed 5000 characters');
+  }
+  
+  // Find company
+  const company = await Company.findById(id).populate('project');
+  
+  if (!company) {
+    throw new NotFoundError('Company not found');
+  }
+  
+  // Check if user has permission to update notes for this company
+  const project = company.project;
+  
+  if (
+    !project.hasPermission(req.user._id, 'manager') && 
+    company.owner.toString() !== req.user._id.toString() &&
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to update notes for this company');
+  }
+  
+  // Find the note
+  const note = company.notes.id(noteId);
+  if (!note) {
+    throw new NotFoundError('Note not found');
+  }
+  
+  // Check if user is the note creator or has admin permissions
+  if (
+    note.createdBy.toString() !== req.user._id.toString() && 
+    !project.hasPermission(req.user._id, 'admin') &&
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You can only edit your own notes');
+  }
+  
+  // Update note
+  note.content = content.trim();
+  note.updatedAt = new Date();
+  
+  // Update activity
+  company.lastActivityDate = new Date();
+  company.lastActivityType = 'note_updated';
+  company.lastActivityBy = req.user._id;
+  company.updatedBy = req.user._id;
+  
+  await company.save();
+  
+  // Populate the updated note
+  await company.populate('notes.createdBy', 'name email profileImage');
+  const updatedNote = company.notes.id(noteId);
+  
+  res.json({
+    success: true,
+    message: 'Note updated successfully',
+    data: { note: updatedNote }
+  });
+});
+
+// @desc    Delete company note
+// @route   DELETE /api/companies/:id/notes/:noteId
+// @access  Private (project members with appropriate permissions)
+export const deleteCompanyNote = asyncHandler(async (req, res) => {
+  const { id, noteId } = req.params;
+  
+  // Validate company ID
+  const validation = validateObjectId(id);
+  if (!validation.isValid) {
+    throw new ValidationError(validation.message);
+  }
+  
+  // Validate note ID
+  const noteValidation = validateObjectId(noteId);
+  if (!noteValidation.isValid) {
+    throw new ValidationError(noteValidation.message);
+  }
+  
+  // Find company
+  const company = await Company.findById(id).populate('project');
+  
+  if (!company) {
+    throw new NotFoundError('Company not found');
+  }
+  
+  // Check if user has permission to delete notes for this company
+  const project = company.project;
+  
+  if (
+    !project.hasPermission(req.user._id, 'manager') && 
+    company.owner.toString() !== req.user._id.toString() &&
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to delete notes for this company');
+  }
+  
+  // Find the note
+  const note = company.notes.id(noteId);
+  if (!note) {
+    throw new NotFoundError('Note not found');
+  }
+  
+  // Check if user is the note creator or has admin permissions
+  if (
+    note.createdBy.toString() !== req.user._id.toString() && 
+    !project.hasPermission(req.user._id, 'admin') &&
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You can only delete your own notes');
+  }
+  
+  // Remove note
+  company.notes.pull(noteId);
+  
+  // Update activity
+  company.lastActivityDate = new Date();
+  company.lastActivityType = 'note_deleted';
+  company.lastActivityBy = req.user._id;
+  company.updatedBy = req.user._id;
+  
+  await company.save();
+  
+  res.json({
+    success: true,
+    message: 'Note deleted successfully'
   });
 });
 
@@ -592,21 +689,7 @@ export const addCompanyTag = asyncHandler(async (req, res) => {
     data: { company }
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId: company.project._id,
-      companyId: company._id,
-      entityType: 'company',
-      entityId: company._id,
-      type: 'tag_added',
-      actorId: req.user._id,
-      title: 'Tag added',
-      description: `Tag added: ${tag.trim()}`,
-      source: 'api',
-      metadata: { tag: tag.trim() }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Remove tag from company
@@ -656,21 +739,7 @@ export const removeCompanyTag = asyncHandler(async (req, res) => {
     data: { company }
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId: company.project._id,
-      companyId: company._id,
-      entityType: 'company',
-      entityId: company._id,
-      type: 'tag_removed',
-      actorId: req.user._id,
-      title: 'Tag removed',
-      description: `Tag removed: ${tag}`,
-      source: 'api',
-      metadata: { tag }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Add custom field to company
@@ -738,21 +807,7 @@ export const addCustomField = asyncHandler(async (req, res) => {
     data: { company }
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId: company.project._id,
-      companyId: company._id,
-      entityType: 'company',
-      entityId: company._id,
-      type: 'custom_field_added',
-      actorId: req.user._id,
-      title: 'Custom field added',
-      description: `Key: ${key.trim()}`,
-      source: 'api',
-      metadata: { key: key.trim() }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Remove custom field from company
@@ -807,21 +862,7 @@ export const removeCustomField = asyncHandler(async (req, res) => {
     data: { company }
   });
 
-  // Log activity
-  try {
-    await logActivity({
-      projectId: company.project._id,
-      companyId: company._id,
-      entityType: 'company',
-      entityId: company._id,
-      type: 'custom_field_removed',
-      actorId: req.user._id,
-      title: 'Custom field removed',
-      description: `Key: ${key}`,
-      source: 'api',
-      metadata: { key }
-    });
-  } catch (_) {}
+
 });
 
 // @desc    Get company statistics for a project
@@ -867,12 +908,99 @@ export const getCompanyStats = asyncHandler(async (req, res) => {
     { $limit: 10 }
   ]);
   
+  // Get counts by size
+  const sizeCounts = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: { _id: '$size', count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+  
+  // Get counts by annual revenue
+  const revenueCounts = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: { _id: '$annualRevenue', count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+  
+  // Get growth trend (companies created by month for the last 12 months)
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+  
+  const growthTrend = await Company.aggregate([
+    { 
+      $match: { 
+        project: new mongoose.Types.ObjectId(projectId),
+        createdAt: { $gte: twelveMonthsAgo }
+      } 
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$createdAt' },
+          month: { $month: '$createdAt' }
+        },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+  
+  // Get top tags
+  const topTags = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $unwind: '$tags' },
+    { $group: { _id: '$tags', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 10 }
+  ]);
+  
+  // Get activity trends (last 30 days)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  
+  const activityTrends = await Company.aggregate([
+    { 
+      $match: { 
+        project: new mongoose.Types.ObjectId(projectId),
+        lastActivityDate: { $gte: thirtyDaysAgo }
+      } 
+    },
+    {
+      $group: {
+        _id: {
+          year: { $year: '$lastActivityDate' },
+          month: { $month: '$lastActivityDate' },
+          day: { $dayOfMonth: '$lastActivityDate' }
+        },
+        count: { $sum: 1 }
+      }
+    },
+    { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
+  ]);
+  
   // Get recent activity
   const recentActivity = await Company.find({ project: projectId })
     .sort({ lastActivityDate: -1 })
     .limit(5)
     .select('name lastActivityDate lastActivityType lastActivityBy')
     .populate('lastActivityBy', 'name email profileImage');
+  
+  // Get companies with most notes
+  const companiesWithMostNotes = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $addFields: { notesCount: { $size: '$notes' } } },
+    { $sort: { notesCount: -1 } },
+    { $limit: 5 },
+    { $project: { name: 1, notesCount: 1 } }
+  ]);
+  
+  // Get companies by country
+  const companiesByCountry = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: { _id: '$address.country', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 10 }
+  ]);
   
   // Format status counts
   const formattedStatusCounts = {};
@@ -886,14 +1014,369 @@ export const getCompanyStats = asyncHandler(async (req, res) => {
     formattedIndustryCounts[item._id || 'unknown'] = item.count;
   });
   
+  // Format size counts
+  const formattedSizeCounts = {};
+  sizeCounts.forEach(item => {
+    formattedSizeCounts[item._id || 'unknown'] = item.count;
+  });
+  
+  // Format revenue counts
+  const formattedRevenueCounts = {};
+  revenueCounts.forEach(item => {
+    formattedRevenueCounts[item._id || 'unknown'] = item.count;
+  });
+  
+  // Format growth trend
+  const formattedGrowthTrend = growthTrend.map(item => ({
+    month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
+    count: item.count
+  }));
+  
+  // Format activity trends
+  const formattedActivityTrends = activityTrends.map(item => ({
+    date: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}-${item._id.day.toString().padStart(2, '0')}`,
+    count: item.count
+  }));
+  
+  // Format top tags
+  const formattedTopTags = topTags.map(item => ({
+    tag: item._id,
+    count: item.count
+  }));
+  
+  // Format companies by country
+  const formattedCompaniesByCountry = companiesByCountry.map(item => ({
+    country: item._id || 'Unknown',
+    count: item.count
+  }));
+  
   res.json({
     success: true,
     data: {
       total: totalCount,
       byStatus: formattedStatusCounts,
       byIndustry: formattedIndustryCounts,
+      bySize: formattedSizeCounts,
+      byRevenue: formattedRevenueCounts,
+      growthTrend: formattedGrowthTrend,
+      activityTrends: formattedActivityTrends,
+      topTags: formattedTopTags,
+      companiesByCountry: formattedCompaniesByCountry,
+      companiesWithMostNotes,
       recentActivity
     }
+  });
+});
+
+// @desc    Get company insights for a project
+// @route   GET /api/companies/project/:projectId/insights
+// @access  Private (project members)
+export const getCompanyInsights = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  
+  // Validate project ID
+  const projectValidation = validateObjectId(projectId);
+  if (!projectValidation.isValid) {
+    throw new ValidationError(projectValidation.message);
+  }
+  
+  // Find project
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new NotFoundError('Project not found');
+  }
+  
+  // Check if user has permission to view company insights in this project
+  if (
+    !project.hasPermission(req.user._id, 'viewer') && 
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to view company insights in this project');
+  }
+  
+  // Get total companies
+  const totalCompanies = await Company.countDocuments({ project: projectId });
+  
+  if (totalCompanies === 0) {
+    return res.json({
+      success: true,
+      data: {
+        message: 'No companies found for insights',
+        insights: {}
+      }
+    });
+  }
+  
+  // Get average notes per company
+  const avgNotesPerCompany = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $addFields: { notesCount: { $size: '$notes' } } },
+    { $group: { _id: null, avgNotes: { $avg: '$notesCount' } } }
+  ]);
+  
+  // Get companies with most activity
+  const mostActiveCompanies = await Company.find({ project: projectId })
+    .sort({ lastActivityDate: -1 })
+    .limit(5)
+    .select('name lastActivityDate lastActivityType')
+    .populate('lastActivityBy', 'name email profileImage');
+  
+  // Get companies by status distribution
+  const statusDistribution = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+    { $sort: { count: -1 } }
+  ]);
+  
+  // Get companies by industry distribution
+  const industryDistribution = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: { _id: '$industry', count: { $sum: 1 } } },
+    { $sort: { count: -1 } },
+    { $limit: 5 }
+  ]);
+  
+  // Get companies created this month
+  const thisMonth = new Date();
+  thisMonth.setDate(1);
+  thisMonth.setHours(0, 0, 0, 0);
+  
+  const companiesThisMonth = await Company.countDocuments({
+    project: projectId,
+    createdAt: { $gte: thisMonth }
+  });
+  
+  // Get companies updated this week
+  const thisWeek = new Date();
+  thisWeek.setDate(thisWeek.getDate() - 7);
+  
+  const companiesUpdatedThisWeek = await Company.countDocuments({
+    project: projectId,
+    updatedAt: { $gte: thisWeek }
+  });
+  
+  // Get companies with complete profiles (has website, email, phone, address)
+  const companiesWithCompleteProfiles = await Company.countDocuments({
+    project: projectId,
+    website: { $exists: true, $ne: '' },
+    email: { $exists: true, $ne: '' },
+    phone: { $exists: true, $ne: '' },
+    'address.street': { $exists: true, $ne: '' }
+  });
+  
+  // Get companies with custom fields
+  const companiesWithCustomFields = await Company.countDocuments({
+    project: projectId,
+    $expr: { $gt: [{ $size: { $objectToArray: '$customFields' } }, 0] }
+  });
+  
+  // Get top performing companies (by activity)
+  const topPerformingCompanies = await Company.find({ project: projectId })
+    .sort({ lastActivityDate: -1 })
+    .limit(3)
+    .select('name industry status lastActivityDate')
+    .populate('lastActivityBy', 'name');
+  
+  // Get insights summary
+  const insights = {
+    totalCompanies,
+    avgNotesPerCompany: avgNotesPerCompany[0]?.avgNotes || 0,
+    companiesThisMonth,
+    companiesUpdatedThisWeek,
+    companiesWithCompleteProfiles,
+    companiesWithCustomFields,
+    completionRate: totalCompanies > 0 ? Math.round((companiesWithCompleteProfiles / totalCompanies) * 100) : 0,
+    activityRate: totalCompanies > 0 ? Math.round((companiesUpdatedThisWeek / totalCompanies) * 100) : 0,
+    statusDistribution: statusDistribution.map(item => ({
+      status: item._id || 'Unknown',
+      count: item.count,
+      percentage: Math.round((item.count / totalCompanies) * 100)
+    })),
+    industryDistribution: industryDistribution.map(item => ({
+      industry: item._id || 'Unknown',
+      count: item.count,
+      percentage: Math.round((item.count / totalCompanies) * 100)
+    })),
+    mostActiveCompanies,
+    topPerformingCompanies
+  };
+  
+  res.json({
+    success: true,
+    data: {
+      insights
+    }
+  });
+});
+
+// @desc    Bulk update companies
+// @route   PUT /api/companies/bulk-update
+// @access  Private (project members with manager access)
+export const bulkUpdateCompanies = asyncHandler(async (req, res) => {
+  const { companyIds, updates } = req.body;
+  
+  if (!companyIds || !Array.isArray(companyIds) || companyIds.length === 0) {
+    throw new ValidationError('Company IDs array is required');
+  }
+  
+  if (!updates || typeof updates !== 'object') {
+    throw new ValidationError('Updates object is required');
+  }
+  
+  // Validate company IDs
+  for (const id of companyIds) {
+    const validation = validateObjectId(id);
+    if (!validation.isValid) {
+      throw new ValidationError(`Invalid company ID: ${id}`);
+    }
+  }
+  
+  // Get the first company to check project permissions
+  const firstCompany = await Company.findById(companyIds[0]);
+  if (!firstCompany) {
+    throw new NotFoundError('Company not found');
+  }
+  
+  // Find project
+  const project = await Project.findById(firstCompany.project);
+  if (!project) {
+    throw new NotFoundError('Project not found');
+  }
+  
+  // Check if user has permission to update companies in this project
+  if (
+    !project.hasPermission(req.user._id, 'manager') && 
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to update companies in this project');
+  }
+  
+  // Validate that all companies belong to the same project
+  const companies = await Company.find({ _id: { $in: companyIds } });
+  if (companies.length !== companyIds.length) {
+    throw new NotFoundError('Some companies not found');
+  }
+  
+  const projectId = companies[0].project.toString();
+  for (const company of companies) {
+    if (company.project.toString() !== projectId) {
+      throw new ValidationError('All companies must belong to the same project');
+    }
+  }
+  
+  // Sanitize updates
+  const sanitizedUpdates = sanitizeCompanyData(updates);
+  console.log(sanitizedUpdates);
+  sanitizedUpdates.updatedBy = req.user._id;
+  sanitizedUpdates.lastActivityDate = new Date();
+  sanitizedUpdates.lastActivityType = 'bulk_updated';
+  sanitizedUpdates.lastActivityBy = req.user._id;
+  
+  // Perform bulk update
+  const result = await Company.updateMany(
+    { _id: { $in: companyIds } },
+    { $set: sanitizedUpdates }
+  );
+  
+  // Create notifications for project members
+  try {
+    await notificationService.createProjectNotification(
+      projectId,
+      {
+        type: 'company_bulk_updated',
+        title: 'Companies Updated',
+        message: `${result.modifiedCount} companies have been updated`,
+        priority: 'medium',
+        link: `/crm/${projectId}/companies`
+      },
+      [req.user._id] // exclude the updater from notification
+    );
+  } catch (error) {
+    console.error('Failed to create bulk update notification:', error);
+  }
+  
+  res.json({
+    success: true,
+    message: `${result.modifiedCount} companies updated successfully`,
+    data: { modifiedCount: result.modifiedCount }
+  });
+});
+
+// @desc    Bulk delete companies
+// @route   DELETE /api/companies/bulk-delete
+// @access  Private (project members with manager access)
+export const bulkDeleteCompanies = asyncHandler(async (req, res) => {
+  const { companyIds } = req.body;
+  
+  if (!companyIds || !Array.isArray(companyIds) || companyIds.length === 0) {
+    throw new ValidationError('Company IDs array is required');
+  }
+  
+  // Validate company IDs
+  for (const id of companyIds) {
+    const validation = validateObjectId(id);
+    if (!validation.isValid) {
+      throw new ValidationError(`Invalid company ID: ${id}`);
+    }
+  }
+  
+  // Get the first company to check project permissions
+  const firstCompany = await Company.findById(companyIds[0]);
+  if (!firstCompany) {
+    throw new NotFoundError('Company not found');
+  }
+  
+  // Find project
+  const project = await Project.findById(firstCompany.project);
+  if (!project) {
+    throw new NotFoundError('Project not found');
+  }
+  
+  // Check if user has permission to delete companies in this project
+  if (
+    !project.hasPermission(req.user._id, 'manager') && 
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to delete companies in this project');
+  }
+  
+  // Validate that all companies belong to the same project
+  const companies = await Company.find({ _id: { $in: companyIds } });
+  if (companies.length !== companyIds.length) {
+    throw new NotFoundError('Some companies not found');
+  }
+  
+  const projectId = companies[0].project.toString();
+  for (const company of companies) {
+    if (company.project.toString() !== projectId) {
+      throw new ValidationError('All companies must belong to the same project');
+    }
+  }
+  
+  // Perform bulk delete
+  const result = await Company.deleteMany({ _id: { $in: companyIds } });
+  
+  // Create notifications for project members
+  try {
+    await notificationService.createProjectNotification(
+      projectId,
+      {
+        type: 'company_bulk_deleted',
+        title: 'Companies Deleted',
+        message: `${result.deletedCount} companies have been deleted`,
+        priority: 'high',
+        link: `/crm/${projectId}/companies`
+      },
+      [req.user._id] // exclude the deleter from notification
+    );
+  } catch (error) {
+    console.error('Failed to create bulk delete notification:', error);
+  }
+  
+  res.json({
+    success: true,
+    message: `${result.deletedCount} companies deleted successfully`,
+    data: { deletedCount: result.deletedCount }
   });
 });
 
@@ -905,9 +1388,14 @@ export default {
   deleteCompany,
   addCompanyNote,
   getCompanyNotes,
+  updateCompanyNote,
+  deleteCompanyNote,
   addCompanyTag,
   removeCompanyTag,
   addCustomField,
   removeCustomField,
-  getCompanyStats
+  getCompanyStats,
+  getCompanyInsights,
+  bulkUpdateCompanies,
+  bulkDeleteCompanies
 };

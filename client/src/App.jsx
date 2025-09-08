@@ -24,9 +24,12 @@ import NotificationsPage from './pages/NotificationsPage';
 
 // CRM pages
 import CrmDashboard from './pages/crm/CrmDashboard';
-import Contacts from './pages/crm/contacts/Contacts';
 import Companies from './pages/crm/companies/Companies';
 import CompanyDetail from './pages/crm/companies/CompanyDetail';
+import Leads from './pages/crm/leads/Leads';
+import LeadDetail from './pages/crm/leads/LeadDetail';
+import Customers from './pages/crm/customers/Customers';
+import CustomerDetail from './pages/crm/customers/CustomerDetail';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -137,14 +140,7 @@ function App() {
               </ProtectedRoute>
             } 
           />
-          <Route 
-            path="contacts" 
-            element={
-              <ProtectedRoute>
-                <Contacts />
-              </ProtectedRoute>
-            } 
-          />
+
           <Route 
             path="companies" 
             element={
@@ -161,6 +157,39 @@ function App() {
               </ProtectedRoute>
             } 
           />
+          <Route 
+            path="leads" 
+            element={
+              <ProtectedRoute>
+                <Leads />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="leads/:leadId" 
+            element={
+              <ProtectedRoute>
+                <LeadDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="customers" 
+            element={
+              <ProtectedRoute>
+                <Customers />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="customers/:customerId" 
+            element={
+              <ProtectedRoute>
+                <CustomerDetail />
+              </ProtectedRoute>
+            } 
+          />
+
         </Route>
         
         {/* Projects routes */}

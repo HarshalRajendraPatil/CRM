@@ -129,10 +129,6 @@ const CompanySchema = new Schema({
     index: true
   },
   // Relationships with other entities
-  contacts: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Contact'
-  }],
   deals: [{
     type: Schema.Types.ObjectId,
     ref: 'Deal'

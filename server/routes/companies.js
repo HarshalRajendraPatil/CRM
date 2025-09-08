@@ -7,11 +7,16 @@ import {
   deleteCompany,
   addCompanyNote,
   getCompanyNotes,
+  updateCompanyNote,
+  deleteCompanyNote,
   addCompanyTag,
   removeCompanyTag,
   addCustomField,
   removeCustomField,
-  getCompanyStats
+  getCompanyStats,
+  getCompanyInsights,
+  bulkUpdateCompanies,
+  bulkDeleteCompanies
 } from '../controllers/companyController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -24,13 +29,18 @@ router.use(authenticateToken);
 router.post('/', createCompany);
 router.get('/project/:projectId', getProjectCompanies);
 router.get('/project/:projectId/stats', getCompanyStats);
+router.get('/project/:projectId/insights', getCompanyInsights);
 router.get('/:id', getCompanyById);
+router.put('/bulk-update', bulkUpdateCompanies);
 router.put('/:id', updateCompany);
+router.delete('/bulk-delete', bulkDeleteCompanies);
 router.delete('/:id', deleteCompany);
 
 // Company notes routes
 router.post('/:id/notes', addCompanyNote);
 router.get('/:id/notes', getCompanyNotes);
+router.put('/:id/notes/:noteId', updateCompanyNote);
+router.delete('/:id/notes/:noteId', deleteCompanyNote);
 
 // Company tags routes
 router.post('/:id/tags', addCompanyTag);

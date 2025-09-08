@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { getCompanyById, getCompanyNotes, addCompanyNote, deleteCompany, clearCompany } from '../../../store/companySlice';
+import { getCompanyById, getCompanyNotes, addCompanyNote, updateCompanyNote, deleteCompanyNote, deleteCompany, clearCompany } from '../../../store/companySlice';
 import CrmLayout from '../../../layouts/CrmLayout';
 import Button from '../../../components/ui/Button';
 import Alert from '../../../components/ui/Alert';
@@ -17,6 +17,8 @@ const CompanyDetail = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [editingNote, setEditingNote] = useState(null);
+  const [editNoteContent, setEditNoteContent] = useState('');
 
   // Fetch company data on mount
   useEffect(() => {
@@ -40,6 +42,41 @@ const CompanyDetail = () => {
           setNoteContent('');
         });
     }
+  };
+
+  // Handle note editing
+  const handleEditNote = (note) => {
+    setEditingNote(note._id);
+    setEditNoteContent(note.content);
+  };
+
+  // Handle note update
+  const handleUpdateNote = (e) => {
+    e.preventDefault();
+    if (editNoteContent.trim()) {
+      dispatch(updateCompanyNote({ 
+        id: companyId, 
+        noteId: editingNote, 
+        noteData: { content: editNoteContent } 
+      }))
+        .then(() => {
+          setEditingNote(null);
+          setEditNoteContent('');
+        });
+    }
+  };
+
+  // Handle note deletion
+  const handleDeleteNote = (noteId) => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      dispatch(deleteCompanyNote({ id: companyId, noteId }));
+    }
+  };
+
+  // Cancel note editing
+  const cancelEditNote = () => {
+    setEditingNote(null);
+    setEditNoteContent('');
   };
 
   // Handle company deletion
@@ -285,10 +322,10 @@ const CompanyDetail = () => {
                           <dd className="text-sm text-gray-900">{company.annualRevenue}</dd>
                         </div>
                       )}
-                      {company.foundedYear && (
+                      {company.founded && (
                         <div className="py-3 flex justify-between">
                           <dt className="text-sm font-medium text-gray-500">Founded</dt>
-                          <dd className="text-sm text-gray-900">{company.foundedYear}</dd>
+                          <dd className="text-sm text-gray-900">{company.founded}</dd>
                         </div>
                       )}
                       <div className="py-3 flex justify-between">
@@ -347,6 +384,34 @@ const CompanyDetail = () => {
                       <h3 className="text-lg font-medium text-gray-900 mb-4">Description</h3>
                       <div className="bg-gray-50 rounded-lg p-4">
                         <p className="text-sm text-gray-900 whitespace-pre-wrap">{company.description}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Social Media */}
+                  {company.socialMedia && company.socialMedia.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-lg font-medium text-gray-900 mb-4">Social Media</h3>
+                      <div className="bg-gray-50 rounded-lg p-4">
+                        <div className="space-y-3">
+                          {company.socialMedia.map((social, index) => (
+                            <div key={index} className="flex items-center justify-between">
+                              <div className="flex items-center">
+                                <span className="text-sm font-medium text-gray-500 capitalize mr-2">
+                                  {social.platform}:
+                                </span>
+                                <a 
+                                  href={social.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-sm text-indigo-600 hover:text-indigo-500"
+                                >
+                                  {social.handle ? `@${social.handle}` : social.url}
+                                </a>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -414,16 +479,63 @@ const CompanyDetail = () => {
                       <div key={note._id} className="bg-gray-50 rounded-lg p-4">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
-                            <p className="text-sm text-gray-900 whitespace-pre-wrap">{note.content}</p>
-                            <div className="mt-2 flex items-center text-xs text-gray-500">
-                              <span>{formatDate(note.createdAt)}</span>
-                              {note.createdBy && (
-                                <>
-                                  <span className="mx-1">•</span>
-                                  <span>{note.createdBy.name}</span>
-                                </>
-                              )}
-                            </div>
+                            {editingNote === note._id ? (
+                              <form onSubmit={handleUpdateNote} className="space-y-3">
+                                <textarea
+                                  value={editNoteContent}
+                                  onChange={(e) => setEditNoteContent(e.target.value)}
+                                  className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                  rows={3}
+                                  required
+                                />
+                                <div className="flex space-x-2">
+                                  <Button
+                                    type="submit"
+                                    variant="primary"
+                                    size="sm"
+                                  >
+                                    Save
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={cancelEditNote}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </form>
+                            ) : (
+                              <>
+                                <p className="text-sm text-gray-900 whitespace-pre-wrap">{note.content}</p>
+                                <div className="mt-2 flex items-center justify-between">
+                                  <div className="flex items-center text-xs text-gray-500">
+                                    <span>{formatDate(note.createdAt)}</span>
+                                    {note.createdBy && (
+                                      <>
+                                        <span className="mx-1">•</span>
+                                        <span>{note.createdBy.name}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                  <div className="flex space-x-2">
+                                    <button
+                                      onClick={() => handleEditNote(note)}
+                                      className="text-xs text-indigo-600 hover:text-indigo-800"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteNote(note._id)}
+                                      className="text-xs text-red-600 hover:text-red-800"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                </div>
+                              </>
+                            )}
                           </div>
                         </div>
                       </div>

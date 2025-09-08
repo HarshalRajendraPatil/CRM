@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 
-const CompanyListItem = ({ company, projectId }) => {
+const CompanyListItem = ({ company, projectId, isSelected, onSelect }) => {
   // Get status color based on company status
   const getStatusColor = (status) => {
     switch (status) {
@@ -28,6 +28,14 @@ const CompanyListItem = ({ company, projectId }) => {
 
   return (
     <tr>
+      <td className="px-6 py-4 whitespace-nowrap">
+        <input
+          type="checkbox"
+          className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+          checked={isSelected}
+          onChange={() => onSelect(company._id)}
+        />
+      </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="flex items-center">
           <div className="flex-shrink-0 h-10 w-10">

@@ -127,6 +127,65 @@ const getCompanyStats = async (projectId) => {
   return response.data;
 };
 
+/**
+ * Get company insights for a project
+ * @param {string} projectId - Project ID
+ * @returns {Promise} - Promise with company insights
+ */
+const getCompanyInsights = async (projectId) => {
+  const response = await axiosInstance.get(`/companies/project/${projectId}/insights`);
+  return response.data;
+};
+
+/**
+ * Update a company note
+ * @param {string} id - Company ID
+ * @param {string} noteId - Note ID
+ * @param {Object} noteData - Updated note data with content
+ * @returns {Promise} - Promise with updated note data
+ */
+const updateCompanyNote = async (id, noteId, noteData) => {
+  const response = await axiosInstance.put(`/companies/${id}/notes/${noteId}`, noteData);
+  return response.data;
+};
+
+/**
+ * Delete a company note
+ * @param {string} id - Company ID
+ * @param {string} noteId - Note ID
+ * @returns {Promise} - Promise with deletion result
+ */
+const deleteCompanyNote = async (id, noteId) => {
+  const response = await axiosInstance.delete(`/companies/${id}/notes/${noteId}`);
+  return response.data;
+};
+
+/**
+ * Bulk update companies
+ * @param {Array} companyIds - Array of company IDs
+ * @param {Object} updates - Updates to apply
+ * @returns {Promise} - Promise with bulk update result
+ */
+const bulkUpdateCompanies = async (companyIds, updates) => {
+  const response = await axiosInstance.put('/companies/bulk-update', {
+    companyIds,
+    updates
+  });
+  return response.data;
+};
+
+/**
+ * Bulk delete companies
+ * @param {Array} companyIds - Array of company IDs
+ * @returns {Promise} - Promise with bulk delete result
+ */
+const bulkDeleteCompanies = async (companyIds) => {
+  const response = await axiosInstance.delete('/companies/bulk-delete', {
+    data: { companyIds }
+  });
+  return response.data;
+};
+
 export default {
   getProjectCompanies,
   getCompanyById,
@@ -135,9 +194,14 @@ export default {
   deleteCompany,
   addCompanyNote,
   getCompanyNotes,
+  updateCompanyNote,
+  deleteCompanyNote,
   addCompanyTag,
   removeCompanyTag,
   addCustomField,
   removeCustomField,
-  getCompanyStats
+  getCompanyStats,
+  getCompanyInsights,
+  bulkUpdateCompanies,
+  bulkDeleteCompanies
 };

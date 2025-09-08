@@ -11,10 +11,8 @@ export const createAndEmitNotification = async (options) => {
     project,
     pipeline,
     stage,
-    deal,
     task,
     company,
-    contact,
     sender,
     type,
     title,
@@ -31,10 +29,8 @@ export const createAndEmitNotification = async (options) => {
       project,
       pipeline,
       stage,
-      deal,
       task,
       company,
-      contact,
       sender,
       type,
       title,
@@ -373,7 +369,8 @@ export const createStageNotification = async (eventType, stage, pipelineId, proj
 };
 
 // Create notification for deal events
-export const createDealNotification = async (eventType, deal, projectId, actorId, additionalData = {}) => {
+// deals module removed
+/* export const createDealNotification = async (eventType, deal, projectId, actorId, additionalData = {}) => {
   try {
     const actor = await User.findById(actorId);
     if (!actor) {
@@ -458,7 +455,7 @@ export const createDealNotification = async (eventType, deal, projectId, actorId
     console.error(`Failed to create ${eventType} notification:`, error);
     throw error;
   }
-};
+}; */
 
 // Create notification for task events
 export const createTaskNotification = async (eventType, task, projectId, actorId, additionalData = {}) => {
@@ -743,6 +740,89 @@ export const createSystemAlertNotification = async (recipientId, title, message,
   }
 };
 
+// Create notification for customer events
+export const createCustomerNotification = async (eventType, customer, projectId, actorId, excludeUserIds = []) => {
+  try {
+    const actor = await User.findById(actorId);
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    let title, message, priority;
+
+    switch (eventType) {
+      case 'customer_created':
+        title = `New Customer in ${project.name}`;
+        message = `${actor.name} added a new customer: ${customer.fullName}`;
+        priority = 'medium';
+        break;
+      case 'customer_updated':
+        title = `Customer Updated in ${project.name}`;
+        message = `${actor.name} updated the customer: ${customer.fullName}`;
+        priority = 'low';
+        break;
+      case 'customer_archived':
+        title = `Customer Archived in ${project.name}`;
+        message = `${actor.name} archived the customer: ${customer.fullName}`;
+        priority = 'medium';
+        break;
+      case 'customer_assigned':
+        title = `Customer Assigned in ${project.name}`;
+        message = `${actor.name} assigned customer: ${customer.fullName}`;
+        priority = 'high';
+        break;
+      case 'customer_note_added':
+        title = `Note Added to Customer in ${project.name}`;
+        message = `${actor.name} added a note to customer: ${customer.fullName}`;
+        priority = 'low';
+        break;
+      case 'customer_interaction_added':
+        title = `Interaction Added to Customer in ${project.name}`;
+        message = `${actor.name} added an interaction with customer: ${customer.fullName}`;
+        priority = 'low';
+        break;
+      case 'lead_converted':
+        title = `Lead Converted to Customer in ${project.name}`;
+        message = `${actor.name} converted lead to customer: ${customer.fullName}`;
+        priority = 'high';
+        break;
+      default:
+        title = `Customer Activity in ${project.name}`;
+        message = `${actor.name} performed an action on customer: ${customer.fullName}`;
+        priority = 'low';
+    }
+
+    // Create notifications for all project members except excluded ones
+    const notifications = await createProjectNotification(
+      projectId,
+      {
+        sender: actorId,
+        customer: customer._id,
+        type: eventType,
+        title,
+        message,
+        link: `/projects/${projectId}/customers/${customer._id}`,
+        priority,
+        metadata: {
+          customerName: customer.fullName,
+          projectName: project.name
+        }
+      },
+      excludeUserIds
+    );
+
+    return notifications;
+  } catch (error) {
+    console.error(`Failed to create ${eventType} notification:`, error);
+    throw error;
+  }
+};
+
 // Create notification for company events
 export const createCompanyNotification = async (eventType, company, projectId, actorId, excludeUserIds = []) => {
   try {
@@ -811,73 +891,7 @@ export const createCompanyNotification = async (eventType, company, projectId, a
   }
 };
 
-// Create notification for contact events
-export const createContactNotification = async (eventType, contact, projectId, actorId, excludeUserIds = []) => {
-  try {
-    const actor = await User.findById(actorId);
-    if (!actor) {
-      throw new Error('Actor not found');
-    }
 
-    const project = await Project.findById(projectId);
-    if (!project) {
-      throw new Error('Project not found');
-    }
-
-    let title, message, priority;
-
-    switch (eventType) {
-      case 'contact_created':
-        title = `New Contact in ${project.name}`;
-        message = `${actor.name} added a new contact: ${contact.firstName} ${contact.lastName}`;
-        priority = 'medium';
-        break;
-      case 'contact_updated':
-        title = `Contact Updated in ${project.name}`;
-        message = `${actor.name} updated the contact: ${contact.firstName} ${contact.lastName}`;
-        priority = 'low';
-        break;
-      case 'contact_deleted':
-        title = `Contact Deleted in ${project.name}`;
-        message = `${actor.name} deleted the contact: ${contact.firstName} ${contact.lastName}`;
-        priority = 'medium';
-        break;
-      case 'contact_note_added':
-        title = `Note Added to Contact in ${project.name}`;
-        message = `${actor.name} added a note to contact: ${contact.firstName} ${contact.lastName}`;
-        priority = 'low';
-        break;
-      default:
-        title = `Contact Activity in ${project.name}`;
-        message = `${actor.name} performed an action on contact: ${contact.firstName} ${contact.lastName}`;
-        priority = 'low';
-    }
-
-    // Create notifications for all project members except excluded ones
-    const notifications = await createProjectNotification(
-      projectId,
-      {
-        sender: actorId,
-        contact: contact._id,
-        type: eventType,
-        title,
-        message,
-        link: `/crm/${projectId}/contacts/${contact._id}`,
-        priority,
-        metadata: {
-          contactName: `${contact.firstName} ${contact.lastName}`,
-          projectName: project.name
-        }
-      },
-      excludeUserIds
-    );
-
-    return notifications;
-  } catch (error) {
-    console.error(`Failed to create ${eventType} notification:`, error);
-    throw error;
-  }
-};
 
 // Helper function to get entity info
 const getEntityInfo = async (entityType, entityId) => {
@@ -885,10 +899,7 @@ const getEntityInfo = async (entityType, entityId) => {
     let entity;
     
     switch (entityType) {
-      case 'deal':
-        const Deal = mongoose.model('Deal');
-        entity = await Deal.findById(entityId).select('name');
-        break;
+      // case 'deal': removed
       case 'task':
         const Task = mongoose.model('Task');
         entity = await Task.findById(entityId).select('title');
@@ -898,11 +909,7 @@ const getEntityInfo = async (entityType, entityId) => {
         const Company = mongoose.model('Company');
         entity = await Company.findById(entityId).select('name');
         break;
-      case 'contact':
-        const Contact = mongoose.model('Contact');
-        entity = await Contact.findById(entityId).select('firstName lastName');
-        if (entity) entity.name = `${entity.firstName} ${entity.lastName}`;
-        break;
+
       case 'pipeline':
         const Pipeline = mongoose.model('Pipeline');
         entity = await Pipeline.findById(entityId).select('name');
@@ -931,10 +938,11 @@ export default {
   createMemberRemovalNotification,
   createPipelineNotification,
   createStageNotification,
-  createDealNotification,
+  // createDealNotification, // removed
   createTaskNotification,
   createCommentNotification,
   createSystemAlertNotification,
   createCompanyNotification,
-  createContactNotification
+  createCustomerNotification,
+  
 };
