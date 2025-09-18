@@ -30,6 +30,10 @@ import Leads from './pages/crm/leads/Leads';
 import LeadDetail from './pages/crm/leads/LeadDetail';
 import Customers from './pages/crm/customers/Customers';
 import CustomerDetail from './pages/crm/customers/CustomerDetail';
+import Deals from './pages/crm/deals/Deals';
+import DealDetail from './pages/crm/deals/DealDetail';
+import Tasks from './pages/crm/tasks/Tasks';
+import TaskDetail from './pages/crm/tasks/TaskDetail';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -186,6 +190,38 @@ function App() {
             element={
               <ProtectedRoute>
                 <CustomerDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="deals" 
+            element={
+              <ProtectedRoute>
+                <Deals />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="deals/:dealId" 
+            element={
+              <ProtectedRoute>
+                <DealDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="tasks" 
+            element={
+              <ProtectedRoute>
+                <Tasks />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="tasks/:taskId" 
+            element={
+              <ProtectedRoute>
+                <TaskDetail />
               </ProtectedRoute>
             } 
           />

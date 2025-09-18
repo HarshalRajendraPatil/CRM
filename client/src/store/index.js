@@ -7,6 +7,8 @@ import notificationReducer from './notificationSlice';
 import companyReducer from './companySlice';
 import leadReducer from './leadSlice';
 import customerReducer from './customerSlice';
+import dealReducer from './dealSlice';
+import taskReducer from './taskSlice';
 
 // Configure store with reducers
 const store = configureStore({
@@ -19,6 +21,8 @@ const store = configureStore({
     companies: companyReducer,
     leads: leadReducer,
     customers: customerReducer,
+    deals: dealReducer,
+    tasks: taskReducer,
   },
   devTools: import.meta.env.DEV, // Enable Redux DevTools only in development
 });

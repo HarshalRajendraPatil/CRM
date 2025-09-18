@@ -11,6 +11,8 @@ import notificationRoutes from './routes/notifications.js';
 import companyRoutes from './routes/companies.js';
 import leadRoutes from './routes/leads.js';
 import customerRoutes from './routes/customers.js';
+import dealRoutes from './routes/deals.js';
+import taskRoutes from './routes/tasks.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
@@ -76,7 +78,8 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/companies', companyRoutes);
 app.use('/api/leads', leadRoutes);
 app.use('/api/customers', customerRoutes);
-
+app.use('/api/deals', dealRoutes);
+app.use('/api/tasks', taskRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

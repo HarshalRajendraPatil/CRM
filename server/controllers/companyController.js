@@ -172,7 +172,8 @@ export const getCompanyById = asyncHandler(async (req, res) => {
     .populate('updatedBy', 'name email profileImage')
     .populate('lastActivityBy', 'name email profileImage')
     .populate('notes.createdBy', 'name email profileImage')
-    .populate('project', 'name description');
+    .populate('project', 'name description')
+    .populate('deals', 'name value currency status priority probability expectedCloseDate createdAt')
   
   if (!company) {
     throw new NotFoundError('Company not found');
@@ -1380,6 +1381,79 @@ export const bulkDeleteCompanies = asyncHandler(async (req, res) => {
   });
 });
 
+// ==================== DEAL-RELATED ENDPOINTS ====================
+
+// Get company deals
+export const getCompanyDeals = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { status, stage, limit = 20, skip = 0 } = req.query;
+  
+  // Validate company ID
+  const validation = validateObjectId(id);
+  if (!validation.isValid) {
+    throw new ValidationError(validation.message);
+  }
+  
+  // Find company
+  const company = await Company.findById(id);
+  if (!company) {
+    throw new NotFoundError('Company not found');
+  }
+  
+  // Build filter - exclude archived deals
+  const filter = { 
+    company: id,
+    isArchived: { $ne: true }
+  };
+  if (status) filter.status = { $in: status.split(',') };
+  if (stage) filter.stage = { $in: stage.split(',') };
+
+  const Deal = mongoose.model('Deal');
+  const deals = await Deal.find(filter)
+    .populate('assignedTo', 'name email profileImage')
+    .populate('customer', 'firstName lastName email')
+    .sort({ createdAt: -1 })
+    .limit(parseInt(limit))
+    .skip(parseInt(skip));
+
+  const total = await Deal.countDocuments(filter);
+
+  res.json({
+    success: true,
+    data: deals,
+    pagination: {
+      total,
+      limit: parseInt(limit),
+      skip: parseInt(skip),
+      hasMore: parseInt(skip) + deals.length < total
+    }
+  });
+});
+
+// Get company deal statistics
+export const getCompanyDealStats = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  // Validate company ID
+  const validation = validateObjectId(id);
+  if (!validation.isValid) {
+    throw new ValidationError(validation.message);
+  }
+  
+  // Find company
+  const company = await Company.findById(id);
+  if (!company) {
+    throw new NotFoundError('Company not found');
+  }
+
+  const stats = await company.getDealStats();
+
+  res.json({
+    success: true,
+    data: stats
+  });
+});
+
 export default {
   createCompany,
   getProjectCompanies,
@@ -1397,5 +1471,7 @@ export default {
   getCompanyStats,
   getCompanyInsights,
   bulkUpdateCompanies,
-  bulkDeleteCompanies
+  bulkDeleteCompanies,
+  getCompanyDeals,
+  getCompanyDealStats
 };

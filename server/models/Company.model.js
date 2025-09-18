@@ -173,7 +173,11 @@ const CompanySchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  }
+  },
+  tasks: [{
+    type: Schema.Types.ObjectId,
+    ref: 'Task'
+  }]
 }, {
   timestamps: true
 });
@@ -281,6 +285,101 @@ CompanySchema.methods.removeCustomField = async function(key, userId) {
   this.customFields.delete(key);
   await this.updateActivity(userId, 'custom_field_removed');
   return this;
+};
+
+// Deal-related methods
+CompanySchema.methods.getDeals = function() {
+  return mongoose.model('Deal').find({ company: this._id });
+};
+
+CompanySchema.methods.getActiveDeals = function() {
+  return mongoose.model('Deal').find({ 
+    company: this._id, 
+    status: 'open' 
+  });
+};
+
+CompanySchema.methods.getWonDeals = function() {
+  return mongoose.model('Deal').find({ 
+    company: this._id, 
+    status: 'won' 
+  });
+};
+
+CompanySchema.methods.getTotalDealValue = async function() {
+  const deals = await mongoose.model('Deal').find({ company: this._id });
+  return deals.reduce((total, deal) => total + deal.value, 0);
+};
+
+CompanySchema.methods.getWonDealValue = async function() {
+  const deals = await mongoose.model('Deal').find({ 
+    company: this._id, 
+    status: 'won' 
+  });
+  return deals.reduce((total, deal) => total + deal.value, 0);
+};
+
+CompanySchema.methods.getDealCount = async function() {
+  return mongoose.model('Deal').countDocuments({ company: this._id });
+};
+
+CompanySchema.methods.getActiveDealCount = async function() {
+  return mongoose.model('Deal').countDocuments({ 
+    company: this._id, 
+    status: 'open' 
+  });
+};
+
+CompanySchema.methods.getWonDealCount = async function() {
+  return mongoose.model('Deal').countDocuments({ 
+    company: this._id, 
+    status: 'won' 
+  });
+};
+
+CompanySchema.methods.getConversionRate = async function() {
+  const totalDeals = await this.getDealCount();
+  const wonDeals = await this.getWonDealCount();
+  return totalDeals > 0 ? (wonDeals / totalDeals) * 100 : 0;
+};
+
+CompanySchema.methods.getDealStats = async function() {
+  const [
+    totalDeals,
+    activeDeals,
+    wonDeals,
+    lostDeals,
+    totalValue,
+    wonValue,
+    avgDealSize
+  ] = await Promise.all([
+    this.getDealCount(),
+    this.getActiveDealCount(),
+    this.getWonDealCount(),
+    mongoose.model('Deal').countDocuments({ 
+      company: this._id, 
+      status: 'lost' 
+    }),
+    this.getTotalDealValue(),
+    this.getWonDealValue(),
+    mongoose.model('Deal').aggregate([
+      { $match: { company: this._id } },
+      { $group: { _id: null, avg: { $avg: '$value' } } }
+    ])
+  ]);
+
+  const conversionRate = (wonDeals + lostDeals) > 0 ? (wonDeals / (wonDeals + lostDeals)) * 100 : 0;
+
+  return {
+    totalDeals,
+    activeDeals,
+    wonDeals,
+    lostDeals,
+    totalValue,
+    wonValue,
+    avgDealSize: avgDealSize[0]?.avg || 0,
+    conversionRate
+  };
 };
 
 // Pre-save middleware

@@ -21,7 +21,9 @@ import {
   bulkUpdateCustomerStatuses,
   deleteCustomer,
   bulkDeleteCustomers,
-  exportCustomers
+  exportCustomers,
+  getCustomerDeals,
+  getCustomerDealStats
 } from '../controllers/customerController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -65,5 +67,9 @@ router.delete('/bulk-delete', bulkDeleteCustomers);
 
 // Export functionality
 router.get('/project/:projectId/export', exportCustomers);
+
+// Deal-related endpoints
+router.get('/:id/deals', getCustomerDeals);
+router.get('/:id/deals/stats', getCustomerDealStats);
 
 export default router;

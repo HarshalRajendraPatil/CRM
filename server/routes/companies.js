@@ -1,9 +1,9 @@
 import express from 'express';
-import { 
-  createCompany, 
-  getProjectCompanies, 
-  getCompanyById, 
-  updateCompany, 
+import {
+  createCompany,
+  getProjectCompanies,
+  getCompanyById,
+  updateCompany,
   deleteCompany,
   addCompanyNote,
   getCompanyNotes,
@@ -16,7 +16,9 @@ import {
   getCompanyStats,
   getCompanyInsights,
   bulkUpdateCompanies,
-  bulkDeleteCompanies
+  bulkDeleteCompanies,
+  getCompanyDeals,
+  getCompanyDealStats
 } from '../controllers/companyController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -49,5 +51,9 @@ router.delete('/:id/tags/:tag', removeCompanyTag);
 // Company custom fields routes
 router.post('/:id/custom-fields', addCustomField);
 router.delete('/:id/custom-fields/:key', removeCustomField);
+
+// Deal-related endpoints
+router.get('/:id/deals', getCompanyDeals);
+router.get('/:id/deals/stats', getCompanyDealStats);
 
 export default router;

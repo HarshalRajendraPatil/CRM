@@ -50,6 +50,8 @@ const CustomerDetail = () => {
     outcome: 'positive'
   });
 
+  console.log(currentCustomer);
+
   const [quickEditData, setQuickEditData] = useState({
     status: '',
     stage: '',
@@ -271,7 +273,7 @@ const CustomerDetail = () => {
   const tabs = [
     { id: 'overview', name: 'Overview', icon: '👤' },
     { id: 'company', name: 'Company', icon: '🏢' },
-
+    { id: 'deals', name: 'Deals', icon: '💰' },
     { id: 'communication', name: 'Communication', icon: '📞' },
     { id: 'notes', name: 'Notes', icon: '📝' },
     { id: 'interactions', name: 'Interactions', icon: '📞' },
@@ -909,6 +911,136 @@ const CustomerDetail = () => {
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* Deals Tab */}
+            {activeTab === 'deals' && (
+              <div className="space-y-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Customer Deals</h3>
+                    <Button
+                      onClick={() => navigate(`/crm/${projectId}/deals?customer=${customerId}`)}
+                      leftIcon={
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4"></path>
+                        </svg>
+                      }
+                    >
+                      Create Deal
+                    </Button>
+                  </div>
+
+                  {/* Deal Stats */}
+                  {/* {dealStats && (
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-blue-600">
+                          {dealStats.totalDeals || 0}
+                        </div>
+                        <div className="text-sm text-blue-800">Total Deals</div>
+                      </div>
+                      <div className="bg-green-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-green-600">
+                          {formatCurrency(dealStats.totalValue || 0)}
+                        </div>
+                        <div className="text-sm text-green-800">Total Value</div>
+                      </div>
+                      <div className="bg-emerald-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-emerald-600">
+                          {dealStats.wonDeals || 0}
+                        </div>
+                        <div className="text-sm text-emerald-800">Won Deals</div>
+                      </div>
+                      <div className="bg-orange-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-orange-600">
+                          {dealStats.activeDeals || 0}
+                        </div>
+                        <div className="text-sm text-orange-800">Active Deals</div>
+                      </div>
+                    </div>
+                  )} */}
+
+                  {/* Deals List */}
+                  {currentCustomer?.deals && currentCustomer?.deals.length > 0 ? (
+                    <div className="space-y-3">
+                      {currentCustomer.deals.map((deal) => (
+                        <div key={deal._id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <h4 className="text-sm font-medium text-gray-900">
+                                  <button
+                                    onClick={() => navigate(`/crm/${projectId}/deals/${deal._id}`)}
+                                    className="text-indigo-600 hover:text-indigo-800"
+                                  >
+                                    {deal.name}
+                                  </button>
+                                </h4>
+                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  deal.status === 'closed-won' ? 'bg-green-100 text-green-800' :
+                                  deal.status === 'closed-lost' ? 'bg-red-100 text-red-800' :
+                                  'bg-blue-100 text-blue-800'
+                                }`}>
+                                  {deal.status?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                </span>
+                                {deal.priority && (
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                    deal.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                                    deal.priority === 'urgent' ? 'bg-red-100 text-red-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {deal.priority}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                                <span className="font-medium text-gray-900">
+                                  {formatCurrency(deal.value, deal.currency)}
+                                </span>
+                                {deal.stage && (
+                                  <span>Stage: {deal.stage.name}</span>
+                                )}
+                                {deal.expectedCloseDate && (
+                                  <span>Expected Close Date: {formatDate(deal.expectedCloseDate)}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <button
+                                onClick={() => navigate(`/crm/${projectId}/deals/${deal._id}`)}
+                                className="text-gray-400 hover:text-gray-600"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <h3 className="mt-2 text-sm font-medium text-gray-900">No deals yet</h3>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Create a deal to start tracking sales opportunities for this customer.
+                      </p>
+                      <div className="mt-6">
+                        <Button
+                          onClick={() => navigate(`/crm/${projectId}/deals?customer=${customerId}`)}
+                        >
+                          Create First Deal
+                        </Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

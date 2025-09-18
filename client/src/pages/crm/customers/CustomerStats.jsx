@@ -125,9 +125,9 @@ const CustomerStats = ({ projectId }) => {
             isLoading={isStatsLoading}
           />
           <StatCard
-            title="Total Deal Value"
-            value={stats?.totals?.totalDealValue ? `$${stats.totals.totalDealValue.toLocaleString()}` : '$0'}
-            subtitle="All customer deals"
+            title="Total Customers"
+            value={stats?.totals?.totalCustomers || 0}
+            subtitle="All customers"
             icon={
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
@@ -220,12 +220,12 @@ const CustomerStats = ({ projectId }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           <ChartContainer 
-            title="Customer Deal Value Trend" 
-            isEmpty={!insights?.dealValueTrend?.length}
-            emptyMessage="No deal value data available"
+            title="Customer Creation Trend" 
+            isEmpty={!insights?.creationTrend?.length}
+            emptyMessage="No creation trend data available"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={insights?.dealValueTrend || []}>
+              <BarChart data={insights?.creationTrend || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="month" 
@@ -239,7 +239,7 @@ const CustomerStats = ({ projectId }) => {
                   axisLine={false}
                 />
                 <Tooltip 
-                  formatter={(value) => [`$${value.toLocaleString()}`, 'Total Value']}
+                  formatter={(value) => [value, 'Customers']}
                   contentStyle={{ 
                     backgroundColor: 'white', 
                     border: '1px solid #e5e7eb',
@@ -248,7 +248,7 @@ const CustomerStats = ({ projectId }) => {
                   }}
                 />
                 <Bar 
-                  dataKey="totalValue" 
+                  dataKey="count" 
                   fill="#10B981"
                   radius={[4, 4, 0, 0]}
                 />
@@ -322,7 +322,6 @@ const CustomerStats = ({ projectId }) => {
                   <tr className="border-b border-gray-200">
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">Team Member</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">Total Customers</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Total Deal Value</th>
                     <th className="text-left py-3 px-4 font-semibold text-gray-900">Avg Score</th>
                   </tr>
                 </thead>
@@ -339,8 +338,7 @@ const CustomerStats = ({ projectId }) => {
                           <span className="font-medium text-gray-900">{perf.owner?.name || 'Unknown'}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-900">{perf.totalCustomers.toLocaleString()}</td>
-                      <td className="py-3 px-4 text-gray-900">${(perf.totalDealValue || 0).toLocaleString()}</td>
+                      <td className="py-3 px-4 text-gray-900">{perf.totalCustomers || 0}</td>
                       <td className="py-3 px-4">
                         <span className={`px-3 py-1 rounded-full text-sm font-medium ${
                           (perf.averageScore || 0) >= 80 ? 'bg-green-100 text-green-800' :
@@ -424,7 +422,7 @@ const CustomerStats = ({ projectId }) => {
             {!hasLifetimeValue ? (
               <EmptyState 
                 title="No LTV Data" 
-                description="Customer lifetime value data will appear here once customers have deal values"
+                description="Customer lifetime value data will appear here once customers have activity data"
                 icon={
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
@@ -472,12 +470,12 @@ const CustomerStats = ({ projectId }) => {
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Deal Value</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Customer Score</h3>
             <div className="text-center">
               <div className="text-4xl font-bold text-emerald-600 mb-2">
-                ${(stats?.totals?.averageDealValue || 0).toLocaleString()}
+                {(stats?.totals?.averageScore || 0).toFixed(1)}
               </div>
-              <p className="text-sm text-gray-500">Per customer</p>
+              <p className="text-sm text-gray-500">Average score</p>
             </div>
           </div>
         </div>

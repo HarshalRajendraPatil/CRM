@@ -156,7 +156,10 @@ const customerSchema = new mongoose.Schema({
     default: 'active',
     index: true
   },
-  
+  deals: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Deal'
+  }],
 
   
   // Classification
@@ -271,7 +274,11 @@ const customerSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
-  }
+  },
+  tasks: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Task'
+  }]
 }, {
   timestamps: true
 });
@@ -296,6 +303,62 @@ customerSchema.index({ priority: 1, project: 1 });
 customerSchema.index({ lastActivityDate: 1, project: 1 });
 
 customerSchema.index({ score: 1, project: 1 });
+
+// Deal-related methods
+customerSchema.methods.getDeals = function() {
+  return mongoose.model('Deal').find({ customer: this._id });
+};
+
+customerSchema.methods.getActiveDeals = function() {
+  return mongoose.model('Deal').find({ 
+    customer: this._id, 
+    status: 'open' 
+  });
+};
+
+customerSchema.methods.getWonDeals = function() {
+  return mongoose.model('Deal').find({ 
+    customer: this._id, 
+    status: 'closed-won' 
+  });
+};
+
+customerSchema.methods.getTotalDealValue = async function() {
+  const deals = await mongoose.model('Deal').find({ customer: this._id });
+  return deals.reduce((total, deal) => total + deal.value, 0);
+};
+
+customerSchema.methods.getWonDealValue = async function() {
+  const deals = await mongoose.model('Deal').find({ 
+    customer: this._id, 
+    status: 'closed-won' 
+  });
+  return deals.reduce((total, deal) => total + deal.value, 0);
+};
+
+customerSchema.methods.getDealCount = async function() {
+  return mongoose.model('Deal').countDocuments({ customer: this._id });
+};
+
+customerSchema.methods.getActiveDealCount = async function() {
+  return mongoose.model('Deal').countDocuments({ 
+    customer: this._id, 
+    status: 'open' 
+  });
+};
+
+customerSchema.methods.getWonDealCount = async function() {
+  return mongoose.model('Deal').countDocuments({ 
+    customer: this._id, 
+    status: 'closed-won' 
+  });
+};
+
+customerSchema.methods.getConversionRate = async function() {
+  const totalDeals = await this.getDealCount();
+  const wonDeals = await this.getWonDealCount();
+  return totalDeals > 0 ? (wonDeals / totalDeals) * 100 : 0;
+};
 
 // Static methods
 customerSchema.statics.findByProject = function(projectId, options = {}) {

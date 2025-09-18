@@ -4,6 +4,7 @@ import User from '../models/User.model.js';
 import Notification from '../models/Notification.model.js';
 import { sendEmail } from '../utils/emailService.js';
 import notificationService from '../utils/notificationService.js';
+import mongoose from 'mongoose';
 
 // Get all customers for a project with advanced filtering
 export const getProjectCustomers = async (req, res) => {
@@ -77,7 +78,8 @@ export const getCustomer = async (req, res) => {
       .populate('company', 'name industry website')
       .populate('convertedFromLead', 'name email')
       .populate('lastActivityBy', 'name email profileImage')
-      .populate('archivedBy', 'name email profileImage');
+      .populate('archivedBy', 'name email profileImage')
+      .populate('deals', 'name value currency status priority probability expectedCloseDate createdAt');
 
     if (!customer) {
       return res.status(404).json({
@@ -503,7 +505,6 @@ export const getCustomerStats = async (req, res) => {
       customersThisMonth,
       customersByStage,
       customersBySource,
-      dealValueStats,
       topCustomers,
       recentActivity
     ] = await Promise.all([
@@ -525,17 +526,6 @@ export const getCustomerStats = async (req, res) => {
         { $sort: { count: -1 } }
       ]),
       Customer.aggregate([
-        { $match: { project: projectId, isArchived: false, 'deal.value': { $exists: true, $gt: 0 } } },
-        {
-          $group: {
-            _id: null,
-            totalDealValue: { $sum: '$deal.value' },
-            averageDealValue: { $avg: '$deal.value' },
-            maxDealValue: { $max: '$deal.value' },
-            minDealValue: { $min: '$deal.value' },
-            count: { $sum: 1 }
-          }
-        }
       ]),
       Customer.find({ project: projectId, isArchived: false })
         .sort({ score: -1 })
@@ -548,24 +538,12 @@ export const getCustomerStats = async (req, res) => {
         .populate('lastActivityBy', 'name email profileImage')
     ]);
 
-    const dealStats = dealValueStats[0] || {
-      totalDealValue: 0,
-      averageDealValue: 0,
-      maxDealValue: 0,
-      minDealValue: 0,
-      count: 0
-    };
 
     const stats = {
       totals: {
         totalCustomers,
         activeCustomers,
         customersThisMonth,
-        totalDealValue: dealStats.totalDealValue,
-        averageDealValue: dealStats.averageDealValue,
-        maxDealValue: dealStats.maxDealValue,
-        minDealValue: dealStats.minDealValue,
-        customersWithDeals: dealStats.count
       },
       stageDistribution: customersByStage,
       sourceDistribution: customersBySource,
@@ -618,7 +596,6 @@ export const getCustomerInsights = async (req, res) => {
       churnRate,
       topTags,
       interactionAnalysis,
-      dealValueTrend,
       customerLifetimeValue
     ] = await Promise.all([
       // Daily creation trend
@@ -653,7 +630,6 @@ export const getCustomerInsights = async (req, res) => {
             _id: '$owner',
             totalCustomers: { $sum: 1 },
             averageScore: { $avg: '$score' },
-            totalDealValue: { $sum: '$deal.value' }
           }
         },
         { $sort: { totalCustomers: -1 } }
@@ -692,32 +668,6 @@ export const getCustomerInsights = async (req, res) => {
         { $sort: { count: -1 } }
       ]),
 
-      // Deal value trend by month
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false, 'deal.value': { $exists: true, $gt: 0 } } },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
-            totalValue: { $sum: '$deal.value' },
-            count: { $sum: 1 }
-          }
-        },
-        { $sort: { _id: 1 } }
-      ]),
-
-      // Customer lifetime value analysis
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false, 'deal.value': { $exists: true, $gt: 0 } } },
-        {
-          $group: {
-            _id: null,
-            avgLifetimeValue: { $avg: '$deal.value' },
-            maxLifetimeValue: { $max: '$deal.value' },
-            minLifetimeValue: { $min: '$deal.value' },
-            totalLifetimeValue: { $sum: '$deal.value' }
-          }
-        }
-      ])
     ]);
 
     // Calculate churn rate
@@ -752,18 +702,7 @@ export const getCustomerInsights = async (req, res) => {
         tag: tag._id,
         count: tag.count
       })),
-      interactionAnalysis,
-      dealValueTrend: dealValueTrend.map(item => ({
-        month: item._id,
-        totalValue: item.totalValue,
-        count: item.count
-      })),
-      customerLifetimeValue: {
-        avgLifetimeValue: ltvData.avgLifetimeValue,
-        maxLifetimeValue: ltvData.maxLifetimeValue,
-        minLifetimeValue: ltvData.minLifetimeValue,
-        totalLifetimeValue: ltvData.totalLifetimeValue
-      }
+      interactionAnalysis
     };
 
     res.json({
@@ -1187,6 +1126,96 @@ export const bulkDeleteCustomers = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to bulk delete customers',
+      error: error.message
+    });
+  }
+};
+
+// ==================== DEAL-RELATED ENDPOINTS ====================
+
+// Get customer deals
+export const getCustomerDeals = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, stage, limit = 20, skip = 0 } = req.query;
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    // Build filter - exclude archived deals
+    const filter = { 
+      customer: id,
+      isArchived: { $ne: true }
+    };
+    if (status) filter.status = { $in: status.split(',') };
+    if (stage) filter.stage = { $in: stage.split(',') };
+
+    const Deal = mongoose.model('Deal');
+    const deals = await Deal.find(filter)
+      .populate('assignedTo', 'name email profileImage')
+      .populate('company', 'name website')
+      .sort({ createdAt: -1 })
+      .limit(parseInt(limit))
+      .skip(parseInt(skip));
+
+    const total = await Deal.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: deals,
+      pagination: {
+        total,
+        limit: parseInt(limit),
+        skip: parseInt(skip),
+        hasMore: parseInt(skip) + deals.length < total
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching customer deals:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customer deals',
+      error: error.message
+    });
+  }
+};
+
+// Get customer deal statistics
+export const getCustomerDealStats = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const stats = {
+      totalDeals: await customer.getDealCount(),
+      activeDeals: await customer.getActiveDealCount(),
+      wonDeals: await customer.getWonDealCount(),
+      totalValue: await customer.getTotalDealValue(),
+      wonValue: await customer.getWonDealValue(),
+      conversionRate: await customer.getConversionRate()
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Error fetching customer deal stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customer deal statistics',
       error: error.message
     });
   }

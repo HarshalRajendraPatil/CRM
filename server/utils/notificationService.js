@@ -11,7 +11,6 @@ export const createAndEmitNotification = async (options) => {
     project,
     pipeline,
     stage,
-    task,
     company,
     sender,
     type,
@@ -29,7 +28,6 @@ export const createAndEmitNotification = async (options) => {
       project,
       pipeline,
       stage,
-      task,
       company,
       sender,
       type,
@@ -457,157 +455,6 @@ export const createStageNotification = async (eventType, stage, pipelineId, proj
   }
 }; */
 
-// Create notification for task events
-export const createTaskNotification = async (eventType, task, projectId, actorId, additionalData = {}) => {
-  try {
-    const actor = await User.findById(actorId);
-    if (!actor) {
-      throw new Error('Actor not found');
-    }
-
-    const project = await Project.findById(projectId);
-    if (!project) {
-      throw new Error('Project not found');
-    }
-
-    let title, message, priority, recipientId, excludeUserIds = [actorId];
-
-    switch (eventType) {
-      case 'task_created':
-        title = `New Task in ${project.name}`;
-        message = `${actor.name} created a new task: ${task.title}`;
-        priority = 'medium';
-        
-        // If task is assigned to someone, send them a specific notification
-        if (task.assignedTo && task.assignedTo.toString() !== actorId.toString()) {
-          recipientId = task.assignedTo;
-          // Create a specific notification for the assignee
-          await createAndEmitNotification({
-            recipient: recipientId,
-            project: projectId,
-            task: task._id,
-            sender: actorId,
-            type: 'task_assigned',
-            title: `Task Assigned to You in ${project.name}`,
-            message: `${actor.name} assigned you a task: ${task.title}`,
-            link: `/projects/${projectId}/tasks/${task._id}`,
-            priority: 'high',
-            metadata: {
-              taskTitle: task.title,
-              projectName: project.name,
-              dueDate: task.dueDate
-            }
-          });
-          
-          // Add assignee to exclude list for the general notification
-          excludeUserIds.push(recipientId);
-        }
-        break;
-      case 'task_updated':
-        title = `Task Updated in ${project.name}`;
-        message = `${actor.name} updated the task: ${task.title}`;
-        priority = 'low';
-        break;
-      case 'task_deleted':
-        title = `Task Deleted in ${project.name}`;
-        message = `${actor.name} deleted the task: ${task.title}`;
-        priority = 'medium';
-        break;
-      case 'task_completed':
-        title = `Task Completed in ${project.name}`;
-        message = `${actor.name} completed the task: ${task.title}`;
-        priority = 'medium';
-        break;
-      case 'task_assigned':
-        const { assignee } = additionalData;
-        title = `Task Assigned in ${project.name}`;
-        message = `${actor.name} assigned task "${task.title}" to ${assignee}`;
-        priority = 'high';
-        
-        // Send direct notification to assignee
-        if (task.assignedTo && task.assignedTo.toString() !== actorId.toString()) {
-          recipientId = task.assignedTo;
-          await createAndEmitNotification({
-            recipient: recipientId,
-            project: projectId,
-            task: task._id,
-            sender: actorId,
-            type: 'task_assigned',
-            title: `Task Assigned to You in ${project.name}`,
-            message: `${actor.name} assigned you a task: ${task.title}`,
-            link: `/projects/${projectId}/tasks/${task._id}`,
-            priority: 'high',
-            metadata: {
-              taskTitle: task.title,
-              projectName: project.name,
-              dueDate: task.dueDate
-            }
-          });
-          
-          // Add assignee to exclude list for the general notification
-          excludeUserIds.push(recipientId);
-        }
-        break;
-      case 'task_due_soon':
-        title = `Task Due Soon in ${project.name}`;
-        message = `Task "${task.title}" is due soon`;
-        priority = 'medium';
-        
-        // Send direct notification to assignee only
-        if (task.assignedTo) {
-          recipientId = task.assignedTo;
-          await createAndEmitNotification({
-            recipient: recipientId,
-            project: projectId,
-            task: task._id,
-            type: 'task_due_soon',
-            title,
-            message,
-            link: `/projects/${projectId}/tasks/${task._id}`,
-            priority,
-            metadata: {
-              taskTitle: task.title,
-              projectName: project.name,
-              dueDate: task.dueDate
-            }
-          });
-          
-          // Don't send general notification for due soon
-          return [];
-        }
-        break;
-      default:
-        title = `Task Activity in ${project.name}`;
-        message = `${actor.name} performed an action on task: ${task.title}`;
-        priority = 'low';
-    }
-
-    // Create notifications for all project members except excluded ones
-    const notifications = await createProjectNotification(
-      projectId,
-      {
-        sender: actorId,
-        task: task._id,
-        type: eventType,
-        title,
-        message,
-        link: `/projects/${projectId}/tasks/${task._id}`,
-        priority,
-        metadata: {
-          taskTitle: task.title,
-          projectName: project.name,
-          ...additionalData
-        }
-      },
-      excludeUserIds
-    );
-
-    return notifications;
-  } catch (error) {
-    console.error(`Failed to create ${eventType} notification:`, error);
-    throw error;
-  }
-};
 
 // Create notification for comment events
 export const createCommentNotification = async (
@@ -894,16 +741,540 @@ export const createCompanyNotification = async (eventType, company, projectId, a
 
 
 // Helper function to get entity info
+/**
+ * Create deal-related notifications
+ */
+export const createDealNotification = async (eventType, deal, projectId, actorId, excludeUserIds = []) => {
+  try {
+    // Get project members
+    const project = await Project.findById(projectId).populate('members.user', 'name email');
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    // Get actor info
+    const actor = await User.findById(actorId).select('name email');
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    // Get deal info
+    const Deal = mongoose.model('Deal');
+    const dealInfo = await Deal.findById(deal._id || deal).populate([
+      { path: 'assignedTo', select: 'name email' },
+      { path: 'customer', select: 'name email' },
+      { path: 'company', select: 'name' }
+    ]);
+
+    if (!dealInfo) {
+      throw new Error('Deal not found');
+    }
+
+    // Prepare notification data based on event type
+    let notificationData = {
+      project: projectId,
+      sender: actorId,
+      priority: 'medium',
+      metadata: {
+        dealId: dealInfo._id,
+        dealName: dealInfo.name,
+        dealValue: dealInfo.value,
+        dealStage: dealInfo.stage,
+        dealStatus: dealInfo.status
+      }
+    };
+
+    // Set notification content based on event type
+    switch (eventType) {
+      case 'deal_created':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_created',
+          title: 'New Deal Created',
+          message: `${actor.name} created a new deal: "${dealInfo.name}" ($${dealInfo.value.toLocaleString()})`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'medium'
+        };
+        break;
+
+      case 'deal_updated':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_updated',
+          title: 'Deal Updated',
+          message: `${actor.name} updated deal: "${dealInfo.name}"`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'low'
+        };
+        break;
+
+      case 'deal_moved':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_moved',
+          title: 'Deal Moved to New Stage',
+          message: `${actor.name} moved deal "${dealInfo.name}" to stage: ${dealInfo.stage}`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'medium'
+        };
+        break;
+
+      case 'deal_status_changed':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_status_changed',
+          title: 'Deal Status Changed',
+          message: `${actor.name} changed deal "${dealInfo.name}" status to: ${dealInfo.status}`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'high'
+        };
+        break;
+
+      case 'deal_assigned':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_assigned',
+          title: 'Deal Assigned',
+          message: `${actor.name} assigned deal "${dealInfo.name}" to ${dealInfo.assignedTo?.name || 'you'}`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'medium'
+        };
+        break;
+
+      case 'deal_deleted':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_deleted',
+          title: 'Deal Archived',
+          message: `${actor.name} archived deal: "${dealInfo.name}"`,
+          link: `/crm/${projectId}/deals`,
+          priority: 'medium'
+        };
+        break;
+
+      case 'deal_restored':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_restored',
+          title: 'Deal Restored',
+          message: `${actor.name} restored deal: "${dealInfo.name}"`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'medium'
+        };
+        break;
+
+      case 'deal_won':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_won',
+          title: 'Deal Won! 🎉',
+          message: `Congratulations! Deal "${dealInfo.name}" has been won ($${dealInfo.value.toLocaleString()})`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'high'
+        };
+        break;
+
+      case 'deal_lost':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_lost',
+          title: 'Deal Lost',
+          message: `Deal "${dealInfo.name}" has been marked as lost`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'medium'
+        };
+        break;
+
+      case 'deal_overdue':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_overdue',
+          title: 'Deal Overdue',
+          message: `Deal "${dealInfo.name}" has passed its expected close date`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
+          priority: 'high'
+        };
+        break;
+
+      default:
+        throw new Error(`Unknown deal event type: ${eventType}`);
+    }
+
+    // Create notifications for all project members except excluded users and the actor
+    const recipients = project.members
+      .map(member => member.user._id.toString())
+      .filter(userId => 
+        userId !== actorId.toString() && 
+        !excludeUserIds.includes(userId)
+      );
+
+    // Create notifications
+    const notifications = [];
+    for (const recipientId of recipients) {
+      const notification = await createAndEmitNotification({
+        ...notificationData,
+        recipient: recipientId
+      });
+      notifications.push(notification);
+    }
+
+    // If deal is assigned to someone specific, ensure they get notified
+    if (dealInfo.assignedTo && 
+        dealInfo.assignedTo._id.toString() !== actorId.toString() &&
+        !excludeUserIds.includes(dealInfo.assignedTo._id.toString())) {
+      
+      const assignedUserNotification = await createAndEmitNotification({
+        ...notificationData,
+        recipient: dealInfo.assignedTo._id,
+        priority: 'high' // Higher priority for assigned user
+      });
+      notifications.push(assignedUserNotification);
+    }
+
+    return notifications;
+  } catch (error) {
+    console.error('Failed to create deal notification:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create deal activity notifications
+ */
+export const createDealActivityNotification = async (dealId, activityType, actorId, metadata = {}) => {
+  try {
+    const Deal = mongoose.model('Deal');
+    const deal = await Deal.findById(dealId).populate([
+      { path: 'assignedTo', select: 'name email' },
+      { path: 'projectId', select: 'name' }
+    ]);
+
+    if (!deal) {
+      throw new Error('Deal not found');
+    }
+
+    const actor = await User.findById(actorId).select('name email');
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    let notificationData = {
+      recipient: deal.assignedTo?._id,
+      project: deal.projectId,
+      sender: actorId,
+      type: 'deal_activity',
+      priority: 'low',
+      metadata: {
+        dealId: deal._id,
+        dealName: deal.name,
+        activityType,
+        ...metadata
+      }
+    };
+
+    switch (activityType) {
+      case 'note_added':
+        notificationData = {
+          ...notificationData,
+          title: 'New Note Added',
+          message: `${actor.name} added a note to deal "${deal.name}"`,
+          link: `/crm/${deal.projectId}/deals/${deal._id}`
+        };
+        break;
+
+
+      case 'value_updated':
+        notificationData = {
+          ...notificationData,
+          title: 'Deal Value Updated',
+          message: `${actor.name} updated the value of deal "${deal.name}" to $${metadata.newValue?.toLocaleString()}`,
+          link: `/crm/${deal.projectId}/deals/${deal._id}`,
+          priority: 'medium'
+        };
+        break;
+
+      default:
+        notificationData = {
+          ...notificationData,
+          title: 'Deal Activity',
+          message: `${actor.name} performed an action on deal "${deal.name}"`,
+          link: `/crm/${deal.projectId}/deals/${deal._id}`
+        };
+    }
+
+    // Only notify if there's an assigned user and it's not the actor
+    if (deal.assignedTo && deal.assignedTo._id.toString() !== actorId.toString()) {
+      return await createAndEmitNotification(notificationData);
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Failed to create deal activity notification:', error);
+    throw error;
+  }
+};
+
+// Create notification for task events
+export const createTaskNotification = async (eventType, task, projectId, actorId, excludeUserIds = []) => {
+  try {
+    const actor = await User.findById(actorId);
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    let title, message, priority, recipientId;
+
+    switch (eventType) {
+      case 'task_created':
+        title = `New Task in ${project.name}`;
+        message = `${actor.name} created a new task: ${task.title}`;
+        priority = 'medium';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_assigned':
+        title = `Task Assigned in ${project.name}`;
+        message = `${actor.name} assigned you a task: ${task.title}`;
+        priority = 'high';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_reassigned':
+        title = `Task Reassigned in ${project.name}`;
+        message = `${actor.name} reassigned task "${task.title}" to you`;
+        priority = 'high';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_completed':
+        title = `Task Completed in ${project.name}`;
+        message = `${actor.name} completed the task: ${task.title}`;
+        priority = 'medium';
+        // Notify task creator and project members
+        recipientId = task.createdBy;
+        break;
+      case 'task_reopened':
+        title = `Task Reopened in ${project.name}`;
+        message = `${actor.name} reopened the task: ${task.title}`;
+        priority = 'medium';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_updated':
+        title = `Task Updated in ${project.name}`;
+        message = `${actor.name} updated the task: ${task.title}`;
+        priority = 'low';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_due_soon':
+        title = `Task Due Soon in ${project.name}`;
+        message = `Task "${task.title}" is due soon`;
+        priority = 'high';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_overdue':
+        title = `Task Overdue in ${project.name}`;
+        message = `Task "${task.title}" is overdue`;
+        priority = 'urgent';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_mentioned':
+        title = `Mentioned in Task in ${project.name}`;
+        message = `${actor.name} mentioned you in a task comment`;
+        priority = 'medium';
+        // This will be handled separately for multiple mentions
+        break;
+      case 'task_deleted':
+        title = `Task Deleted in ${project.name}`;
+        message = `${actor.name} deleted the task: ${task.title}`;
+        priority = 'medium';
+        // Notify project members
+        break;
+      case 'task_archived':
+        title = `Task Archived in ${project.name}`;
+        message = `${actor.name} archived the task: ${task.title}`;
+        priority = 'medium';
+        recipientId = task.assignedTo;
+        break;
+      case 'task_restored':
+        title = `Task Restored in ${project.name}`;
+        message = `${actor.name} restored the task: ${task.title}`;
+        priority = 'medium';
+        recipientId = task.assignedTo;
+        break;
+      case 'subtask_added':
+        title = `Subtask Added in ${project.name}`;
+        message = `${actor.name} added a subtask to: ${task.title}`;
+        priority = 'low';
+        recipientId = task.assignedTo;
+        break;
+      case 'subtask_completed':
+        title = `Subtask Completed in ${project.name}`;
+        message = `${actor.name} completed a subtask in: ${task.title}`;
+        priority = 'low';
+        recipientId = task.assignedTo;
+        break;
+      default:
+        throw new Error(`Unknown task event type: ${eventType}`);
+    }
+
+    // Create notification for specific recipient
+    if (recipientId && !excludeUserIds.includes(recipientId.toString())) {
+      await createAndEmitNotification({
+        recipient: recipientId,
+        project: projectId,
+        sender: actorId,
+        type: eventType,
+        title,
+        message,
+        link: `/crm/${projectId}/tasks/${task._id}`,
+        priority,
+        metadata: {
+          taskId: task._id,
+          taskTitle: task.title,
+          eventType
+        }
+      });
+    }
+
+    // For certain events, notify project members
+    if (['task_completed', 'task_deleted'].includes(eventType)) {
+      const projectMembers = await User.find({
+        'projects.project': projectId,
+        _id: { $nin: [actorId, ...excludeUserIds] }
+      });
+
+      for (const member of projectMembers) {
+        await createAndEmitNotification({
+          recipient: member._id,
+          project: projectId,
+          sender: actorId,
+          type: eventType,
+          title,
+          message,
+          link: `/crm/${projectId}/tasks/${task._id}`,
+          priority,
+          metadata: {
+            taskId: task._id,
+            taskTitle: task.title,
+            eventType
+          }
+        });
+      }
+    }
+
+  } catch (error) {
+    console.error('Failed to create task notification:', error);
+    throw error;
+  }
+};
+
+// Create notification for task mentions
+export const createTaskMentionNotification = async (task, projectId, actorId, mentionedUserIds) => {
+  try {
+    const actor = await User.findById(actorId);
+    if (!actor) {
+      throw new Error('Actor not found');
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    for (const userId of mentionedUserIds) {
+      await createAndEmitNotification({
+        recipient: userId,
+        project: projectId,
+        sender: actorId,
+        type: 'task_mentioned',
+        title: `Mentioned in Task in ${project.name}`,
+        message: `${actor.name} mentioned you in a comment on task: ${task.title}`,
+        link: `/crm/${projectId}/tasks/${task._id}`,
+        priority: 'medium',
+        metadata: {
+          taskId: task._id,
+          taskTitle: task.title,
+          eventType: 'task_mentioned'
+        }
+      });
+    }
+
+  } catch (error) {
+    console.error('Failed to create task mention notification:', error);
+    throw error;
+  }
+};
+
+// Create notification for overdue tasks
+export const createOverdueTaskNotification = async (task, projectId) => {
+  try {
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    await createAndEmitNotification({
+      recipient: task.assignedTo,
+      project: projectId,
+      type: 'task_overdue',
+      title: `Task Overdue in ${project.name}`,
+      message: `Task "${task.title}" is overdue`,
+      link: `/crm/${projectId}/tasks/${task._id}`,
+      priority: 'urgent',
+      metadata: {
+        taskId: task._id,
+        taskTitle: task.title,
+        eventType: 'task_overdue',
+        dueDate: task.dueDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to create overdue task notification:', error);
+    throw error;
+  }
+};
+
+// Create notification for tasks due soon
+export const createTaskDueSoonNotification = async (task, projectId) => {
+  try {
+    const project = await Project.findById(projectId);
+    if (!project) {
+      throw new Error('Project not found');
+    }
+
+    await createAndEmitNotification({
+      recipient: task.assignedTo,
+      project: projectId,
+      type: 'task_due_soon',
+      title: `Task Due Soon in ${project.name}`,
+      message: `Task "${task.title}" is due soon`,
+      link: `/crm/${projectId}/tasks/${task._id}`,
+      priority: 'high',
+      metadata: {
+        taskId: task._id,
+        taskTitle: task.title,
+        eventType: 'task_due_soon',
+        dueDate: task.dueDate
+      }
+    });
+
+  } catch (error) {
+    console.error('Failed to create task due soon notification:', error);
+    throw error;
+  }
+};
+
 const getEntityInfo = async (entityType, entityId) => {
   try {
     let entity;
     
     switch (entityType) {
-      // case 'deal': removed
-      case 'task':
-        const Task = mongoose.model('Task');
-        entity = await Task.findById(entityId).select('title');
-        if (entity) entity.name = entity.title;
+          case 'deal':
+        const Deal = mongoose.model('Deal');
+        entity = await Deal.findById(entityId).select('name value');
         break;
       case 'company':
         const Company = mongoose.model('Company');
@@ -938,11 +1309,14 @@ export default {
   createMemberRemovalNotification,
   createPipelineNotification,
   createStageNotification,
-  // createDealNotification, // removed
-  createTaskNotification,
+  createDealNotification,
+  createDealActivityNotification,
   createCommentNotification,
   createSystemAlertNotification,
   createCompanyNotification,
   createCustomerNotification,
-  
+  createTaskDueSoonNotification,
+  createTaskNotification,
+  createTaskMentionNotification,
+  createOverdueTaskNotification
 };

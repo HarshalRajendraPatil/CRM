@@ -13,7 +13,7 @@ const CustomerListItem = ({
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: customer.deal?.currency || 'USD'
+      currency: 'USD'
     }).format(amount || 0);
   };
 
