@@ -1454,6 +1454,213 @@ export const getCompanyDealStats = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get company forecasting data
+// @route   GET /api/companies/project/:projectId/forecast
+// @access  Private (project members)
+export const getCompanyForecast = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { period = '12', type = 'growth' } = req.query;
+  
+  // Validate project ID
+  const projectValidation = validateObjectId(projectId);
+  if (!projectValidation.isValid) {
+    throw new ValidationError(projectValidation.message);
+  }
+  
+  // Find project
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new NotFoundError('Project not found');
+  }
+  
+  // Check if user has permission to view company forecast in this project
+  if (
+    !project.hasPermission(req.user._id, 'viewer') && 
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to view company forecast in this project');
+  }
+  
+  const months = parseInt(period);
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+  
+  // Get historical company data
+  const companies = await Company.find({
+    project: projectId,
+    createdAt: { $gte: startDate, $lte: endDate }
+  }).sort({ createdAt: 1 });
+  
+  // Calculate growth trends
+  const monthlyData = [];
+  for (let i = 0; i < months; i++) {
+    const monthStart = new Date();
+    monthStart.setMonth(monthStart.getMonth() - (months - i - 1));
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+    
+    const monthCompanies = companies.filter(company => {
+      const companyDate = new Date(company.createdAt);
+      return companyDate >= monthStart && companyDate < monthEnd;
+    });
+    
+    monthlyData.push({
+      month: monthStart.toISOString().slice(0, 7),
+      count: monthCompanies.length,
+      activeCompanies: monthCompanies.filter(c => c.status === 'active').length,
+      customerCompanies: monthCompanies.filter(c => c.status === 'customer').length,
+      leadCompanies: monthCompanies.filter(c => c.status === 'lead').length
+    });
+  }
+  
+  // Calculate growth rate
+  const totalCompanies = companies.length;
+  const growthRate = monthlyData.length > 1 
+    ? ((monthlyData[monthlyData.length - 1].count - monthlyData[0].count) / Math.max(monthlyData[0].count, 1)) * 100
+    : 0;
+  
+  // Forecast next 6 months
+  const forecast = [];
+  const lastMonthData = monthlyData[monthlyData.length - 1];
+  const avgGrowth = monthlyData.length > 1 
+    ? monthlyData.slice(-3).reduce((sum, month, index, arr) => {
+        if (index === 0) return 0;
+        return sum + ((month.count - arr[index - 1].count) / Math.max(arr[index - 1].count, 1));
+      }, 0) / Math.max(monthlyData.length - 1, 1)
+    : 0;
+  
+  for (let i = 1; i <= 6; i++) {
+    const forecastDate = new Date();
+    forecastDate.setMonth(forecastDate.getMonth() + i);
+    
+    const projectedCount = Math.max(0, Math.round(
+      lastMonthData.count * Math.pow(1 + (avgGrowth / 100), i)
+    ));
+    
+    forecast.push({
+      month: forecastDate.toISOString().slice(0, 7),
+      projectedCount,
+      confidence: Math.max(0.3, 1 - (i * 0.1)), // Decreasing confidence over time
+      factors: {
+        historicalGrowth: avgGrowth,
+        seasonality: 0, // Could be enhanced with seasonal analysis
+        marketTrends: 0  // Could be enhanced with external data
+      }
+    });
+  }
+  
+  // Industry growth analysis
+  const industryGrowth = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: { 
+      _id: '$industry', 
+      count: { $sum: 1 },
+      avgRevenue: { $avg: '$annualRevenue' },
+      lastActivity: { $max: '$lastActivityDate' }
+    }},
+    { $sort: { count: -1 } },
+    { $limit: 10 }
+  ]);
+  
+  // Revenue forecasting
+  const revenueData = await Company.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: {
+      _id: {
+        year: { $year: '$createdAt' },
+        month: { $month: '$createdAt' }
+      },
+      count: { $sum: 1 },
+      avgRevenue: { $avg: { 
+        $cond: [
+          { $eq: [{ $type: '$annualRevenue' }, 'string'] },
+          0, // Default to 0 for string values
+          { $toDouble: '$annualRevenue' }
+        ]
+      }}
+    }},
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+  
+  // Activity forecasting
+  const activityForecast = await Company.aggregate([
+    { $match: { 
+      project: new mongoose.Types.ObjectId(projectId),
+      lastActivityDate: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }
+    }},
+    { $group: {
+      _id: {
+        year: { $year: '$lastActivityDate' },
+        month: { $month: '$lastActivityDate' }
+      },
+      activeCount: { $sum: 1 }
+    }},
+    { $sort: { '_id.year': 1, '_id.month': 1 } }
+  ]);
+  
+  // Risk assessment
+  const riskFactors = {
+    inactiveCompanies: await Company.countDocuments({
+      project: projectId,
+      lastActivityDate: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+    }),
+    lowEngagement: await Company.countDocuments({
+      project: projectId,
+      $expr: { $lt: [{ $size: '$notes' }, 2] }
+    }),
+    incompleteProfiles: await Company.countDocuments({
+      project: projectId,
+      $or: [
+        { email: { $exists: false } },
+        { phone: { $exists: false } },
+        { 'address.street': { $exists: false } }
+      ]
+    })
+  };
+  
+  const riskScore = Math.min(100, 
+    (riskFactors.inactiveCompanies * 0.3) + 
+    (riskFactors.lowEngagement * 0.2) + 
+    (riskFactors.incompleteProfiles * 0.1)
+  );
+  
+  res.json({
+    success: true,
+    data: {
+      historical: monthlyData,
+      forecast,
+      growthRate,
+      industryGrowth,
+      revenueData,
+      activityForecast,
+      riskAssessment: {
+        score: riskScore,
+        factors: riskFactors,
+        recommendations: riskScore > 70 ? [
+          'Focus on re-engaging inactive companies',
+          'Improve data completeness',
+          'Increase interaction frequency'
+        ] : riskScore > 40 ? [
+          'Monitor company engagement',
+          'Enhance data quality'
+        ] : [
+          'Maintain current engagement levels'
+        ]
+      },
+      insights: {
+        totalCompanies,
+        avgMonthlyGrowth: avgGrowth,
+        projectedGrowth: forecast[forecast.length - 1]?.projectedCount || 0,
+        marketShare: industryGrowth[0]?.count || 0
+      }
+    }
+  });
+});
+
 export default {
   createCompany,
   getProjectCompanies,
@@ -1473,5 +1680,6 @@ export default {
   bulkUpdateCompanies,
   bulkDeleteCompanies,
   getCompanyDeals,
-  getCompanyDealStats
+  getCompanyDealStats,
+  getCompanyForecast
 };

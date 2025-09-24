@@ -83,14 +83,14 @@ const CustomerStats = ({ projectId }) => {
   );
 
   const renderOverview = () => {
-    const hasData = stats?.totals?.totalCustomers > 0;
+    const hasData = stats?.overview?.totalCustomers > 0;
     
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <StatCard
             title="Total Customers"
-            value={stats?.totals?.totalCustomers?.toLocaleString() || '0'}
+            value={stats?.overview?.totalCustomers?.toLocaleString() || '0'}
             subtitle="All time customers"
             icon={
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -102,7 +102,7 @@ const CustomerStats = ({ projectId }) => {
           />
           <StatCard
             title="Active Customers"
-            value={stats?.totals?.activeCustomers?.toLocaleString() || '0'}
+            value={stats?.overview?.activeCustomers?.toLocaleString() || '0'}
             subtitle="Currently engaged"
             icon={
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,8 +113,8 @@ const CustomerStats = ({ projectId }) => {
             isLoading={isStatsLoading}
           />
           <StatCard
-            title="This Month"
-            value={stats?.totals?.customersThisMonth?.toLocaleString() || '0'}
+            title="This Period"
+            value={stats?.overview?.newCustomersThisPeriod?.toLocaleString() || '0'}
             subtitle="New customers"
             icon={
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -125,9 +125,9 @@ const CustomerStats = ({ projectId }) => {
             isLoading={isStatsLoading}
           />
           <StatCard
-            title="Total Customers"
-            value={stats?.totals?.totalCustomers || 0}
-            subtitle="All customers"
+            title="Churn Rate"
+            value={`${stats?.overview?.churnRate?.toFixed(1) || '0.0'}%`}
+            subtitle="Customer retention"
             icon={
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>

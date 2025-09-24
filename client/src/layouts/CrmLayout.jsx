@@ -4,14 +4,16 @@ import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { logout } from '../store/authSlice';
 import NotificationBell from '../components/notifications/NotificationBell';
 import socketService from '../utils/socketService';
+import { SettingsProvider, useSettings } from '../contexts/SettingsContext';
 
-const CrmLayout = ({ children }) => {
+const CrmContent = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { projectId } = useParams();
   const { user } = useSelector((state) => state.auth);
   const { currentProject, isLoading } = useSelector((state) => state.projects);
+  const { settings } = useSettings();
   
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
@@ -66,6 +68,15 @@ useEffect(() => {
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+        </svg>
+      )
+    },
+    { 
+      name: 'Notifications', 
+      path: `/notifications`, 
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
       )
     },
@@ -135,15 +146,6 @@ useEffect(() => {
       )
     },
     { 
-      name: 'Pipelines', 
-      path: `/crm/${projectId}/pipelines`, 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
-        </svg>
-      )
-    },
-    { 
       name: 'Settings', 
       path: `/crm/${projectId}/settings`, 
       icon: (
@@ -188,7 +190,7 @@ useEffect(() => {
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
               <span className="text-xl font-bold text-indigo-600">
-                {currentProject?.name || 'CRM Project'}
+                {settings?.general?.crmName || currentProject?.name || 'CRM Project'}
               </span>
             </div>
             <nav className="mt-5 px-2 space-y-1">
@@ -237,7 +239,7 @@ useEffect(() => {
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
                 <span className="text-xl font-bold text-indigo-600">
-                  {currentProject?.name || 'CRM Project'}
+                  {settings?.general?.crmName || currentProject?.name || 'CRM Project'}
                 </span>
               </div>
               <nav className="mt-5 flex-1 px-2 bg-white space-y-1">
@@ -386,6 +388,14 @@ useEffect(() => {
         </main>
       </div>
     </div>
+  );
+};
+
+const CrmLayout = ({ children }) => {
+  return (
+    <SettingsProvider>
+      <CrmContent>{children}</CrmContent>
+    </SettingsProvider>
   );
 };
 

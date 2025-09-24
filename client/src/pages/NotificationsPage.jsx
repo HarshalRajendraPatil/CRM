@@ -5,10 +5,10 @@ import {
   markAllAsRead, 
   deleteAllNotifications 
 } from '../store/notificationSlice';
-import DashboardLayout from '../layouts/DashboardLayout';
 import NotificationItem from '../components/notifications/NotificationItem';
 import Button from '../components/ui/Button';
 import Alert from '../components/ui/Alert';
+import CrmLayout from '../layouts/CrmLayout';
 
 const NotificationsPage = () => {
   const dispatch = useDispatch();
@@ -133,7 +133,7 @@ const NotificationsPage = () => {
   const notificationTypes = [...new Set(notifications.map(n => n.type))];
   
   return (
-    <DashboardLayout>
+    <CrmLayout>
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-2xl font-semibold text-gray-800">Notifications</h1>
@@ -300,7 +300,7 @@ const NotificationsPage = () => {
           )}
         </div>
       </div>
-    </DashboardLayout>
+    </CrmLayout>
   );
 };
 

@@ -31,6 +31,8 @@ const DealStats = ({ projectId }) => {
     loading 
   } = useSelector((state) => state.deals);
 
+  console.log(insights);
+
   const [activeTab, setActiveTab] = useState('overview');
   const [timeRange, setTimeRange] = useState('30d');
 
@@ -46,6 +48,11 @@ const DealStats = ({ projectId }) => {
   const formatNumber = (num) => {
     return new Intl.NumberFormat('en-US').format(num);
   };
+
+  const montlyDealTrendData = stats?.trends?.monthly?.map(item => ({
+    month: `${item._id.month}/${item._id.year}`,
+    value: item.totalValue,
+  }));  
 
   const StatCard = ({ title, value, subtitle, icon, color = 'blue', trend = null, isLoading = false }) => (
     <div className="bg-white rounded-lg shadow-sm p-6">
@@ -176,22 +183,30 @@ const DealStats = ({ projectId }) => {
                   data={[
                     { name: 'Open', value: stats.overview.openDeals },
                     { name: 'Won', value: stats.overview.wonDeals },
-                    { name: 'Lost', value: stats.overview.lostDeals }
+                    { name: 'Lost', value: stats.overview.lostDeals },
+                    { name: 'Qualified', value: stats.overview.qualifiedDeals },
+                    { name: 'Proposal', value: stats.overview.proposalDeals },
+                    { name: 'Negotiation', value: stats.overview.negotiationDeals },
+                    { name: 'On Hold', value: stats.overview.onHoldDeals }
                   ]}
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
+                  label={({ name, percent }) => `${percent == 0 ? '' : `${name} ${(percent * 100).toFixed(0)}%`}`}
+                  outerRadius={130}
                   fill="#8884d8"
                   dataKey="value"
                 >
                   {[
                     { name: 'Open', value: stats.overview.openDeals },
                     { name: 'Won', value: stats.overview.wonDeals },
-                    { name: 'Lost', value: stats.overview.lostDeals }
+                    { name: 'Lost', value: stats.overview.lostDeals },
+                    { name: 'Qualified', value: stats.overview.qualifiedDeals },
+                    { name: 'Proposal', value: stats.overview.proposalDeals },
+                    { name: 'Negotiation', value: stats.overview.negotiationDeals },
+                    { name: 'On Hold', value: stats.overview.onHoldDeals }
                   ].map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#EF4444'][index % 3]} />
+                    <Cell key={`cell-${index}`} fill={['#3B82F6', '#10B981', '#EF4444', '#F59E0B', '#8B5CF6', '#E48998'][index % 6]} />
                   ))}
                 </Pie>
                 <Tooltip formatter={(value) => value} />
@@ -225,29 +240,23 @@ const DealStats = ({ projectId }) => {
         isEmpty={!stats?.trends?.monthly || stats.trends.monthly.length === 0}
       >
         {stats?.trends?.monthly && stats.trends.monthly.length > 0 && (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={stats.trends.monthly}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="_id" />
+          <ResponsiveContainer width="100%" height="100%" >
+            <LineChart data={montlyDealTrendData}>
+              <CartesianGrid strokeDasharray="1 1" />
+              <XAxis dataKey="month" />
               <YAxis />
               <Tooltip 
-                formatter={(value, name) => [
-                  name === 'totalValue' ? formatCurrency(value) : value,
-                  name === 'totalValue' ? 'Deal Value' : 'Deal Count'
+                formatter={(value, month) => [
+                  month === 'totalValue' ? formatCurrency(value) : value,
+                  month === 'totalValue' ? 'Deal Count' : 'Deal Value'
                 ]}
               />
               <Line 
-                type="monotone" 
-                dataKey="totalValue" 
+                type='linear'
+                dot={false}
+                dataKey="value" 
                 stroke="#3B82F6" 
-                strokeWidth={2}
-                name="Deal Value"
-              />
-              <Line 
-                type="monotone" 
-                dataKey="count" 
-                stroke="#10B981" 
-                strokeWidth={2}
+                strokeWidth={5}
                 name="Deal Count"
               />
             </LineChart>

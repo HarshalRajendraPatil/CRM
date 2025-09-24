@@ -12,6 +12,7 @@ import {
   convertLeadToCustomer,
   getCustomerStats,
   getCustomerInsights,
+  getCustomerForecast,
   bulkUpdateCustomers,
   bulkArchiveCustomers,
   bulkUnarchiveCustomers,
@@ -54,6 +55,7 @@ router.post('/leads/:leadId/convert', convertLeadToCustomer);
 // Statistics and analytics
 router.get('/project/:projectId/stats', getCustomerStats);
 router.get('/project/:projectId/insights', getCustomerInsights);
+router.get('/project/:projectId/forecast', getCustomerForecast);
 
 // Bulk operations
 router.patch('/bulk-update', bulkUpdateCustomers);

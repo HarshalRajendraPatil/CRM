@@ -22,6 +22,7 @@ import CustomerFilters from './CustomerFilters';
 import CustomerListItem from './CustomerListItem';
 import CustomerStats from './CustomerStats';
 import CustomerInsights from './CustomerInsights';
+import CustomerForecast from './CustomerForecast';
 import CustomerKanban from './CustomerKanban';
 import CustomerSidebar from './CustomerSidebar';
 import CrmLayout from '../../../layouts/CrmLayout';
@@ -42,7 +43,7 @@ const Customers = () => {
   
   const { user } = useSelector((state) => state.auth);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
-  const [viewMode, setViewMode] = useState('list'); // list, kanban, stats, insights
+  const [viewMode, setViewMode] = useState('list'); // list, kanban, stats, insights, forecast
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCustomerSidebar, setShowCustomerSidebar] = useState(false);
@@ -260,7 +261,8 @@ const Customers = () => {
               { id: 'list', name: 'Customers', count: pagination.total },
               { id: 'kanban', name: 'Kanban' },
               { id: 'stats', name: 'Statistics' },
-              { id: 'insights', name: 'Analytics' }
+              { id: 'insights', name: 'Analytics' },
+              { id: 'forecast', name: 'Forecast' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -533,6 +535,10 @@ const Customers = () => {
 
           {viewMode === 'insights' && (
             <CustomerInsights projectId={projectId} />
+          )}
+
+          {viewMode === 'forecast' && (
+            <CustomerForecast />
           )}
         </div>
               </div>

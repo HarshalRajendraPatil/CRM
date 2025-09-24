@@ -18,7 +18,8 @@ import {
   bulkUpdateCompanies,
   bulkDeleteCompanies,
   getCompanyDeals,
-  getCompanyDealStats
+  getCompanyDealStats,
+  getCompanyForecast
 } from '../controllers/companyController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -32,6 +33,7 @@ router.post('/', createCompany);
 router.get('/project/:projectId', getProjectCompanies);
 router.get('/project/:projectId/stats', getCompanyStats);
 router.get('/project/:projectId/insights', getCompanyInsights);
+router.get('/project/:projectId/forecast', getCompanyForecast);
 router.get('/:id', getCompanyById);
 router.put('/bulk-update', bulkUpdateCompanies);
 router.put('/:id', updateCompany);

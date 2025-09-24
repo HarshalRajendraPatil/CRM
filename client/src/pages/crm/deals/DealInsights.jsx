@@ -151,7 +151,7 @@ const DealInsights = ({ projectId }) => {
   const renderPerformanceInsights = () => (
     <div className="space-y-6">
       {/* Performance Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <StatCard
           title="Total Revenue"
           value={insights?.summary ? formatCurrency(insights.summary.totalRevenue) : '$0'}
@@ -188,19 +188,6 @@ const DealInsights = ({ projectId }) => {
             </svg>
           }
           color="purple"
-          isLoading={loading}
-        />
-        
-        <StatCard
-          title="Conversion Rate"
-          value={insights?.summary ? `${insights.summary.conversionRate.toFixed(1)}%` : '0%'}
-          subtitle="Lead to customer"
-          icon={
-            <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-            </svg>
-          }
-          color="orange"
           isLoading={loading}
         />
       </div>
@@ -265,7 +252,7 @@ const DealInsights = ({ projectId }) => {
         
         <StatCard
           title="Fastest Close"
-          value={insights?.timeBased?.fastestClose ? `${insights.timeBased.fastestClose} days` : '0 days'}
+          value={insights?.timeBased?.fastestClose ? `${insights.timeBased.fastestClose.toFixed(2)} days` : '0 days'}
           subtitle="Quickest deal closure"
           icon={
             <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -278,7 +265,7 @@ const DealInsights = ({ projectId }) => {
         
         <StatCard
           title="Longest Cycle"
-          value={insights?.timeBased?.longestCycle ? `${insights.timeBased.longestCycle} days` : '0 days'}
+          value={insights?.timeBased?.longestCycle ? `${insights.timeBased.longestCycle.toFixed(2)} days` : '0 days'}
           subtitle="Most complex deal"
           icon={
             <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -431,7 +418,7 @@ const DealInsights = ({ projectId }) => {
                   stackId="1" 
                   stroke="#3B82F6" 
                   fill="#3B82F6" 
-                  fillOpacity={0.6} 
+                  fillOpacity={0.5} 
                 />
               </AreaChart>
             </ResponsiveContainer>

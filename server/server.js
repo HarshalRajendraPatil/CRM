@@ -13,9 +13,14 @@ import leadRoutes from './routes/leads.js';
 import customerRoutes from './routes/customers.js';
 import dealRoutes from './routes/deals.js';
 import taskRoutes from './routes/tasks.js';
+import calendarRoutes from './routes/calendar.js';
+import reportRoutes from './routes/reports.js';
+import dashboardRoutes from './routes/dashboard.js';
+import settingsRoutes from './routes/settings.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
+import { injectSettings, applySettingsToResponse, validateBusinessRules, applyDefaultValues, checkNotificationSettings } from './middleware/settingsMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -69,17 +74,21 @@ app.get('/health', (req, res) => {
   });
 });
 
-// API routes
+// API routes with settings middleware
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/invitations', invitationRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/companies', companyRoutes);
-app.use('/api/leads', leadRoutes);
-app.use('/api/customers', customerRoutes);
-app.use('/api/deals', dealRoutes);
-app.use('/api/tasks', taskRoutes);
+app.use('/api/notifications', checkNotificationSettings, notificationRoutes);
+app.use('/api/companies', injectSettings, applyDefaultValues, companyRoutes);
+app.use('/api/leads', injectSettings, applyDefaultValues, validateBusinessRules, leadRoutes);
+app.use('/api/customers', injectSettings, applyDefaultValues, customerRoutes);
+app.use('/api/deals', injectSettings, applyDefaultValues, dealRoutes);
+app.use('/api/tasks', injectSettings, applyDefaultValues, taskRoutes);
+app.use('/api/calendar', injectSettings, applyDefaultValues, validateBusinessRules, calendarRoutes);
+app.use('/api/reports', injectSettings, reportRoutes);
+app.use('/api/dashboard', injectSettings, dashboardRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

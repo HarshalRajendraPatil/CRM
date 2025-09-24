@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { getCompanyInsights } from '../../../store/companySlice';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, AreaChart, Area } from 'recharts';
+import CompanyForecast from './CompanyForecast';
 
 const CompanyStats = ({ stats, projectId }) => {
   const dispatch = useDispatch();
@@ -145,6 +146,16 @@ const CompanyStats = ({ stats, projectId }) => {
             }`}
           >
             Insights
+          </button>
+          <button
+            onClick={() => setActiveTab('forecast')}
+            className={`px-4 py-2 text-sm font-medium rounded-md ${
+              activeTab === 'forecast'
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Forecast
           </button>
         </div>
       </div>
@@ -519,6 +530,13 @@ const CompanyStats = ({ stats, projectId }) => {
               <p className="text-gray-600">Loading insights...</p>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Forecast Tab */}
+      {activeTab === 'forecast' && (
+        <div className="space-y-6">
+          <CompanyForecast />
         </div>
       )}
     </div>

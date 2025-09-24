@@ -942,35 +942,5 @@ export const {
   addNoteToDeal
 } = dealSlice.actions;
 
-// Export async thunks
-// export {
-//   fetchProjectDeals,
-//   fetchCustomerDeals,
-//   fetchCompanyDeals,
-//   fetchDeal,
-//   createNewDeal,
-//   updateExistingDeal,
-//   deleteExistingDeal,
-//   restoreExistingDeal,
-//   addDealActivityAction,
-//   fetchDealActivities,
-//   addDealNoteAction,
-//   updateDealNoteAction,
-//   deleteDealNoteAction,
-//   addDealTaskAction,
-//   updateDealTaskAction,
-//   deleteDealTaskAction,
-//   bulkUpdateDealsAction,
-//   bulkDeleteDealsAction,
-//   bulkAssignDealsAction,
-//   moveDealToStageAction,
-//   updateDealStatusAction,
-//   fetchDealStats,
-//   fetchDealFunnel,
-//   fetchDealVelocity,
-//   fetchDealForecast,
-//   fetchDealInsights,
-//   exportDealsAction
-// };
 
 export default dealSlice.reducer;

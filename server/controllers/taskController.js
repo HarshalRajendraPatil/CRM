@@ -191,8 +191,6 @@ export const createTask = asyncHandler(async (req, res) => {
   }
   
   const validatedData = validateTaskData(sanitizedData, false);
-
-  console.log(validatedData);
   
   // Ensure createdBy is set to current user
   validatedData.createdBy = req.user.id;

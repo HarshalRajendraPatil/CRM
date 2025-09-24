@@ -77,6 +77,11 @@ export const createLead = asyncHandler(async (req, res) => {
 // Get leads for a project
 export const getProjectLeads = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
+  
+  if (!projectId || projectId === 'undefined') {
+    throw new ValidationError('Project ID is required');
+  }
+  
   const { limit = 20, skip = 0, sort = 'createdAt', order = 'desc', status, stage, source, search, tags, owner, includeArchived = false } = req.query;
 
   const projectValidation = validateObjectId(projectId);
@@ -961,6 +966,255 @@ export const getLeadInsights = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get lead forecasting data
+// @route   GET /api/leads/project/:projectId/forecast
+// @access  Private (project members)
+export const getLeadForecast = asyncHandler(async (req, res) => {
+  const { projectId } = req.params;
+  const { period = '12', type = 'conversion' } = req.query;
+  
+  // Validate project ID
+  const projectValidation = validateObjectId(projectId);
+  if (!projectValidation.isValid) {
+    throw new ValidationError(projectValidation.message);
+  }
+  
+  // Find project
+  const project = await Project.findById(projectId);
+  if (!project) {
+    throw new NotFoundError('Project not found');
+  }
+  
+  // Check if user has permission to view lead forecast in this project
+  if (
+    !project.hasPermission(req.user._id, 'viewer') && 
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to view lead forecast in this project');
+  }
+  
+  const months = parseInt(period);
+  const endDate = new Date();
+  const startDate = new Date();
+  startDate.setMonth(startDate.getMonth() - months);
+  
+  // Get historical lead data
+  const leads = await Lead.find({
+    project: projectId,
+    createdAt: { $gte: startDate, $lte: endDate }
+  }).sort({ createdAt: 1 });
+  
+  // Calculate monthly trends
+  const monthlyData = [];
+  for (let i = 0; i < months; i++) {
+    const monthStart = new Date();
+    monthStart.setMonth(monthStart.getMonth() - (months - i - 1));
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    
+    const monthEnd = new Date(monthStart);
+    monthEnd.setMonth(monthEnd.getMonth() + 1);
+    
+    const monthLeads = leads.filter(lead => {
+      const leadDate = new Date(lead.createdAt);
+      return leadDate >= monthStart && leadDate < monthEnd;
+    });
+    
+    const convertedLeads = monthLeads.filter(lead => lead.convertedAt);
+    const qualifiedLeads = monthLeads.filter(lead => (lead.stage || lead.status) === 'qualified');
+    const contactedLeads = monthLeads.filter(lead => (lead.stage || lead.status) === 'contacted');
+    const newLeads = monthLeads.filter(lead => (lead.stage || lead.status) === 'new');
+    
+    monthlyData.push({
+      month: monthStart.toISOString().slice(0, 7),
+      total: monthLeads.length,
+      new: newLeads.length,
+      contacted: contactedLeads.length,
+      qualified: qualifiedLeads.length,
+      converted: convertedLeads.length,
+      conversionRate: monthLeads.length > 0 ? (convertedLeads.length / monthLeads.length) * 100 : 0,
+      qualificationRate: monthLeads.length > 0 ? (qualifiedLeads.length / monthLeads.length) * 100 : 0
+    });
+  }
+  
+  // Calculate conversion funnel trends
+  const funnelTrends = {
+    newToContacted: monthlyData.reduce((sum, month) => sum + (month.contacted / Math.max(month.new, 1)), 0) / months,
+    contactedToQualified: monthlyData.reduce((sum, month) => sum + (month.qualified / Math.max(month.contacted, 1)), 0) / months,
+    qualifiedToConverted: monthlyData.reduce((sum, month) => sum + (month.converted / Math.max(month.qualified, 1)), 0) / months
+  };
+  
+  // Forecast next 6 months
+  const forecast = [];
+  const lastMonthData = monthlyData[monthlyData.length - 1];
+  const avgGrowth = monthlyData.length > 1 
+    ? monthlyData.slice(-3).reduce((sum, month, index, arr) => {
+        if (index === 0) return 0;
+        return sum + ((month.total - arr[index - 1].total) / Math.max(arr[index - 1].total, 1));
+      }, 0) / Math.max(monthlyData.length - 1, 1)
+    : 0;
+  
+  const avgConversionRate = monthlyData.reduce((sum, month) => sum + month.conversionRate, 0) / months;
+  const avgQualificationRate = monthlyData.reduce((sum, month) => sum + month.qualificationRate, 0) / months;
+  
+  for (let i = 1; i <= 6; i++) {
+    const forecastDate = new Date();
+    forecastDate.setMonth(forecastDate.getMonth() + i);
+    
+    const projectedTotal = Math.max(0, Math.round(
+      lastMonthData.total * Math.pow(1 + (avgGrowth / 100), i)
+    ));
+    
+    const projectedConverted = Math.round(projectedTotal * (avgConversionRate / 100));
+    const projectedQualified = Math.round(projectedTotal * (avgQualificationRate / 100));
+    
+    forecast.push({
+      month: forecastDate.toISOString().slice(0, 7),
+      projectedTotal,
+      projectedConverted,
+      projectedQualified,
+      projectedConversionRate: avgConversionRate,
+      confidence: Math.max(0.3, 1 - (i * 0.1)),
+      factors: {
+        historicalGrowth: avgGrowth,
+        conversionTrend: avgConversionRate,
+        qualificationTrend: avgQualificationRate,
+        seasonality: 0
+      }
+    });
+  }
+  
+  // Source performance analysis
+  const sourcePerformance = await Lead.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $group: {
+      _id: '$source',
+      total: { $sum: 1 },
+      converted: { $sum: { $cond: [{ $ne: ['$convertedAt', null] }, 1, 0] } },
+      qualified: { $sum: { $cond: [{ $eq: ['$status', 'qualified'] }, 1, 0] } },
+      avgScore: { $avg: '$score' }
+    }},
+    { $addFields: {
+      conversionRate: { $multiply: [{ $divide: ['$converted', '$total'] }, 100] },
+      qualificationRate: { $multiply: [{ $divide: ['$qualified', '$total'] }, 100] }
+    }},
+    { $sort: { conversionRate: -1 } }
+  ]);
+  
+  // Lead scoring trends
+  const scoreDistribution = await Lead.aggregate([
+    { $match: { project: new mongoose.Types.ObjectId(projectId) } },
+    { $bucket: {
+      groupBy: '$score',
+      boundaries: [0, 25, 50, 75, 100],
+      default: '100+',
+      output: {
+        count: { $sum: 1 },
+        converted: { $sum: { $cond: [{ $ne: ['$convertedAt', null] }, 1, 0] } }
+      }
+    }}
+  ]);
+  
+  // Time-to-conversion analysis
+  const conversionTimes = leads
+    .filter(lead => lead.convertedAt)
+    .map(lead => {
+      const created = new Date(lead.createdAt);
+      const converted = new Date(lead.convertedAt);
+      return Math.floor((converted - created) / (1000 * 60 * 60 * 24)); // days
+    });
+  
+  const avgConversionTime = conversionTimes.length > 0 
+    ? conversionTimes.reduce((sum, time) => sum + time, 0) / conversionTimes.length 
+    : 0;
+  
+  // Lead velocity forecasting
+  const velocityForecast = [];
+  const currentVelocity = leads.filter(lead => {
+    const daysSinceCreation = (Date.now() - new Date(lead.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+    return daysSinceCreation <= 30;
+  }).length;
+  
+  for (let i = 1; i <= 6; i++) {
+    const projectedVelocity = Math.round(currentVelocity * Math.pow(1 + (avgGrowth / 100), i));
+    velocityForecast.push({
+      month: new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 7),
+      projectedVelocity,
+      expectedConversions: Math.round(projectedVelocity * (avgConversionRate / 100))
+    });
+  }
+  
+  // Risk assessment for lead quality
+  const riskFactors = {
+    lowScoreLeads: await Lead.countDocuments({
+      project: projectId,
+      score: { $lt: 25 }
+    }),
+    staleLeads: await Lead.countDocuments({
+      project: projectId,
+      createdAt: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+      status: { $in: ['new', 'contacted'] }
+    }),
+    unassignedLeads: await Lead.countDocuments({
+      project: projectId,
+      assignedTo: null
+    }),
+    noActivityLeads: await Lead.countDocuments({
+      project: projectId,
+      lastActivityDate: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+    })
+  };
+  
+  const riskScore = Math.min(100, 
+    (riskFactors.lowScoreLeads * 0.2) + 
+    (riskFactors.staleLeads * 0.3) + 
+    (riskFactors.unassignedLeads * 0.2) + 
+    (riskFactors.noActivityLeads * 0.3)
+  );
+  
+  res.json({
+    success: true,
+    data: {
+      historical: monthlyData,
+      forecast,
+      funnelTrends,
+      sourcePerformance,
+      scoreDistribution,
+      conversionMetrics: {
+        avgConversionTime,
+        avgConversionRate,
+        avgQualificationRate,
+        totalLeads: leads.length,
+        totalConverted: leads.filter(lead => lead.convertedAt).length
+      },
+      velocityForecast,
+      riskAssessment: {
+        score: riskScore,
+        factors: riskFactors,
+        recommendations: riskScore > 70 ? [
+          'Focus on lead scoring and qualification',
+          'Implement lead nurturing campaigns',
+          'Assign unassigned leads to team members',
+          'Follow up on stale leads'
+        ] : riskScore > 40 ? [
+          'Improve lead scoring criteria',
+          'Monitor lead activity',
+          'Optimize lead assignment'
+        ] : [
+          'Maintain current lead management practices'
+        ]
+      },
+      insights: {
+        totalLeads: leads.length,
+        avgMonthlyGrowth: avgGrowth,
+        projectedGrowth: forecast[forecast.length - 1]?.projectedTotal || 0,
+        expectedConversions: forecast[forecast.length - 1]?.projectedConverted || 0,
+        bestPerformingSource: sourcePerformance[0]?._id || 'N/A'
+      }
+    }
+  });
+});
+
 export default {
   createLead,
   getProjectLeads,
@@ -977,7 +1231,8 @@ export default {
   assignLeadToUser,
   getLeadStats,
   getLeadInsights,
-  cleanupArchivedLeads
+  cleanupArchivedLeads,
+  getLeadForecast
 };
 
 

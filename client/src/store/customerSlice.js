@@ -146,6 +146,18 @@ export const fetchCustomerInsights = createAsyncThunk(
   }
 );
 
+export const fetchCustomerForecast = createAsyncThunk(
+  'customers/fetchCustomerForecast',
+  async ({ projectId, params = {} }, { rejectWithValue }) => {
+    try {
+      const response = await customerService.getCustomerForecast(projectId, params);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch customer forecast');
+    }
+  }
+);
+
 export const bulkUpdateCustomers = createAsyncThunk(
   'customers/bulkUpdateCustomers',
   async ({ customerIds, updates }, { rejectWithValue }) => {
@@ -275,6 +287,7 @@ const customerSlice = createSlice({
     currentCustomer: null,
     stats: null,
     insights: null,
+    forecast: null,
     filters: {
       search: '',
       stage: '',
@@ -303,6 +316,7 @@ const customerSlice = createSlice({
     isArchiving: false,
     isStatsLoading: false,
     isInsightsLoading: false,
+    isForecastLoading: false,
     error: null,
     successMessage: null
   },
@@ -657,6 +671,20 @@ const customerSlice = createSlice({
       })
       .addCase(fetchCustomerInsights.rejected, (state, action) => {
         state.isInsightsLoading = false;
+        state.error = action.payload;
+      })
+      
+      // Fetch customer forecast
+      .addCase(fetchCustomerForecast.pending, (state) => {
+        state.isForecastLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchCustomerForecast.fulfilled, (state, action) => {
+        state.isForecastLoading = false;
+        state.forecast = action.payload.data;
+      })
+      .addCase(fetchCustomerForecast.rejected, (state, action) => {
+        state.isForecastLoading = false;
         state.error = action.payload;
       })
       

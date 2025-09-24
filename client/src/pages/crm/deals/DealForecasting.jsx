@@ -401,8 +401,9 @@ const DealForecasting = ({ projectId }) => {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ probabilityRange, percent }) => `${probabilityRange} ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                label={({ probabilityRange, percent }) => `${percent == 0 ? '' : `${probabilityRange} ${(percent * 100).toFixed(0)}%`}`}
+                labelStyle={{ fontSize: 10 }}
+                outerRadius={160}
                 fill="#8884d8"
                 dataKey="revenue"
               >

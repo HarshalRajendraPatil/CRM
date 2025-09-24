@@ -8,6 +8,7 @@ const initialState = {
   notes: [],
   stats: null,
   insights: null,
+  forecastData: null,
   isLoading: false,
   isSuccess: false,
   isError: false,
@@ -184,6 +185,19 @@ export const getCompanyInsights = createAsyncThunk(
       return await companyService.getCompanyInsights(projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch company insights';
+      return thunkAPI.rejectWithValue(message);
+    }
+  }
+);
+
+// Get company forecast for a project
+export const getCompanyForecast = createAsyncThunk(
+  'companies/getCompanyForecast',
+  async ({ projectId, params = {} }, thunkAPI) => {
+    try {
+      return await companyService.getCompanyForecast(projectId, params);
+    } catch (error) {
+      const message = error.response?.data?.message || error.message || 'Failed to fetch company forecast';
       return thunkAPI.rejectWithValue(message);
     }
   }
@@ -571,6 +585,21 @@ const companySlice = createSlice({
         state.companies = state.companies.filter(company => !deletedIds.includes(company._id));
       })
       .addCase(bulkDeleteCompanies.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+
+      // Get company forecast
+      .addCase(getCompanyForecast.pending, (state) => {
+        // state.isLoading = true;
+      })
+      .addCase(getCompanyForecast.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.forecastData = action.payload.data;
+      })
+      .addCase(getCompanyForecast.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;

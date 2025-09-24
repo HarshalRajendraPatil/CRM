@@ -18,6 +18,7 @@ export const authenticateToken = async (req, res, next) => {
     // Verify token
     const decoded = verifyAccessToken(token);
     
+    
     // Check if user exists and is active
     const user = await User.findById(decoded.userId).select('-password');
     
@@ -41,20 +42,28 @@ export const authenticateToken = async (req, res, next) => {
     req.user = user;
     next();
   } catch (error) {
-
-    console.log("error ", error);
+    console.log("Authentication error:", error.message);
+    
     if (error.message.includes('expired')) {
       return res.status(401).json({
         success: false,
         message: 'Token has expired',
-        code: 'TOKEN_EXPIREDjj'
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+    
+    if (error.message.includes('Invalid')) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
       });
     }
     
     return res.status(401).json({
       success: false,
-      message: 'Invalid token',
-      code: 'INVALID_TOKEN'
+      message: 'Authentication failed',
+      code: 'AUTH_FAILED'
     });
   }
 };

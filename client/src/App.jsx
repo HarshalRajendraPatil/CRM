@@ -34,6 +34,9 @@ import Deals from './pages/crm/deals/Deals';
 import DealDetail from './pages/crm/deals/DealDetail';
 import Tasks from './pages/crm/tasks/Tasks';
 import TaskDetail from './pages/crm/tasks/TaskDetail';
+import Calendar from './pages/crm/Calendar';
+import Reports from './pages/crm/Reports';
+import Settings from './pages/crm/Settings';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -222,6 +225,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <TaskDetail />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="calendar" 
+            element={
+              <ProtectedRoute>
+                <Calendar />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="reports" 
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="settings" 
+            element={
+              <ProtectedRoute>
+                <Settings />
               </ProtectedRoute>
             } 
           />

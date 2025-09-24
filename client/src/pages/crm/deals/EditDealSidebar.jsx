@@ -14,7 +14,6 @@ import {
   getPriorityColor 
 } from '../../../utils/dealUtils';
 import { 
-  PencilIcon, 
   TrashIcon, 
   PlusIcon,
   XMarkIcon,
@@ -349,14 +348,6 @@ const EditDealSidebar = ({ isOpen, onClose, deal, projectId }) => {
       const today = new Date();
       if (closeDate < today) {
         newErrors.expectedCloseDate = 'Close date cannot be in the past';
-      }
-    }
-
-    if (formData.actualCloseDate) {
-      const actualCloseDate = new Date(formData.actualCloseDate);
-      const expectedCloseDate = new Date(formData.expectedCloseDate);
-      if (actualCloseDate < expectedCloseDate) {
-        newErrors.actualCloseDate = 'Actual close date cannot be before expected close date';
       }
     }
 

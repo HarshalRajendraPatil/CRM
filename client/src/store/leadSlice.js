@@ -130,6 +130,14 @@ export const deleteLeadNote = createAsyncThunk(
   }
 );
 
+export const getLeadForecast = createAsyncThunk(
+  'leads/getLeadForecast',
+  async ({ projectId, params = {} }) => {
+    const response = await leadService.getLeadForecast(projectId, params);
+    return response.data;
+  }
+);
+
 const initialState = {
   leads: [],
   archivedLeads: [],
@@ -137,6 +145,7 @@ const initialState = {
   selected: null,
   stats: null,
   insights: null,
+  forecastData: null,
   pagination: {
     total: 0,
     limit: 20,
@@ -160,6 +169,7 @@ const leadSlice = createSlice({
       state.selected = null;
       state.stats = null;
       state.insights = null;
+      state.forecastData = null;
       state.pagination = {
         total: 0,
         limit: 20,
@@ -561,6 +571,20 @@ const leadSlice = createSlice({
         }
       })
       .addCase(deleteLeadNote.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error.message;
+      })
+
+      // Get Lead Forecast
+      .addCase(getLeadForecast.pending, (state) => {
+        // state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(getLeadForecast.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.forecastData = action.payload.data;
+      })
+      .addCase(getLeadForecast.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message;
       });

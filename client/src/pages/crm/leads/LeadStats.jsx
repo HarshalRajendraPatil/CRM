@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { getLeadStats, getLeadInsights } from '../../../store/leadSlice';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import LeadForecast from './LeadForecast';
 
 const LeadStats = ({ projectId }) => {
   const dispatch = useDispatch();
@@ -276,7 +277,8 @@ const LeadStats = ({ projectId }) => {
             {[
               { id: 'overview', name: 'Overview' },
               { id: 'funnel', name: 'Funnel Analysis' },
-              { id: 'performance', name: 'Performance' }
+              { id: 'performance', name: 'Performance' },
+              { id: 'forecast', name: 'Forecast' }
             ].map(tab => (
               <button
                 key={tab.id}
@@ -297,6 +299,7 @@ const LeadStats = ({ projectId }) => {
           {activeTab === 'overview' && renderOverview()}
           {activeTab === 'funnel' && renderFunnel()}
           {activeTab === 'performance' && renderPerformance()}
+          {activeTab === 'forecast' && <LeadForecast />}
         </div>
       </div>
     </div>

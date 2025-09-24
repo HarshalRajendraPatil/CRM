@@ -4,23 +4,25 @@ import { createLead } from '../../../store/leadSlice';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import { getProjectCompanies } from '../../../store/companySlice';
+import { useSettingsIntegration } from '../../../hooks/useSettingsIntegration';
 
 const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
   const dispatch = useDispatch();
   const { isLoading } = useSelector((state) => state.leads);
   const { project } = useSelector((state) => state.projects);
   const {companies} = useSelector((state) => state.companies);
+  const { leadAutoAssignment, leadScoring } = useSettingsIntegration();
   
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     stage: 'new',
-    assignedTo: '',
+    assignedTo: leadAutoAssignment.enabled ? leadAutoAssignment.assignTo : '',
     source: 'other',
     jobTitle: '',
     company: '',
-    score: 0,
+    score: leadScoring.enabled ? 0 : null,
     tags: [],
     customFields: {},
     notes: ''

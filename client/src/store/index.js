@@ -9,6 +9,9 @@ import leadReducer from './leadSlice';
 import customerReducer from './customerSlice';
 import dealReducer from './dealSlice';
 import taskReducer from './taskSlice';
+import calendarReducer from './calendarSlice';
+import dashboardReducer from './dashboardSlice';
+import settingsReducer from './settingsSlice';
 
 // Configure store with reducers
 const store = configureStore({
@@ -23,6 +26,9 @@ const store = configureStore({
     customers: customerReducer,
     deals: dealReducer,
     tasks: taskReducer,
+    calendar: calendarReducer,
+    dashboard: dashboardReducer,
+    settings: settingsReducer,
   },
   devTools: import.meta.env.DEV, // Enable Redux DevTools only in development
 });

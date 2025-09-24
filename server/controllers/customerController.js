@@ -1,8 +1,6 @@
 import Customer from '../models/Customer.model.js';
 import Lead from '../models/Lead.model.js';
 import User from '../models/User.model.js';
-import Notification from '../models/Notification.model.js';
-import { sendEmail } from '../utils/emailService.js';
 import notificationService from '../utils/notificationService.js';
 import mongoose from 'mongoose';
 
@@ -494,231 +492,6 @@ export const convertLeadToCustomer = async (req, res) => {
   }
 };
 
-// Get customer statistics
-export const getCustomerStats = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-
-    const [
-      totalCustomers,
-      activeCustomers,
-      customersThisMonth,
-      customersByStage,
-      customersBySource,
-      topCustomers,
-      recentActivity
-    ] = await Promise.all([
-      Customer.countDocuments({ project: projectId, isArchived: false }),
-      Customer.countDocuments({ project: projectId, isArchived: false, status: 'active' }),
-      Customer.countDocuments({
-        project: projectId,
-        isArchived: false,
-        createdAt: { $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1) }
-      }),
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false } },
-        { $group: { _id: '$stage', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]),
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false } },
-        { $group: { _id: '$source', count: { $sum: 1 } } },
-        { $sort: { count: -1 } }
-      ]),
-      Customer.aggregate([
-      ]),
-      Customer.find({ project: projectId, isArchived: false })
-        .sort({ score: -1 })
-        .limit(5)
-        .populate('owner', 'name email profileImage'),
-      Customer.find({ project: projectId, isArchived: false })
-        .sort({ lastActivityDate: -1 })
-        .limit(10)
-        .populate('owner', 'name email profileImage')
-        .populate('lastActivityBy', 'name email profileImage')
-    ]);
-
-
-    const stats = {
-      totals: {
-        totalCustomers,
-        activeCustomers,
-        customersThisMonth,
-      },
-      stageDistribution: customersByStage,
-      sourceDistribution: customersBySource,
-      topCustomers,
-      recentActivity
-    };
-
-    res.json({
-      success: true,
-      data: stats
-    });
-  } catch (error) {
-    console.error('Error fetching customer stats:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch customer statistics',
-      error: error.message
-    });
-  }
-};
-
-// Get customer insights and analytics
-export const getCustomerInsights = async (req, res) => {
-  try {
-    const { projectId } = req.params;
-    const { period = '30d' } = req.query;
-
-    let dateFilter = {};
-    const now = new Date();
-    
-    switch (period) {
-      case '7d':
-        dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
-        break;
-      case '30d':
-        dateFilter = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
-        break;
-      case '90d':
-        dateFilter = { $gte: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
-        break;
-      case '1y':
-        dateFilter = { $gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
-        break;
-    }
-
-    const [
-      dailyCreationTrend,
-      stageConversionRates,
-      ownerPerformance,
-      churnRate,
-      topTags,
-      interactionAnalysis,
-      customerLifetimeValue
-    ] = await Promise.all([
-      // Daily creation trend
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false, createdAt: dateFilter } },
-        {
-          $group: {
-            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            count: { $sum: 1 }
-          }
-        },
-        { $sort: { _id: 1 } }
-      ]),
-
-      // Stage conversion rates
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false } },
-        {
-          $group: {
-            _id: '$stage',
-            count: { $sum: 1 }
-          }
-        },
-        { $sort: { count: -1 } }
-      ]),
-
-      // Owner performance
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false } },
-        {
-          $group: {
-            _id: '$owner',
-            totalCustomers: { $sum: 1 },
-            averageScore: { $avg: '$score' },
-          }
-        },
-        { $sort: { totalCustomers: -1 } }
-      ]),
-
-
-
-
-
-      // Churn rate calculation
-      Customer.aggregate([
-        { $match: { project: projectId, stage: 'churned' } },
-        { $group: { _id: null, churnedCount: { $sum: 1 } } }
-      ]),
-
-      // Top tags
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false } },
-        { $unwind: '$tags' },
-        { $group: { _id: '$tags', count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 10 }
-      ]),
-
-      // Interaction analysis
-      Customer.aggregate([
-        { $match: { project: projectId, isArchived: false } },
-        { $unwind: '$interactions' },
-        {
-          $group: {
-            _id: '$interactions.type',
-            count: { $sum: 1 },
-            avgDuration: { $avg: '$interactions.duration' }
-          }
-        },
-        { $sort: { count: -1 } }
-      ]),
-
-    ]);
-
-    // Calculate churn rate
-    const totalCustomers = await Customer.countDocuments({ project: projectId, isArchived: false });
-    const churnedCount = churnRate[0]?.churnedCount || 0;
-    const churnRateValue = totalCustomers > 0 ? (churnedCount / totalCustomers) * 100 : 0;
-
-    const ltvData = customerLifetimeValue[0] || {
-      avgLifetimeValue: 0,
-      maxLifetimeValue: 0,
-      minLifetimeValue: 0,
-      totalLifetimeValue: 0
-    };
-
-    const insights = {
-      dailyCreationTrend: dailyCreationTrend.map(item => ({
-        date: item._id,
-        count: item.count
-      })),
-      stageConversionRates,
-      ownerPerformance: await Promise.all(
-        ownerPerformance.map(async (perf) => {
-          const user = await User.findById(perf._id).select('name email profileImage');
-          return {
-            ...perf,
-            owner: user
-          };
-        })
-      ),
-      churnRate: churnRateValue,
-      topTags: topTags.map(tag => ({
-        tag: tag._id,
-        count: tag.count
-      })),
-      interactionAnalysis
-    };
-
-    res.json({
-      success: true,
-      data: insights
-    });
-  } catch (error) {
-    console.error('Error fetching customer insights:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch customer insights',
-      error: error.message
-    });
-  }
-};
-
 // Bulk operations
 export const bulkUpdateCustomers = async (req, res) => {
   try {
@@ -1130,6 +903,777 @@ export const bulkDeleteCustomers = async (req, res) => {
     });
   }
 };
+
+// ==================== CUSTOMER ANALYTICS ENDPOINTS ====================
+
+// Get comprehensive customer statistics
+export const getCustomerStats = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { period = '30d' } = req.query;
+
+    let dateFilter = {};
+    const now = new Date();
+    
+    switch (period) {
+      case '7d':
+        dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        break;
+      case '30d':
+        dateFilter = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+        break;
+      case '90d':
+        dateFilter = { $gte: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
+        break;
+      case '1y':
+        dateFilter = { $gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
+        break;
+    }
+
+    const [
+      totalCustomers,
+      activeCustomers,
+      newCustomersThisPeriod,
+      customersByStage,
+      customersBySource,
+      customersByPriority,
+      customersByStatus,
+      topCustomers,
+      recentActivity,
+      averageScore,
+      customerLifetimeValue,
+      stageConversionRates,
+      monthlyTrend,
+      ownerPerformance,
+      churnRate,
+      engagementMetrics
+    ] = await Promise.all([
+      // Total customers
+      Customer.countDocuments({ project: projectId, isArchived: false }),
+      
+      // Active customers
+      Customer.countDocuments({ project: projectId, isArchived: false, status: 'active' }),
+      
+      // New customers in period
+      Customer.countDocuments({
+        project: projectId,
+        isArchived: false,
+        createdAt: dateFilter
+      }),
+      
+      // Customers by stage
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: '$stage', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      
+      // Customers by source
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: '$source', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      
+      // Customers by priority
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: '$priority', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      
+      // Customers by status
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      
+      // Top customers by score
+      Customer.find({ project: projectId, isArchived: false })
+        .sort({ score: -1 })
+        .limit(10)
+        .populate('owner', 'name email profileImage')
+        .populate('assignedTo', 'name email profileImage'),
+      
+      // Recent activity
+      Customer.find({ project: projectId, isArchived: false })
+        .sort({ lastActivityDate: -1 })
+        .limit(10)
+        .populate('owner', 'name email profileImage')
+        .populate('lastActivityBy', 'name email profileImage'),
+      
+      // Average score
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: null, averageScore: { $avg: '$score' } } }
+      ]),
+      
+      // Customer lifetime value
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: null,
+            avgLifetimeValue: { $avg: '$score' },
+            maxLifetimeValue: { $max: '$score' },
+            minLifetimeValue: { $min: '$score' },
+            totalLifetimeValue: { $sum: '$score' }
+          }
+        }
+      ]),
+      
+      // Stage conversion rates
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: '$stage',
+            count: { $sum: 1 },
+            totalValue: { $sum: '$score' },
+            avgScore: { $avg: '$score' }
+          }
+        },
+        { $sort: { count: -1 } }
+      ]),
+      
+      // Monthly trend
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false, createdAt: dateFilter } },
+        {
+          $group: {
+            _id: { 
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+      
+      // Owner performance
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: '$owner',
+            totalCustomers: { $sum: 1 },
+            averageScore: { $avg: '$score' },
+            totalValue: { $sum: '$score' }
+          }
+        },
+        { $sort: { totalCustomers: -1 } }
+      ]),
+      
+      // Churn rate
+      Customer.aggregate([
+        { $match: { project: projectId, stage: 'churned' } },
+        { $group: { _id: null, churnedCount: { $sum: 1 } } }
+      ]),
+      
+      // Engagement metrics
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: null,
+            avgInteractions: { $avg: { $size: '$interactions' } },
+            avgNotes: { $avg: { $size: '$notes' } },
+            totalInteractions: { $sum: { $size: '$interactions' } },
+            totalNotes: { $sum: { $size: '$notes' } }
+          }
+        }
+      ])
+    ]);
+
+    // Calculate churn rate
+    const churnedCount = churnRate[0]?.churnedCount || 0;
+    const churnRateValue = totalCustomers > 0 ? (churnedCount / totalCustomers) * 100 : 0;
+
+    // Populate owner performance with user details
+    const ownerPerformanceWithDetails = await Promise.all(
+      ownerPerformance.map(async (perf) => {
+        const user = await User.findById(perf._id).select('name email profileImage');
+        return {
+          ...perf,
+          owner: user
+        };
+      })
+    );
+
+    const stats = {
+      overview: {
+        totalCustomers,
+        activeCustomers,
+        newCustomersThisPeriod,
+        averageScore: averageScore[0]?.averageScore || 0,
+        churnRate: churnRateValue
+      },
+      distribution: {
+        byStage: customersByStage,
+        bySource: customersBySource,
+        byPriority: customersByPriority,
+        byStatus: customersByStatus
+      },
+      performance: {
+        topCustomers,
+        recentActivity,
+        ownerPerformance: ownerPerformanceWithDetails
+      },
+      analytics: {
+        customerLifetimeValue: customerLifetimeValue[0] || {
+          avgLifetimeValue: 0,
+          maxLifetimeValue: 0,
+          minLifetimeValue: 0,
+          totalLifetimeValue: 0
+        },
+        stageConversionRates,
+        monthlyTrend: monthlyTrend.map(item => ({
+          month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
+          count: item.count
+        })),
+        engagementMetrics: engagementMetrics[0] || {
+          avgInteractions: 0,
+          avgNotes: 0,
+          totalInteractions: 0,
+          totalNotes: 0
+        }
+      }
+    };
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    console.error('Error fetching customer stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customer statistics',
+      error: error.message
+    });
+  }
+};
+
+// Get customer insights and analytics
+export const getCustomerInsights = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { period = '30d' } = req.query;
+
+    let dateFilter = {};
+    const now = new Date();
+    
+    switch (period) {
+      case '7d':
+        dateFilter = { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) };
+        break;
+      case '30d':
+        dateFilter = { $gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) };
+        break;
+      case '90d':
+        dateFilter = { $gte: new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000) };
+        break;
+      case '1y':
+        dateFilter = { $gte: new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000) };
+        break;
+    }
+
+    const [
+      dailyCreationTrend,
+      stageConversionRates,
+      ownerPerformance,
+      churnRate,
+      topTags,
+      interactionAnalysis,
+      customerLifetimeValue,
+      creationTrend,
+      stageDistribution,
+      sourceDistribution,
+      lifecycleStageDistribution,
+      communicationPreferences,
+      engagementTrend,
+      customerHealthScores,
+      conversionFunnel,
+      retentionAnalysis
+    ] = await Promise.all([
+      // Daily creation trend
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false, createdAt: dateFilter } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+
+      // Stage conversion rates
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: '$stage',
+            count: { $sum: 1 },
+            totalValue: { $sum: '$score' },
+            avgScore: { $avg: '$score' }
+          }
+        },
+        { $sort: { count: -1 } }
+      ]),
+
+      // Owner performance
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: '$owner',
+            totalCustomers: { $sum: 1 },
+            averageScore: { $avg: '$score' },
+            totalValue: { $sum: '$score' }
+          }
+        },
+        { $sort: { totalCustomers: -1 } }
+      ]),
+
+      // Churn rate calculation
+      Customer.aggregate([
+        { $match: { project: projectId, stage: 'churned' } },
+        { $group: { _id: null, churnedCount: { $sum: 1 } } }
+      ]),
+
+      // Top tags
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $unwind: '$tags' },
+        { $group: { _id: '$tags', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 10 }
+      ]),
+
+      // Interaction analysis
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $unwind: '$interactions' },
+        {
+          $group: {
+            _id: '$interactions.type',
+            count: { $sum: 1 },
+            avgDuration: { $avg: '$interactions.duration' }
+          }
+        },
+        { $sort: { count: -1 } }
+      ]),
+
+      // Customer lifetime value
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: null,
+            avgLifetimeValue: { $avg: '$score' },
+            maxLifetimeValue: { $max: '$score' },
+            minLifetimeValue: { $min: '$score' },
+            totalLifetimeValue: { $sum: '$score' }
+          }
+        }
+      ]),
+
+      // Monthly creation trend
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false, createdAt: dateFilter } },
+        {
+          $group: {
+            _id: { 
+              year: { $year: '$createdAt' },
+              month: { $month: '$createdAt' }
+            },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { '_id.year': 1, '_id.month': 1 } }
+      ]),
+
+      // Stage distribution
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: '$stage', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+
+      // Source distribution
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: '$source', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+
+      // Lifecycle stage distribution
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        { $group: { _id: '$lifecycleStage', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+
+      // Communication preferences
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: '$communicationPreferences.preferredContactMethod',
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { count: -1 } }
+      ]),
+
+      // Engagement trend
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false, lastActivityDate: dateFilter } },
+        {
+          $group: {
+            _id: { $dateToString: { format: '%Y-%m-%d', date: '$lastActivityDate' } },
+            count: { $sum: 1 }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ]),
+
+      // Customer health scores
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $bucket: {
+            groupBy: '$score',
+            boundaries: [0, 25, 50, 75, 100],
+            default: 'Other',
+            output: {
+              count: { $sum: 1 },
+              avgScore: { $avg: '$score' }
+            }
+          }
+        }
+      ]),
+
+      // Conversion funnel
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $facet: {
+            prospect: [{ $match: { stage: 'prospect' } }, { $count: 'count' }],
+            lead: [{ $match: { stage: 'lead' } }, { $count: 'count' }],
+            qualified: [{ $match: { stage: 'qualified' } }, { $count: 'count' }],
+            opportunity: [{ $match: { stage: 'opportunity' } }, { $count: 'count' }],
+            customer: [{ $match: { stage: 'customer' } }, { $count: 'count' }]
+          }
+        }
+      ]),
+
+      // Retention analysis
+      Customer.aggregate([
+        { $match: { project: projectId, isArchived: false } },
+        {
+          $group: {
+            _id: {
+              $dateToString: { format: '%Y-%m', date: '$createdAt' }
+            },
+            newCustomers: { $sum: 1 },
+            retainedCustomers: {
+              $sum: {
+                $cond: [
+                  { $gte: ['$lastActivityDate', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)] },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+
+    // Calculate churn rate
+    const totalCustomers = await Customer.countDocuments({ project: projectId, isArchived: false });
+    const churnedCount = churnRate[0]?.churnedCount || 0;
+    const churnRateValue = totalCustomers > 0 ? (churnedCount / totalCustomers) * 100 : 0;
+
+    const insights = {
+      trends: {
+        dailyCreationTrend: dailyCreationTrend.map(item => ({
+          date: item._id,
+          count: item.count
+        })),
+        creationTrend: creationTrend.map(item => ({
+          month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
+          count: item.count
+        })),
+        engagementTrend: engagementTrend.map(item => ({
+          date: item._id,
+          count: item.count
+        }))
+      },
+      conversion: {
+        stageConversionRates,
+        conversionFunnel: conversionFunnel[0] || {},
+        stageDistribution,
+        sourceDistribution
+      },
+      performance: {
+        ownerPerformance: await Promise.all(
+          ownerPerformance.map(async (perf) => {
+            const user = await User.findById(perf._id).select('name email profileImage');
+            return {
+              ...perf,
+              owner: user
+            };
+          })
+        ),
+        churnRate: churnRateValue,
+        retentionAnalysis
+      },
+      engagement: {
+        topTags: topTags.map(tag => ({
+          tag: tag._id,
+          count: tag.count
+        })),
+        interactionAnalysis,
+        communicationPreferences,
+        customerHealthScores
+      },
+      analytics: {
+        customerLifetimeValue: customerLifetimeValue[0] || {
+          avgLifetimeValue: 0,
+          maxLifetimeValue: 0,
+          minLifetimeValue: 0,
+          totalLifetimeValue: 0
+        },
+        lifecycleStageDistribution
+      }
+    };
+
+    res.json({
+      success: true,
+      data: insights
+    });
+  } catch (error) {
+    console.error('Error fetching customer insights:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customer insights',
+      error: error.message
+    });
+  }
+};
+
+// Get customer forecast and predictive analytics
+export const getCustomerForecast = async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const { period = '6', type = 'growth' } = req.query;
+
+    const forecastMonths = parseInt(period);
+    const now = new Date();
+    const startDate = new Date(now.getFullYear(), now.getMonth() - 12, 1);
+    const endDate = new Date(now.getFullYear(), now.getMonth() + forecastMonths, 0);
+
+    // Get historical data for the last 12 months
+    const historicalData = await Customer.aggregate([
+      { $match: { project: projectId, isArchived: false, createdAt: { $gte: startDate } } },
+      {
+        $group: {
+          _id: {
+            year: { $year: '$createdAt' },
+            month: { $month: '$createdAt' }
+          },
+          count: { $sum: 1 },
+          avgScore: { $avg: '$score' },
+          totalValue: { $sum: '$score' }
+        }
+      },
+      { $sort: { '_id.year': 1, '_id.month': 1 } }
+    ]);
+
+    // Calculate growth trends
+    const growthTrends = [];
+    for (let i = 1; i < historicalData.length; i++) {
+      const current = historicalData[i];
+      const previous = historicalData[i - 1];
+      const growthRate = previous.count > 0 ? ((current.count - previous.count) / previous.count) * 100 : 0;
+      growthTrends.push({
+        month: `${current._id.year}-${current._id.month.toString().padStart(2, '0')}`,
+        count: current.count,
+        growthRate
+      });
+    }
+
+    const avgGrowthRate = growthTrends.length > 0 
+      ? growthTrends.reduce((sum, trend) => sum + trend.growthRate, 0) / growthTrends.length 
+      : 0;
+
+    // Generate forecast
+    const forecast = [];
+    const lastMonth = historicalData[historicalData.length - 1];
+    let projectedCount = lastMonth ? lastMonth.count : 0;
+
+    for (let i = 1; i <= forecastMonths; i++) {
+      const forecastDate = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      projectedCount = Math.round(projectedCount * (1 + avgGrowthRate / 100));
+      
+      forecast.push({
+        month: `${forecastDate.getFullYear()}-${(forecastDate.getMonth() + 1).toString().padStart(2, '0')}`,
+        projected: projectedCount,
+        confidence: Math.max(0, 100 - (i * 10)) // Confidence decreases over time
+      });
+    }
+
+    // Stage progression forecast
+    const stageProgression = await Customer.aggregate([
+      { $match: { project: projectId, isArchived: false } },
+      {
+        $group: {
+          _id: '$stage',
+          count: { $sum: 1 },
+          avgScore: { $avg: '$score' },
+          avgTimeInStage: {
+            $avg: {
+              $divide: [
+                { $subtract: ['$updatedAt', '$createdAt'] },
+                1000 * 60 * 60 * 24 // Convert to days
+              ]
+            }
+          }
+        }
+      }
+    ]);
+
+    // Conversion probability by stage
+    const conversionProbabilities = {};
+    stageProgression.forEach(stage => {
+      const totalCustomers = stageProgression.reduce((sum, s) => sum + s.count, 0);
+      const stageProbability = (stage.count / totalCustomers) * 100;
+      conversionProbabilities[stage._id] = {
+        probability: stageProbability,
+        avgTimeInStage: stage.avgTimeInStage,
+        avgScore: stage.avgScore
+      };
+    });
+
+    // Revenue forecast based on customer scores
+    const revenueForecast = forecast.map((month, index) => {
+      const projectedRevenue = month.projected * (lastMonth ? lastMonth.avgScore : 0);
+      return {
+        ...month,
+        projectedRevenue: Math.round(projectedRevenue)
+      };
+    });
+
+    // Risk assessment
+    const riskFactors = {
+      churnRisk: avgGrowthRate < 0 ? 'High' : avgGrowthRate < 5 ? 'Medium' : 'Low',
+      marketSaturation: projectedCount > 1000 ? 'High' : projectedCount > 500 ? 'Medium' : 'Low',
+      conversionRisk: Object.values(conversionProbabilities).some(p => p.probability < 10) ? 'High' : 'Low'
+    };
+
+    // Customer acquisition cost forecast
+    const acquisitionCostForecast = forecast.map(month => ({
+      ...month,
+      projectedCAC: Math.round(month.projected * 50) // Assuming $50 CAC per customer
+    }));
+
+    const forecastData = {
+      historical: {
+        data: historicalData.map(item => ({
+          month: `${item._id.year}-${item._id.month.toString().padStart(2, '0')}`,
+          count: item.count,
+          avgScore: item.avgScore,
+          totalValue: item.totalValue
+        })),
+        growthTrends,
+        avgGrowthRate
+      },
+      forecast: {
+        customerGrowth: forecast,
+        revenueForecast,
+        acquisitionCostForecast
+      },
+      analytics: {
+        stageProgression,
+        conversionProbabilities,
+        riskFactors
+      },
+      insights: {
+        projectedGrowth: avgGrowthRate,
+        confidenceLevel: Math.max(0, 100 - (forecastMonths * 5)),
+        recommendations: generateRecommendations(avgGrowthRate, riskFactors)
+      }
+    };
+
+    res.json({
+      success: true,
+      data: forecastData
+    });
+  } catch (error) {
+    console.error('Error fetching customer forecast:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch customer forecast',
+      error: error.message
+    });
+  }
+};
+
+// Helper function to generate recommendations
+function generateRecommendations(growthRate, riskFactors) {
+  const recommendations = [];
+  
+  if (growthRate < 0) {
+    recommendations.push({
+      type: 'critical',
+      title: 'Negative Growth Detected',
+      description: 'Customer acquisition is declining. Focus on retention and new acquisition strategies.',
+      action: 'Review marketing campaigns and customer satisfaction metrics.'
+    });
+  } else if (growthRate < 5) {
+    recommendations.push({
+      type: 'warning',
+      title: 'Slow Growth Rate',
+      description: 'Growth rate is below optimal levels. Consider expanding marketing efforts.',
+      action: 'Increase marketing budget and improve lead generation strategies.'
+    });
+  }
+
+  if (riskFactors.churnRisk === 'High') {
+    recommendations.push({
+      type: 'critical',
+      title: 'High Churn Risk',
+      description: 'Customer churn risk is elevated. Immediate action required.',
+      action: 'Implement customer retention programs and improve customer support.'
+    });
+  }
+
+  if (riskFactors.marketSaturation === 'High') {
+    recommendations.push({
+      type: 'info',
+      title: 'Market Saturation',
+      description: 'Approaching market saturation. Consider new market segments.',
+      action: 'Explore new customer segments or geographic markets.'
+    });
+  }
+
+  if (recommendations.length === 0) {
+    recommendations.push({
+      type: 'success',
+      title: 'Healthy Growth',
+      description: 'Customer metrics are performing well.',
+      action: 'Continue current strategies and monitor key metrics.'
+    });
+  }
+
+  return recommendations;
+}
 
 // ==================== DEAL-RELATED ENDPOINTS ====================
 

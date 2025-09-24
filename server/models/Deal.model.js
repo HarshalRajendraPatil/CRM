@@ -299,7 +299,7 @@ dealSchema.methods.addActivity = function(activityData) {
 dealSchema.methods.updateStatus = function(newStatus, userId, reason = '') {
   const oldStatus = this.status;
   this.status = newStatus;
-  
+
   // Add activity for status change
   this.activities.push({
     type: 'status_change',
@@ -313,12 +313,12 @@ dealSchema.methods.updateStatus = function(newStatus, userId, reason = '') {
   });
   
   // If deal is won or lost, set the actual close date
-  if (newStatus === 'won' || newStatus === 'lost') {
+  if (newStatus === 'closed-won' || newStatus === 'closed-lost') {
     this.actualCloseDate = new Date();
     
-    if (newStatus === 'won') {
+    if (newStatus === 'closed-won') {
       this.winReason = reason;
-    } else if (newStatus === 'lost') {
+    } else if (newStatus === 'closed-lost') {
       this.lossReason = reason;
     }
   }

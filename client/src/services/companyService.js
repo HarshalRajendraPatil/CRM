@@ -138,6 +138,17 @@ const getCompanyInsights = async (projectId) => {
 };
 
 /**
+ * Get company forecasting data for a project
+ * @param {string} projectId - Project ID
+ * @param {Object} params - Query parameters (period, type)
+ * @returns {Promise} - Promise with company forecast data
+ */
+const getCompanyForecast = async (projectId, params = {}) => {
+  const response = await axiosInstance.get(`/companies/project/${projectId}/forecast`, { params });
+  return response.data;
+};
+
+/**
  * Update a company note
  * @param {string} id - Company ID
  * @param {string} noteId - Note ID
@@ -202,6 +213,7 @@ export default {
   removeCustomField,
   getCompanyStats,
   getCompanyInsights,
+  getCompanyForecast,
   bulkUpdateCompanies,
   bulkDeleteCompanies
 };

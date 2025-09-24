@@ -52,8 +52,8 @@ const CustomerInsights = ({ projectId }) => {
   );
 
   const renderFunnel = () => {
-    const hasStageData = insights?.stageConversionRates?.length > 0;
-    const maxCount = hasStageData ? Math.max(...insights.stageConversionRates.map(s => s.count)) : 0;
+    const hasStageData = insights?.conversion?.stageConversionRates?.length > 0;
+    const maxCount = hasStageData ? Math.max(...insights.conversion.stageConversionRates.map(s => s.count)) : 0;
 
     return (
       <div className="space-y-6">
@@ -71,7 +71,7 @@ const CustomerInsights = ({ projectId }) => {
             />
           ) : (
             <div className="space-y-6">
-              {insights.stageConversionRates.map((stage, index) => (
+              {insights.conversion.stageConversionRates.map((stage, index) => (
                 <div key={stage._id} className="flex items-center">
                   <div className="w-32 text-sm font-medium text-gray-600 capitalize">
                     {stage._id}
@@ -104,7 +104,7 @@ const CustomerInsights = ({ projectId }) => {
             emptyMessage="No stage conversion data available"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={insights?.stageConversionRates || []}>
+              <BarChart data={insights?.conversion?.stageConversionRates || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="_id" 

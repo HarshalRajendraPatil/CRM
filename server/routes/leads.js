@@ -15,7 +15,8 @@ import {
   assignLeadToUser,
   getLeadStats,
   getLeadInsights,
-  cleanupArchivedLeads
+  cleanupArchivedLeads,
+  getLeadForecast
 } from '../controllers/leadController.js';
 import { authenticateToken } from '../middleware/auth.js';
 
@@ -29,6 +30,7 @@ router.get('/project/:projectId', getProjectLeads);
 router.get('/project/:projectId/archived', getArchivedLeads);
 router.get('/project/:projectId/stats', getLeadStats);
 router.get('/project/:projectId/insights', getLeadInsights);
+router.get('/project/:projectId/forecast', getLeadForecast);
 
 // Single
 router.get('/:id', getLeadById);

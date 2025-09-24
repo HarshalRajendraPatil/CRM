@@ -6,6 +6,7 @@ import {getProjectLeads} from '../../../store/leadSlice'
 import {fetchProjectCustomers} from '../../../store/customerSlice'
 import {fetchProjectDeals} from '../../../store/dealSlice'
 import {getProjectCompanies} from '../../../store/companySlice'
+import { useSettingsIntegration } from '../../../hooks/useSettingsIntegration';
 
 const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
   const dispatch = useDispatch();
@@ -15,12 +16,13 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
   const { customers } = useSelector((state) => state.customers);
   const { deals } = useSelector((state) => state.deals);
   const { companies } = useSelector((state) => state.companies);
+  const { defaultTaskPriority, defaultTaskType, timeTrackingEnabled } = useSettingsIntegration();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     status: 'pending',
-    priority: 'medium',
-    type: 'other',
+    priority: defaultTaskPriority,
+    type: defaultTaskType,
     dueDate: '',
     startDate: '',
     assignedTo: '',

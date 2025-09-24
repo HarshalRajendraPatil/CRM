@@ -6,6 +6,7 @@ import { getProjectCompanies } from '../../../store/companySlice';
 import { getUsers } from '../../../store/userSlice';
 import Button from '../../../components/ui/Button';
 import Alert from '../../../components/ui/Alert';
+import { useSettingsIntegration } from '../../../hooks/useSettingsIntegration';
 
 const CreateDealSidebar = ({ isOpen, onClose, projectId }) => {
   const dispatch = useDispatch();
@@ -13,19 +14,20 @@ const CreateDealSidebar = ({ isOpen, onClose, projectId }) => {
   const { customers } = useSelector((state) => state.customers);
   const { companies } = useSelector((state) => state.companies);
   const { users } = useSelector((state) => state.users);
+  const { defaultDealCurrency, defaultDealProbability } = useSettingsIntegration();
 
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     value: '',
-    currency: 'USD',
+    currency: defaultDealCurrency,
     status: 'open',
     priority: 'medium',
-    probability: 50,
+    probability: defaultDealProbability,
     expectedCloseDate: '',
-    assignedTo: '',
-    customer: '',
-    company: '',
+    assignedTo: null,
+    customer: null,
+    company: null,
     source: '',
     tags: [],
     customFields: [],
@@ -240,9 +242,9 @@ const CreateDealSidebar = ({ isOpen, onClose, projectId }) => {
         priority: 'medium',
         probability: 50,
         expectedCloseDate: '',
-        assignedTo: '',
-        customer: '',
-        company: '',
+        assignedTo: null,
+        customer: null,
+        company: null,
         source: '',
         tags: [],
         customFields: [],
@@ -497,7 +499,7 @@ const CreateDealSidebar = ({ isOpen, onClose, projectId }) => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="">Select a customer</option>
+                  <option value="null">Select a customer</option>
                   {customers.map(customer => (
                     <option key={customer._id} value={customer._id}>
                       {customer.fullName}
@@ -517,7 +519,7 @@ const CreateDealSidebar = ({ isOpen, onClose, projectId }) => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="">Select a company</option>
+                  <option value="null">Select a company</option>
                   {companies.map(company => (
                     <option key={company._id} value={company._id}>
                       {company.name}
@@ -537,7 +539,7 @@ const CreateDealSidebar = ({ isOpen, onClose, projectId }) => {
                   onChange={handleChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                 >
-                  <option value="">Select a team member</option>
+                  <option value="null">Select a team member</option>
                   {users.map(user => (
                     <option key={user._id} value={user._id}>
                       {user.name} ({user.email})

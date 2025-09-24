@@ -62,6 +62,11 @@ export const getCustomerInsights = async (projectId, params = {}) => {
   return axios.get(`/customers/project/${projectId}/insights`, { params });
 };
 
+// Get customer forecast and predictive analytics
+export const getCustomerForecast = async (projectId, params = {}) => {
+  return axios.get(`/customers/project/${projectId}/forecast`, { params });
+};
+
 // Bulk update customers
 export const bulkUpdateCustomers = async (customerIds, updates) => {
   return axios.patch('/customers/bulk-update', { customerIds, updates });
@@ -310,6 +315,7 @@ export default {
   convertLeadToCustomer,
   getCustomerStats,
   getCustomerInsights,
+  getCustomerForecast,
   bulkUpdateCustomers,
   exportCustomers,
   updateCustomerStatus,
