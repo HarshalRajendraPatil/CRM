@@ -110,6 +110,11 @@ const Navbar = () => {
                       <Link to="/invitations" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                         My Invitations
                       </Link>
+                      {user?.roleGlobal === 'system-admin' && (
+                        <Link to="/admin/system-dashboard" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                          System Admin Dashboard
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="w-full text-left block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
@@ -186,6 +191,11 @@ const Navbar = () => {
                 <Link to="/settings" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50">
                   Settings
                 </Link>
+                {user?.roleGlobal === 'system-admin' && (
+                  <Link to="/admin/system-dashboard" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50">
+                    System Admin Dashboard
+                  </Link>
+                )}
                 <button
                   onClick={handleLogout}
                   className="w-full text-left block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-indigo-600 hover:bg-gray-50"

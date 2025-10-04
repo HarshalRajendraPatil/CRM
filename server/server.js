@@ -17,6 +17,7 @@ import calendarRoutes from './routes/calendar.js';
 import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
 import settingsRoutes from './routes/settings.js';
+import systemAdminRoutes from './routes/systemAdmin.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
@@ -89,6 +90,7 @@ app.use('/api/calendar', injectSettings, applyDefaultValues, validateBusinessRul
 app.use('/api/reports', injectSettings, reportRoutes);
 app.use('/api/dashboard', injectSettings, dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/system-admin', systemAdminRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

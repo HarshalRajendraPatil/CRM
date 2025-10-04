@@ -14,6 +14,7 @@ import Dashboard from './pages/Dashboard';
 
 import Profile from './pages/Profile';
 import AdminDashboard from './pages/admin/AdminDashboard';
+import SystemAdminDashboard from './pages/admin/SystemAdminDashboard';
 import UserDetail from './pages/admin/UserDetail';
 import CreateUser from './pages/admin/CreateUser';
 import Projects from './pages/projects/Projects';
@@ -293,6 +294,14 @@ function App() {
           element={
             <AdminRoute>
               <AdminDashboard />
+            </AdminRoute>
+          } 
+        />
+        <Route 
+          path="/admin/system-dashboard" 
+          element={
+            <AdminRoute>
+              <SystemAdminDashboard />
             </AdminRoute>
           } 
         />

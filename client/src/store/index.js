@@ -12,6 +12,7 @@ import taskReducer from './taskSlice';
 import calendarReducer from './calendarSlice';
 import dashboardReducer from './dashboardSlice';
 import settingsReducer from './settingsSlice';
+import systemAdminReducer from './systemAdminSlice';
 
 // Configure store with reducers
 const store = configureStore({
@@ -29,6 +30,7 @@ const store = configureStore({
     calendar: calendarReducer,
     dashboard: dashboardReducer,
     settings: settingsReducer,
+    systemAdmin: systemAdminReducer,
   },
   devTools: import.meta.env.DEV, // Enable Redux DevTools only in development
 });
