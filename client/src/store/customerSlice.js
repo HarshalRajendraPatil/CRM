@@ -151,6 +151,7 @@ export const fetchCustomerForecast = createAsyncThunk(
   async ({ projectId, params = {} }, { rejectWithValue }) => {
     try {
       const response = await customerService.getCustomerForecast(projectId, params);
+      console.log(response.data);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch customer forecast');

@@ -845,9 +845,20 @@ export const createDealNotification = async (eventType, deal, projectId, actorId
         notificationData = {
           ...notificationData,
           type: 'deal_deleted',
+          title: 'Deal Deleted',
+          message: `${actor.name} deleted deal: "${dealInfo.name}"`,
+          link: `/crm/${projectId}/deals`,
+          priority: 'medium'
+        };
+        break;
+
+      case 'deal_archived':
+        notificationData = {
+          ...notificationData,
+          type: 'deal_archived',
           title: 'Deal Archived',
           message: `${actor.name} archived deal: "${dealInfo.name}"`,
-          link: `/crm/${projectId}/deals`,
+          link: `/crm/${projectId}/deals/${dealInfo._id}`,
           priority: 'medium'
         };
         break;

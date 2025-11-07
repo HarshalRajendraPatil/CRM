@@ -101,7 +101,9 @@ const TaskListItem = ({
           <div className="text-sm">
             <div className={`${isOverdue ? 'text-red-600 font-medium' : daysUntilDue <= 3 ? 'text-yellow-600' : 'text-gray-900'}`}>
               <p>{formatDate(task.dueDate)}</p>
-              <span className="text-xs text-gray-500">{daysUntilDue} days until due</span>
+              {task.status !== 'completed' && (
+                <span className="text-xs text-gray-500">{Math.abs(daysUntilDue)} days {daysUntilDue > 0 ? 'until due' : 'ago'}</span>
+              )}
             </div>
             {isOverdue && (
               <div className="text-xs text-red-500">

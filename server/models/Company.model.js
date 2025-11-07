@@ -153,16 +153,6 @@ const CompanySchema = new Schema({
     }
   }],
   // Activity tracking
-  lastActivityDate: {
-    type: Date
-  },
-  lastActivityType: {
-    type: String
-  },
-  lastActivityBy: {
-    type: Schema.Types.ObjectId,
-    ref: 'User'
-  },
   // Metadata
   createdBy: {
     type: Schema.Types.ObjectId,
@@ -241,13 +231,6 @@ CompanySchema.statics.findByProject = function(projectId, options = {}) {
 };
 
 // Instance methods
-CompanySchema.methods.updateActivity = async function(userId, activityType) {
-  this.lastActivityDate = new Date();
-  this.lastActivityType = activityType;
-  this.lastActivityBy = userId;
-  this.updatedBy = userId;
-  return this.save();
-};
 
 CompanySchema.methods.addNote = async function(content, userId) {
   this.notes.push({
@@ -257,33 +240,83 @@ CompanySchema.methods.addNote = async function(content, userId) {
     updatedAt: new Date()
   });
   
-  await this.updateActivity(userId, 'note_added');
+  this.updatedBy = userId;
   return this;
+};
+
+// Activity tracking methods
+CompanySchema.methods.trackActivity = async function(activityType, description, performedBy, metadata = {}) {
+  const Activity = mongoose.model('Activity');
+  return await Activity.logActivity({
+    entityType: 'Company',
+    entityId: this._id,
+    project: this.project,
+    activityType,
+    description,
+    category: this.getActivityCategory(activityType),
+    performedBy: performedBy._id || performedBy,
+    priority: this.getActivityPriority(activityType),
+    metadata: {
+      companyName: this.name,
+      ...metadata
+    }
+  });
+};
+
+CompanySchema.methods.getActivityCategory = function(activityType) {
+  const categoryMap = {
+    'company_created': 'creation',
+    'company_updated': 'update',
+    'company_deleted': 'deletion',
+    'company_note_added': 'interaction',
+    'company_note_updated': 'interaction',
+    'company_note_deleted': 'interaction',
+    'company_tag_added': 'update',
+    'company_tag_removed': 'update',
+    'company_custom_field_added': 'update',
+    'company_custom_field_removed': 'update',
+    'company_status_changed': 'status_change',
+    'company_assigned': 'assignment',
+    'company_unassigned': 'assignment'
+  };
+  return categoryMap[activityType] || 'update';
+};
+
+CompanySchema.methods.getActivityPriority = function(activityType) {
+  const priorityMap = {
+    'company_created': 'high',
+    'company_deleted': 'critical',
+    'company_status_changed': 'medium',
+    'company_assigned': 'medium',
+    'company_unassigned': 'medium',
+    'company_note_added': 'medium'
+  };
+  return priorityMap[activityType] || 'low';
 };
 
 CompanySchema.methods.addTag = async function(tag, userId) {
   if (!this.tags.includes(tag)) {
     this.tags.push(tag);
-    await this.updateActivity(userId, 'tag_added');
+    this.updatedBy = userId;
   }
   return this;
 };
 
 CompanySchema.methods.removeTag = async function(tag, userId) {
   this.tags = this.tags.filter(t => t !== tag);
-  await this.updateActivity(userId, 'tag_removed');
+  this.updatedBy = userId;
   return this;
 };
 
 CompanySchema.methods.addCustomField = async function(key, value, userId) {
   this.customFields.set(key, value);
-  await this.updateActivity(userId, 'custom_field_added');
+  this.updatedBy = userId;
   return this;
 };
 
 CompanySchema.methods.removeCustomField = async function(key, userId) {
   this.customFields.delete(key);
-  await this.updateActivity(userId, 'custom_field_removed');
+  this.updatedBy = userId;
   return this;
 };
 
@@ -333,7 +366,7 @@ CompanySchema.methods.getActiveDealCount = async function() {
 CompanySchema.methods.getWonDealCount = async function() {
   return mongoose.model('Deal').countDocuments({ 
     company: this._id, 
-    status: 'won' 
+    status: 'closed-won' 
   });
 };
 

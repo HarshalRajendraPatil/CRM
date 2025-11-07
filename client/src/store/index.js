@@ -13,6 +13,7 @@ import calendarReducer from './calendarSlice';
 import dashboardReducer from './dashboardSlice';
 import settingsReducer from './settingsSlice';
 import systemAdminReducer from './systemAdminSlice';
+import activityReducer from './activitySlice';
 
 // Configure store with reducers
 const store = configureStore({
@@ -31,6 +32,7 @@ const store = configureStore({
     dashboard: dashboardReducer,
     settings: settingsReducer,
     systemAdmin: systemAdminReducer,
+    activity: activityReducer,
   },
   devTools: import.meta.env.DEV, // Enable Redux DevTools only in development
 });

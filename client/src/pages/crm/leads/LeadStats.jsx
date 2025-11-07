@@ -171,9 +171,9 @@ const LeadStats = ({ projectId }) => {
           <h3 className="text-lg font-semibold mb-4">Lead Aging Analysis</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={Object.entries(insights?.agingBuckets || {}).map(([key, value]) => ({ age: key, count: value }))}>
-              <CartesianGrid strokeDasharray="3 3" />
+              <CartesianGrid strokeDasharray="3,3" />
               <XAxis dataKey="age" />
-              <YAxis />
+              <YAxis dataKey="count" />
               <Tooltip />
               <Bar dataKey="count" fill="#10B981" />
             </BarChart>

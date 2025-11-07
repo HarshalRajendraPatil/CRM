@@ -18,10 +18,11 @@ import reportRoutes from './routes/reports.js';
 import dashboardRoutes from './routes/dashboard.js';
 import settingsRoutes from './routes/settings.js';
 import systemAdminRoutes from './routes/systemAdmin.js';
+import activityRoutes from './routes/activities.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
-import { injectSettings, applySettingsToResponse, validateBusinessRules, applyDefaultValues, checkNotificationSettings } from './middleware/settingsMiddleware.js';
+import { injectSettings, validateBusinessRules, applyDefaultValues, checkNotificationSettings } from './middleware/settingsMiddleware.js';
 
 // Load environment variables
 dotenv.config();
@@ -91,6 +92,7 @@ app.use('/api/reports', injectSettings, reportRoutes);
 app.use('/api/dashboard', injectSettings, dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/system-admin', systemAdminRoutes);
+app.use('/api/activities', injectSettings, activityRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

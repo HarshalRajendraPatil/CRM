@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchCustomerStats, fetchCustomerInsights } from '../../../store/customerSlice';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import Alert from '../../../components/ui/Alert';
 
 const CustomerStats = ({ projectId }) => {
@@ -15,6 +15,8 @@ const CustomerStats = ({ projectId }) => {
       dispatch(fetchCustomerInsights({ projectId }));
     }
   }, [dispatch, projectId]);
+
+  console.log(insights);
 
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#84CC16', '#F97316'];
 
@@ -83,8 +85,6 @@ const CustomerStats = ({ projectId }) => {
   );
 
   const renderOverview = () => {
-    const hasData = stats?.overview?.totalCustomers > 0;
-    
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -113,8 +113,8 @@ const CustomerStats = ({ projectId }) => {
             isLoading={isStatsLoading}
           />
           <StatCard
-            title="This Period"
-            value={stats?.overview?.newCustomersThisPeriod?.toLocaleString() || '0'}
+            title="New This Period"
+            value={stats?.overview?.newCustomers?.toLocaleString() || '0'}
             subtitle="New customers"
             icon={
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,27 +126,26 @@ const CustomerStats = ({ projectId }) => {
           />
           <StatCard
             title="Churn Rate"
-            value={`${stats?.overview?.churnRate?.toFixed(1) || '0.0'}%`}
+            value={`${stats?.overview?.churnRate || '0.0'}%`}
             subtitle="Customer retention"
             icon={
               <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
               </svg>
             }
-            color="emerald"
+            color="red"
             isLoading={isStatsLoading}
           />
-
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <ChartContainer 
-            title="Customer Growth Trend" 
-            isEmpty={!insights?.dailyCreationTrend?.length}
-            emptyMessage="No customer growth data available for the selected period"
+            title="Customer Creation Trend" 
+            isEmpty={!insights?.trends?.creationTrend?.length}
+            emptyMessage="No creation trend data available"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={insights?.dailyCreationTrend || []}>
+              <LineChart data={insights?.trends?.creationTrend || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="date" 
@@ -181,13 +180,13 @@ const CustomerStats = ({ projectId }) => {
 
           <ChartContainer 
             title="Customer Stage Distribution" 
-            isEmpty={!stats?.stageDistribution?.length}
+            isEmpty={!stats?.distribution?.byStage?.length}
             emptyMessage="No customer stage data available"
           >
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={stats?.stageDistribution?.map(stage => ({
+                  data={stats?.distribution?.byStage?.map(stage => ({
                     name: stage._id.charAt(0).toUpperCase() + stage._id.slice(1),
                     value: stage.count
                   })) || []}
@@ -218,51 +217,13 @@ const CustomerStats = ({ projectId }) => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-          <ChartContainer 
-            title="Customer Creation Trend" 
-            isEmpty={!insights?.creationTrend?.length}
-            emptyMessage="No creation trend data available"
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={insights?.creationTrend || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="month" 
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <YAxis 
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                  axisLine={false}
-                />
-                <Tooltip 
-                  formatter={(value) => [value, 'Customers']}
-                  contentStyle={{ 
-                    backgroundColor: 'white', 
-                    border: '1px solid #e5e7eb',
-                    borderRadius: '8px',
-                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                  }}
-                />
-                <Bar 
-                  dataKey="count" 
-                  fill="#10B981"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartContainer>
-
           <ChartContainer 
             title="Customer Source Distribution" 
-            isEmpty={!stats?.sourceDistribution?.length}
+            isEmpty={!stats?.distribution?.bySource?.length}
             emptyMessage="No customer source data available"
           >
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stats?.sourceDistribution || []}>
+              <BarChart data={stats?.distribution?.bySource || []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis 
                   dataKey="_id" 
@@ -291,93 +252,26 @@ const CustomerStats = ({ projectId }) => {
               </BarChart>
             </ResponsiveContainer>
           </ChartContainer>
-        </div>
-      </div>
-    );
-  };
-
-  const renderPerformance = () => {
-    const hasPerformanceData = insights?.ownerPerformance?.length > 0;
-    const hasTopCustomers = stats?.topCustomers?.length > 0;
-    const hasRecentActivity = stats?.recentActivity?.length > 0;
-
-    return (
-      <div className="space-y-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Team Performance</h3>
-          {!hasPerformanceData ? (
-            <EmptyState 
-              title="No Performance Data" 
-              description="Team performance data will appear here once customers are assigned to team members"
-              icon={
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                </svg>
-              }
-            />
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="min-w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Team Member</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Total Customers</th>
-                    <th className="text-left py-3 px-4 font-semibold text-gray-900">Avg Score</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {insights.ownerPerformance.map((perf, index) => (
-                    <tr key={index} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                            <span className="text-sm font-medium text-gray-600">
-                              {(perf.owner?.name || 'Unknown').charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <span className="font-medium text-gray-900">{perf.owner?.name || 'Unknown'}</span>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-gray-900">{perf.totalCustomers || 0}</td>
-                      <td className="py-3 px-4">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          (perf.averageScore || 0) >= 80 ? 'bg-green-100 text-green-800' :
-                          (perf.averageScore || 0) >= 60 ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-red-100 text-red-800'
-                        }`}>
-                          {(perf.averageScore || 0).toFixed(1)}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
-            {!hasRecentActivity ? (
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Customers</h3>
+            {!stats?.recentCustomers?.length ? (
               <EmptyState 
-                title="No Recent Activity" 
-                description="Recent customer activity will appear here once customers have interactions"
+                title="No Recent Customers" 
+                description="Recent customers will appear here once customers are created"
                 icon={
                   <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
                   </svg>
                 }
               />
             ) : (
-              <div className="space-y-4">
-                {stats.recentActivity.map((customer, index) => (
+              <div className="space-y-3">
+                {stats.recentCustomers.map((customer, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center">
-                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-sm font-medium text-green-600">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                        <span className="text-sm font-medium text-blue-600">
                           {customer.firstName?.charAt(0).toUpperCase() || 'C'}
                         </span>
                       </div>
@@ -385,20 +279,21 @@ const CustomerStats = ({ projectId }) => {
                         <p className="text-sm font-medium text-gray-900">
                           {customer.firstName} {customer.lastName}
                         </p>
-                        <p className="text-xs text-gray-500">
-                          {customer.lastActivityBy?.name || 'System'}
-                        </p>
+                        <p className="text-xs text-gray-500">{customer.email}</p>
                       </div>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
-                      customer.stage === 'customer' ? 'bg-emerald-100 text-emerald-800' :
-                      customer.stage === 'opportunity' ? 'bg-purple-100 text-purple-800' :
-                      customer.stage === 'qualified' ? 'bg-green-100 text-green-800' :
-                      customer.stage === 'lead' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-blue-100 text-blue-800'
-                    }`}>
-                      {customer.stage}
-                    </span>
+                    <div className="text-right">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                        customer.stage === 'customer' ? 'bg-emerald-100 text-emerald-800' :
+                        customer.stage === 'opportunity' ? 'bg-purple-100 text-purple-800' :
+                        customer.stage === 'qualified' ? 'bg-green-100 text-green-800' :
+                        customer.stage === 'lead' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {customer.stage}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-1">Score: {customer.score || 0}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -409,73 +304,86 @@ const CustomerStats = ({ projectId }) => {
     );
   };
 
-  const renderAnalytics = () => {
-    const hasLifetimeValue = insights?.customerLifetimeValue;
-    const hasTopTags = insights?.topTags?.length > 0;
-    const hasInteractionAnalysis = insights?.interactionAnalysis?.length > 0;
-
+  const renderPerformance = () => {
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Customers by Score</h3>
+          {!insights?.topCustomers?.length ? (
+            <EmptyState 
+              title="No Top Customers" 
+              description="Top customers will appear here once customers have scores assigned"
+              icon={
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              }
+            />
+          ) : (
+            <div className="space-y-3">
+              {insights.topCustomers.map((customer, index) => (
+                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                      <span className="text-sm font-medium text-blue-600">
+                        {customer.firstName?.charAt(0).toUpperCase() || 'C'}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">
+                        {customer.firstName} {customer.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500">{customer.email}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                      customer.stage === 'customer' ? 'bg-emerald-100 text-emerald-800' :
+                      customer.stage === 'opportunity' ? 'bg-purple-100 text-purple-800' :
+                      customer.stage === 'qualified' ? 'bg-green-100 text-green-800' :
+                      customer.stage === 'lead' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-blue-100 text-blue-800'
+                    }`}>
+                      {customer.stage}
+                    </span>
+                    <p className="text-sm font-bold text-gray-900 mt-1">Score: {customer.score || 0}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAnalytics = () => {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Customer Lifetime Value</h3>
-            {!hasLifetimeValue ? (
-              <EmptyState 
-                title="No LTV Data" 
-                description="Customer lifetime value data will appear here once customers have activity data"
-                icon={
-                  <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"></path>
-                  </svg>
-                }
-              />
-            ) : (
-              <div className="space-y-4">
-                <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">Average LTV</span>
-                  <span className="text-lg font-bold text-blue-600">
-                    ${(insights.customerLifetimeValue.avgLifetimeValue || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">Maximum LTV</span>
-                  <span className="text-lg font-bold text-green-600">
-                    ${(insights.customerLifetimeValue.maxLifetimeValue || 0).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                  <span className="text-sm font-medium text-gray-700">Minimum LTV</span>
-                  <span className="text-lg font-bold text-yellow-600">
-                    ${(insights.customerLifetimeValue.minLifetimeValue || 0).toLocaleString()}
-                  </span>
-                </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Customer Score</h3>
+            <div className="text-center">
+              <div className="text-4xl font-bold text-emerald-600 mb-2">
+                {stats?.overview?.averageScore || '0.0'}
               </div>
-            )}
+              <p className="text-sm text-gray-500">Average score across all customers</p>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Churn Rate</h3>
             <div className="text-center">
               <div className="text-4xl font-bold text-red-600 mb-2">
-                {(insights?.churnRate || 0).toFixed(1)}%
+                {stats?.overview?.churnRate || '0.0'}%
               </div>
               <p className="text-sm text-gray-500 mb-4">Customer churn rate</p>
               <div className="w-full bg-gray-200 rounded-full h-3">
                 <div 
                   className="bg-red-600 h-3 rounded-full transition-all duration-300" 
-                  style={{ width: `${Math.min((insights?.churnRate || 0), 100)}%` }}
+                  style={{ width: `${Math.min((stats?.overview?.churnRate || 0), 100)}%` }}
                 ></div>
               </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Average Customer Score</h3>
-            <div className="text-center">
-              <div className="text-4xl font-bold text-emerald-600 mb-2">
-                {(stats?.totals?.averageScore || 0).toFixed(1)}
-              </div>
-              <p className="text-sm text-gray-500">Average score</p>
             </div>
           </div>
         </div>
@@ -483,7 +391,7 @@ const CustomerStats = ({ projectId }) => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Tags</h3>
-            {!hasTopTags ? (
+            {!insights?.topTags?.length ? (
               <EmptyState 
                 title="No Tags" 
                 description="Top customer tags will appear here once customers have tags assigned"
@@ -495,7 +403,7 @@ const CustomerStats = ({ projectId }) => {
               />
             ) : (
               <div className="space-y-3">
-                {insights.topTags.slice(0, 10).map((tag, index) => (
+                {insights.topTags.map((tag, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <span className="text-sm font-medium text-gray-700">{tag.tag}</span>
                     <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
@@ -508,8 +416,8 @@ const CustomerStats = ({ projectId }) => {
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Interaction Analysis</h3>
-            {!hasInteractionAnalysis ? (
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Interaction Types</h3>
+            {!insights?.interactionTypes?.length ? (
               <EmptyState 
                 title="No Interactions" 
                 description="Interaction analysis will appear here once customers have interactions recorded"
@@ -521,7 +429,7 @@ const CustomerStats = ({ projectId }) => {
               />
             ) : (
               <div className="space-y-3">
-                {insights.interactionAnalysis.map((interaction, index) => (
+                {insights.interactionTypes.map((interaction, index) => (
                   <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div className="flex items-center">
                       <div className={`w-3 h-3 rounded-full mr-3`} style={{ backgroundColor: COLORS[index % COLORS.length] }}></div>
@@ -529,9 +437,6 @@ const CustomerStats = ({ projectId }) => {
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-bold text-gray-900">{interaction.count}</div>
-                      {interaction.avgDuration && (
-                        <div className="text-xs text-gray-500">{(interaction.avgDuration).toFixed(1)} min avg</div>
-                      )}
                     </div>
                   </div>
                 ))}

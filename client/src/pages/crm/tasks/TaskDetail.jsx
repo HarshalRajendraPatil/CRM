@@ -1219,7 +1219,7 @@ const TaskDetail = () => {
 
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowDeleteConfirm(false)} />
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => setShowDeleteConfirm(false)} />
           <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Task</h3>
@@ -1247,7 +1247,7 @@ const TaskDetail = () => {
 
       {showArchiveConfirm && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowArchiveConfirm(false)} />
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => setShowArchiveConfirm(false)} />
           <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Archive Task</h3>

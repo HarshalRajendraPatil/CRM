@@ -14,7 +14,7 @@ const BulkAssignModal = ({ isOpen, onClose, selectedCount, onAssign, users }) =>
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={onClose} />
+      <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={onClose} />
       
       <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
         <div className="p-6">

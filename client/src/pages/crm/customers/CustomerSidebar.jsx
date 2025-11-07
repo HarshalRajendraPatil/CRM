@@ -56,9 +56,6 @@ const CustomerSidebar = ({ isOpen, onClose, customerId = null, currentCustomer =
       language: 'en'
     },
     lifecycleStage: 'awareness',
-    lastActivityDate: null,
-    lastActivityType: '',
-    lastActivityBy: null,
     convertedFromLead: null,
     convertedAt: null,
     convertedBy: null,
@@ -122,9 +119,6 @@ const CustomerSidebar = ({ isOpen, onClose, customerId = null, currentCustomer =
           language: currentCustomer.communicationPreferences?.language || 'en'
         },
         lifecycleStage: currentCustomer.lifecycleStage || 'awareness',
-        lastActivityDate: currentCustomer.lastActivityDate || null,
-        lastActivityType: currentCustomer.lastActivityType || '',
-        lastActivityBy: currentCustomer.lastActivityBy || null,
         convertedFromLead: currentCustomer.convertedFromLead || null,
         convertedAt: currentCustomer.convertedAt || null,
         convertedBy: currentCustomer.convertedBy || null,
@@ -222,9 +216,6 @@ const CustomerSidebar = ({ isOpen, onClose, customerId = null, currentCustomer =
     const { 
       notes, 
       interactions, 
-      lastActivityDate, 
-      lastActivityType, 
-      lastActivityBy, 
       convertedFromLead, 
       convertedAt, 
       convertedBy, 

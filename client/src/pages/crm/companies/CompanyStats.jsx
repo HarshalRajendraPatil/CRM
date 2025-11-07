@@ -63,16 +63,10 @@ const CompanyStats = ({ stats, projectId }) => {
   }));
 
   // Format growth trend data for charts
-  const growthData = (stats.growthTrend || []).map(item => ({
-    month: `${item._id?.year || ''}-${String(item._id?.month || '').padStart(2, '0')}`,
-    count: item.count
-  }));
+  const growthData = stats.growthTrend;
 
   // Format activity trends data for charts
-  const activityData = (stats.activityTrends || []).map(item => ({
-    date: `${item._id?.year || ''}-${String(item._id?.month || '').padStart(2, '0')}-${String(item._id?.day || '').padStart(2, '0')}`,
-    count: item.count
-  }));
+  const activityData = stats.activityTrends;
 
   const topTagsData = (stats.topTags || []).map(item => ({
     tag: item.tag || 'Unknown',
@@ -489,14 +483,9 @@ const CompanyStats = ({ stats, projectId }) => {
                         <div>
                           <p className="text-sm font-medium text-gray-900">{company.name}</p>
                           <p className="text-xs text-gray-500">
-                            Last activity: {company.lastActivityType} - {company.lastActivityDate ? new Date(company.lastActivityDate).toLocaleDateString() : 'N/A'}
+                            Last updated: {company.updatedAt ? new Date(company.updatedAt).toLocaleDateString() : 'N/A'}
                           </p>
                         </div>
-                        {company.lastActivityBy && (
-                          <div className="text-xs text-gray-500">
-                            by {company.lastActivityBy.name}
-                          </div>
-                        )}
                       </div>
                     ))}
                   </div>
@@ -517,7 +506,7 @@ const CompanyStats = ({ stats, projectId }) => {
                           </p>
                         </div>
                         <div className="text-xs text-gray-500">
-                          {company.lastActivityDate && new Date(company.lastActivityDate).toLocaleDateString() || 'N/A'}
+                          {company.updatedAt && new Date(company.updatedAt).toLocaleDateString() || 'N/A'}
                         </div>
                       </div>
                     ))}

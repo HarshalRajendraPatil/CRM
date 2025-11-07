@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { fetchLead, addLeadNote, updateLeadNote, deleteLeadNote, updateLeadStatus, assignLeadToUser, archiveLead, clearLead } from '../../../store/leadSlice';
+import { getProjectById } from '../../../store/projectSlice';
 import { convertLeadToCustomer } from '../../../store/customerSlice';
 import EditLeadSidebar from './EditLeadSidebar';
 import CustomerSidebar from '../customers/CustomerSidebar';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import CrmLayout from '../../../layouts/CrmLayout';
+import ActivityTimeline from '../../../components/activity/ActivityTimeline';
 
 const LeadDetail = () => {
   const { projectId, leadId } = useParams();
@@ -27,6 +29,7 @@ const LeadDetail = () => {
 
   useEffect(() => {
     dispatch(fetchLead(leadId));
+    dispatch(getProjectById(projectId));
 
     return () => {
       dispatch(clearLead());
@@ -130,14 +133,6 @@ const LeadDetail = () => {
     }
   };
 
-  if (isLoading || !lead) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading...</div>
-      </div>
-    );
-  }
-
   const StatusBadge = ({ status }) => {
     const colors = {
       new: 'bg-gray-100 text-gray-800',
@@ -158,7 +153,11 @@ const LeadDetail = () => {
 
   return (
     <CrmLayout>
-      <div className="space-y-6 p-6">
+      {isLoading ? <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Loading...</div>
+      </div> : !lead ? <div className="flex items-center justify-center h-64">
+        <div className="text-gray-500">Lead not found</div>
+      </div> : <div className="space-y-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -166,18 +165,34 @@ const LeadDetail = () => {
           <p className="text-gray-600">Lead Details</p>
         </div>
         <div className="flex items-center space-x-3">
-          <Button
-            variant="secondary"
-            onClick={() => setShowEditSidebar(true)}
-          >
-            Edit Lead
-          </Button>
-          <Button
-            variant="danger"
-            onClick={onArchive}
-          >
-            Archive Lead
-          </Button>
+          {lead.convertedAt ? (
+            <div className="flex items-center space-x-2">
+              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                ✓ Converted to Customer
+              </span>
+              <Button
+                variant="secondary"
+                onClick={() => navigate(`/crm/${projectId}/customers/${lead.convertedCustomerId._id}`)}
+              >
+                View Customer
+              </Button>
+            </div>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => setShowEditSidebar(true)}
+              >
+                Edit Lead
+              </Button>
+              <Button
+                variant="danger"
+                onClick={onArchive}
+              >
+                Archive Lead
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -206,7 +221,7 @@ const LeadDetail = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Company Reference</label>
-                <p className="text-gray-900">{lead.company?.name || '-'}</p>
+                <Link className="text-blue-900 underline" to={`/crm/${projectId}/companies/${lead.company._id}`}>{lead.company?.name || '-'}</Link>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
@@ -227,7 +242,7 @@ const LeadDetail = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
                 <div className="flex items-center space-x-3">
                   <StatusBadge status={lead.stage || lead.status} />
-                  <select
+                  {!lead.convertedAt && <select
                     value={lead.stage || lead.status}
                     onChange={(e) => onStatusChange(e.target.value)}
                     className="px-3 py-1 border border-gray-300 rounded text-sm"
@@ -236,14 +251,14 @@ const LeadDetail = () => {
                     <option value="contacted">Contacted</option>
                     <option value="qualified">Qualified</option>
                     <option value="disqualified">Disqualified</option>
-                  </select>
+                  </select>}
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
                 <div className="flex items-center space-x-3">
                   <p className="text-gray-900">{lead.assignedTo?.name || 'Unassigned'}</p>
-                  {lead.assignedTo ? (
+                  {!lead.convertedAt && (lead.assignedTo ? (
                     <Button
                       variant="secondary"
                       size="sm"
@@ -259,7 +274,7 @@ const LeadDetail = () => {
                     >
                       Assign
                     </Button>
-                  )}
+                  ))}
                 </div>
               </div>
               <div>
@@ -313,40 +328,19 @@ const LeadDetail = () => {
                 )}
                 {lead.convertedCustomerId && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Customer ID</label>
-                    <p className="text-gray-900">{lead.convertedCustomerId}</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+                    <button
+                      onClick={() => navigate(`/crm/${projectId}/customers/${lead.convertedCustomerId._id}`)}
+                      className="text-indigo-600 hover:text-indigo-800 underline"
+                    >
+                      View Customer Profile
+                    </button>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* Activity Information */}
-          {(lead.lastActivityDate || lead.lastActivityType || lead.lastActivityBy) && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold mb-4">Activity Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {lead.lastActivityDate && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Activity Date</label>
-                    <p className="text-gray-900">{new Date(lead.lastActivityDate).toLocaleDateString()}</p>
-                  </div>
-                )}
-                {lead.lastActivityType && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Activity Type</label>
-                    <p className="text-gray-900 capitalize">{lead.lastActivityType.replace(/_/g, ' ')}</p>
-                  </div>
-                )}
-                {lead.lastActivityBy && (
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Activity By</label>
-                    <p className="text-gray-900">{lead.lastActivityBy?.name}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Tags */}
           {lead.tags && lead.tags.length > 0 && (
@@ -377,8 +371,9 @@ const LeadDetail = () => {
                   onChange={(e) => setNote(e.target.value)}
                   placeholder="Add a note..."
                   className="flex-1"
+                  disabled={lead.convertedAt}
                 />
-                <Button type="submit" disabled={!note.trim()}>
+                <Button type="submit" disabled={!note.trim() || lead.convertedAt}>
                   Add Note
                 </Button>
               </div>
@@ -446,6 +441,15 @@ const LeadDetail = () => {
               )}
             </div>
           </div>
+
+          {/* Activity Timeline */}
+          <div className="bg-white rounded-lg shadow p-6">
+            <ActivityTimeline 
+              entityType="Lead" 
+              entityId={leadId} 
+              projectId={projectId} 
+            />
+          </div>
         </div>
 
         {/* Sidebar */}
@@ -459,6 +463,7 @@ const LeadDetail = () => {
                   onClick={onConvert}
                   className="w-full"
                   variant="success"
+                  disabled={lead.convertedAt}
                 >
                   Convert to Customer
                 </Button>
@@ -467,16 +472,17 @@ const LeadDetail = () => {
                 onClick={() => setShowEditSidebar(true)}
                 variant="secondary"
                 className="w-full"
+                disabled={lead.convertedAt}
               >
                 Edit Lead
               </Button>
-              <Button
+              {!lead.convertedAt && <Button
                 onClick={onArchive}
                 variant="danger"
                 className="w-full"
               >
                 Archive Lead
-              </Button>
+              </Button>}
             </div>
           </div>
 
@@ -512,28 +518,25 @@ const LeadDetail = () => {
                 <dt className="text-gray-500">Updated</dt>
                 <dd>{new Date(lead.updatedAt).toLocaleDateString()}</dd>
               </div>
-              {lead.lastActivityDate && (
-                <div className="flex justify-between">
-                  <dt className="text-gray-500">Last Activity</dt>
-                  <dd>{new Date(lead.lastActivityDate).toLocaleDateString()}</dd>
-                </div>
-              )}
             </dl>
           </div>
         </div>
       </div>
 
       {/* Edit Sidebar */}
-      <EditLeadSidebar
-        isOpen={showEditSidebar}
-        onClose={() => setShowEditSidebar(false)}
-        lead={lead}
-      />
+      {!lead.convertedAt && (
+        <EditLeadSidebar
+          isOpen={showEditSidebar}
+          onClose={() => setShowEditSidebar(false)}
+          lead={lead}
+        />
+      )}
+
 
       {/* Assign User Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 border border-gray-200">
             <h3 className="text-lg font-semibold mb-4">Assign Lead</h3>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -575,8 +578,8 @@ const LeadDetail = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 border border-gray-200">
             <h3 className="text-lg font-semibold mb-4">Archive Lead</h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to archive this lead? This action cannot be undone.
@@ -599,8 +602,6 @@ const LeadDetail = () => {
         </div>
       )}
 
-
-
       {/* Convert Lead to Customer Sidebar */}
       <CustomerSidebar
         isOpen={showConvertSidebar}
@@ -612,13 +613,27 @@ const LeadDetail = () => {
           phone: lead?.phone || '',
           jobTitle: lead?.jobTitle || '',
           companyName: lead?.companyName || lead?.company?.name || '',
-          industry: lead?.industry || '',
           source: lead?.source || 'lead_conversion',
           tags: lead?.tags || [],
           score: lead?.score || 50,
           priority: 'medium',
           stage: 'lead',
           status: 'active',
+          address: {
+            street: lead?.company?.address?.street || '',
+            city: lead?.company?.address?.city || '3qe',
+            state: lead?.company?.address?.state || '',
+            zipCode: lead?.company?.address?.zipCode || '',
+            country: lead?.company?.address?.country || 'United States'
+          },
+          socialLinks: {
+            linkedin: lead?.socialLinks?.linkedin || '',
+            twitter: lead?.socialLinks?.twitter || '',
+            facebook: lead?.socialLinks?.facebook || '',
+            website: lead?.socialLinks?.website || '',
+            other: lead?.socialLinks?.other || ''
+          },
+          industry: lead?.company?.industry || '',
           deal: {
             value: 0,
             currency: 'USD',
@@ -638,7 +653,7 @@ const LeadDetail = () => {
         isFromLead={true}
         onConvert={handleConvertToCustomer}
       />
-    </div>
+    </div>}
     </CrmLayout>
   );
 };

@@ -93,16 +93,6 @@ const leadSchema = new mongoose.Schema({
     default: {}
   },
   notes: [leadNoteSchema],
-  lastActivityDate: {
-    type: Date
-  },
-  lastActivityType: {
-    type: String
-  },
-  lastActivityBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
   isArchived: {
     type: Boolean,
     default: false,
@@ -123,6 +113,11 @@ const leadSchema = new mongoose.Schema({
   },
   convertedContactId: {
     type: mongoose.Schema.Types.ObjectId,
+    default: null
+  },
+  convertedCustomerId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Customer',
     default: null
   },
   createdBy: {
@@ -195,6 +190,8 @@ leadSchema.statics.findByProject = function(projectId, options = {}) {
     .populate('assignedTo', 'name email profileImage')
     .populate('createdBy', 'name email profileImage')
     .populate('updatedBy', 'name email profileImage')
+    .populate('convertedBy', 'name email profileImage')
+    .populate('convertedCustomerId', 'name email')
     .populate('company', 'name industry');
 };
 
@@ -242,17 +239,12 @@ leadSchema.statics.findArchivedByProject = function(projectId, options = {}) {
     .populate('assignedTo', 'name email profileImage')
     .populate('createdBy', 'name email profileImage')
     .populate('updatedBy', 'name email profileImage')
+    .populate('convertedBy', 'name email profileImage')
+    .populate('convertedCustomerId', 'name email')
     .populate('company', 'name industry');
 };
 
 // Instance helpers
-leadSchema.methods.updateActivity = async function(userId, activityType) {
-  this.lastActivityDate = new Date();
-  this.lastActivityType = activityType;
-  this.lastActivityBy = userId;
-  this.updatedBy = userId;
-  return this.save();
-};
 
 leadSchema.methods.addNote = async function(content, userId) {
   this.notes.push({
@@ -261,8 +253,64 @@ leadSchema.methods.addNote = async function(content, userId) {
     createdAt: new Date(),
     updatedAt: new Date()
   });
-  await this.updateActivity(userId, 'note_added');
-  return this;
+  this.updatedBy = userId;
+  return this.save();
+};
+
+// Activity tracking methods
+leadSchema.methods.trackActivity = async function(activityType, description, performedBy, metadata = {}) {
+  const Activity = mongoose.model('Activity');
+  return await Activity.logActivity({
+    entityType: 'Lead',
+    entityId: this._id,
+    project: this.project,
+    activityType,
+    description,
+    category: this.getActivityCategory(activityType),
+    performedBy: performedBy._id || performedBy,
+    priority: this.getActivityPriority(activityType),
+    metadata: {
+      leadName: this.name,
+      ...metadata
+    }
+  });
+};
+
+leadSchema.methods.getActivityCategory = function(activityType) {
+  const categoryMap = {
+    'lead_created': 'creation',
+    'lead_updated': 'update',
+    'lead_archived': 'status_change',
+    'lead_unarchived': 'status_change',
+    'lead_deleted': 'deletion',
+    'lead_note_added': 'interaction',
+    'lead_note_updated': 'interaction',
+    'lead_note_deleted': 'interaction',
+    'lead_status_changed': 'status_change',
+    'lead_assigned': 'assignment',
+    'lead_unassigned': 'assignment',
+    'lead_converted': 'conversion',
+    'lead_score_updated': 'update',
+    'lead_source_updated': 'update',
+    'lead_company_linked': 'update',
+    'lead_company_unlinked': 'update'
+  };
+  return categoryMap[activityType] || 'update';
+};
+
+leadSchema.methods.getActivityPriority = function(activityType) {
+  const priorityMap = {
+    'lead_created': 'high',
+    'lead_converted': 'high',
+    'lead_deleted': 'critical',
+    'lead_archived': 'medium',
+    'lead_unarchived': 'medium',
+    'lead_status_changed': 'medium',
+    'lead_assigned': 'medium',
+    'lead_unassigned': 'medium',
+    'lead_note_added': 'medium'
+  };
+  return priorityMap[activityType] || 'low';
 };
 
 leadSchema.pre('save', function(next) {

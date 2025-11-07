@@ -301,7 +301,7 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={onClose} />
+        <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={onClose} />
       
       <div className="relative ml-auto h-full w-full max-w-2xl bg-white shadow-xl">
         <div className="flex h-full flex-col">

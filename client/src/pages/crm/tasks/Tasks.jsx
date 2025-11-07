@@ -269,7 +269,7 @@ const Tasks = () => {
 
       {/* Task List */}
       <div className="divide-y divide-gray-200">
-        {tasks.map((task) => (
+        {tasks.length > 0 ? tasks.map((task) => (
           <TaskListItem
             key={task._id}
             task={task}
@@ -280,7 +280,35 @@ const Tasks = () => {
             onArchive={handleArchiveTask}
             onDelete={handleDeleteTask}
           />
-        ))}
+        )) : (
+          <div className="text-center">
+                <div className="text-center py-12">
+                    {/* // svg for todo icon */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path d="M16 12l-4 4L8 14"></path>
+                      <path d="M20 4v16"></path>
+                      <path d="M12 4H4v16h8"></path>
+                    </svg>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">No tasks found yet</h3>
+                    <p className="mt-1 text-sm text-gray-500">
+                      Get started by creating your first task.
+                    </p>
+                    <div className="mt-6">
+                      <button
+                        onClick={() => {
+                          dispatch(toggleCreateSidebar());
+                        }}
+                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                      >
+                        <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        Add Task
+                      </button>
+                    </div>
+                  </div>
+              </div>
+        )}
       </div>
 
       {/* Load More */}

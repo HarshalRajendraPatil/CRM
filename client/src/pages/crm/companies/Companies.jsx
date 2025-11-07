@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useParams, Link } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { getProjectCompanies, getCompanyStats, clearCompanies, bulkUpdateCompanies, bulkDeleteCompanies } from '../../../store/companySlice';
 import CrmLayout from '../../../layouts/CrmLayout';
 import Button from '../../../components/ui/Button';
@@ -438,19 +438,6 @@ const Companies = () => {
             )}
           </div>
         )}
-            
-            {/* Load More */}
-            {pagination.hasMore && (
-              <div className="col-span-full text-center py-6">
-                <Button
-                  variant="secondary"
-                  onClick={handleLoadMore}
-                  disabled={isLoading}
-                >
-                  {isLoading ? 'Loading...' : 'Load More'}
-                </Button>
-              </div>
-            )}
       </div>
 
       {/* Create/Edit Company Sidebar */}

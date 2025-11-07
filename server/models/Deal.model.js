@@ -326,6 +326,71 @@ dealSchema.methods.updateStatus = function(newStatus, userId, reason = '') {
   return this.save();
 };
 
+// Activity tracking methods
+dealSchema.methods.trackActivity = async function(activityType, description, performedBy, metadata = {}) {
+  const Activity = mongoose.model('Activity');
+  return await Activity.logActivity({
+    entityType: 'Deal',
+    entityId: this._id,
+    project: this.projectId,
+    activityType,
+    description,
+    category: this.getActivityCategory(activityType),
+    performedBy: performedBy._id || performedBy,
+    priority: this.getActivityPriority(activityType),
+    metadata: {
+      dealName: this.name,
+      dealValue: this.value,
+      ...metadata
+    }
+  });
+};
+
+dealSchema.methods.getActivityCategory = function(activityType) {
+  const categoryMap = {
+    'deal_created': 'creation',
+    'deal_updated': 'update',
+    'deal_deleted': 'deletion',
+    'deal_archived': 'status_change',
+    'deal_restored': 'status_change',
+    'deal_status_changed': 'status_change',
+    'deal_value_changed': 'update',
+    'deal_assigned': 'assignment',
+    'deal_unassigned': 'assignment',
+    'deal_note_added': 'interaction',
+    'deal_note_updated': 'interaction',
+    'deal_note_deleted': 'interaction',
+    'deal_activity_added': 'interaction',
+    'deal_priority_changed': 'update',
+    'deal_probability_changed': 'update',
+    'deal_close_date_changed': 'update',
+    'deal_customer_changed': 'update',
+    'deal_company_changed': 'update',
+    'deal_product_added': 'update',
+    'deal_product_removed': 'update',
+    'deal_attachment_added': 'interaction',
+    'deal_attachment_removed': 'interaction'
+  };
+  return categoryMap[activityType] || 'update';
+};
+
+dealSchema.methods.getActivityPriority = function(activityType) {
+  const priorityMap = {
+    'deal_created': 'high',
+    'deal_deleted': 'critical',
+    'deal_archived': 'medium',
+    'deal_restored': 'medium',
+    'deal_status_changed': 'high',
+    'deal_value_changed': 'medium',
+    'deal_assigned': 'medium',
+    'deal_unassigned': 'medium',
+    'deal_note_added': 'low',
+    'deal_activity_added': 'low',
+    'deal_attachment_added': 'low'
+  };
+  return priorityMap[activityType] || 'low';
+};
+
 // Pre-save hook to update probability based on stage if not manually set
 dealSchema.pre('save', function(next) {
   // Logic to auto-update probability based on stage could go here

@@ -1,19 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getCompanyById, getCompanyNotes, addCompanyNote, updateCompanyNote, deleteCompanyNote, deleteCompany, clearCompany } from '../../../store/companySlice';
 import { formatCurrency } from '../../../utils/dealUtils';
+import {fetchProjectCustomers} from '../../../store/customerSlice';
 import CrmLayout from '../../../layouts/CrmLayout';
 import Button from '../../../components/ui/Button';
 import Alert from '../../../components/ui/Alert';
 import CompanySidebar from './CompanySidebar';
+import ActivityTimeline from '../../../components/activity/ActivityTimeline';
 
 const CompanyDetail = () => {
   const { projectId, companyId } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { company, notes, isLoading, isError, message } = useSelector((state) => state.companies);
-  
+  const { customers } = useSelector((state) => state.customers);
   const [showEditSidebar, setShowEditSidebar] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [noteContent, setNoteContent] = useState('');
@@ -27,6 +29,7 @@ const CompanyDetail = () => {
     if (companyId) {
       dispatch(getCompanyById(companyId));
       dispatch(getCompanyNotes(companyId));
+      dispatch(fetchProjectCustomers({ projectId , params: { company: companyId } }));
     }
     
     // Cleanup on unmount
@@ -34,6 +37,8 @@ const CompanyDetail = () => {
       dispatch(clearCompany());
     };
   }, [dispatch, companyId]);
+
+  console.log(customers);
 
   // Handle note submission
   const handleNoteSubmit = (e) => {
@@ -237,6 +242,16 @@ const CompanyDetail = () => {
               } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
             >
               Notes
+            </button>
+            <button
+              onClick={() => setActiveTab('activity')}
+              className={`${
+                activeTab === 'activity'
+                  ? 'border-indigo-500 text-indigo-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+            >
+              Activity
             </button>
             <button
               onClick={() => setActiveTab('deals')}
@@ -548,6 +563,17 @@ const CompanyDetail = () => {
             </div>
           )}
 
+          {/* Activity Tab */}
+          {activeTab === 'activity' && (
+            <div className="p-6">
+              <ActivityTimeline 
+                entityType="Company" 
+                entityId={companyId} 
+                projectId={projectId} 
+              />
+            </div>
+          )}
+
           {/* Deals Tab */}
           {activeTab === 'deals' && (
             <div className="p-6">
@@ -684,20 +710,19 @@ const CompanyDetail = () => {
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="text-lg font-medium text-gray-900">Contacts</h3>
-                <Button
-                  variant="primary"
-                  size="sm"
-                  leftIcon={
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                    </svg>
-                  }
-                >
-                  Add Contact
-                </Button>
               </div>
-              <div className="bg-gray-50 rounded-lg p-6 text-center">
-                <p className="text-gray-500">No contacts associated with this company yet.</p>
+              <div className="bg-gray-50 rounded-lg p-6">
+                {customers.length == 0 ? <p className="text-gray-500">No contacts associated with this company yet.</p> : (
+                  <div className="space-y-4">
+                    {customers.map((customer) => (
+                      <Link to={`/crm/${projectId}/customers/${customer._id}`} key={customer._id} className="bg-white rounded-lg p-4 grid grid-cols-3 gap-4">
+                        <div className="text-sm text-black-500 font-bold">Name: <span className="font-medium">{customer.firstName} {customer.lastName}</span></div>
+                        <div className="text-sm text-black-500 font-bold">Email: <span className="font-medium">{customer.email}</span></div>
+                        <div className="text-sm text-black-500 font-bold">Phone: <span className="font-medium">{customer.phone}</span></div>
+                        </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}

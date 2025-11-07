@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   fetchCustomer, 
   updateCustomer, 
@@ -17,6 +17,7 @@ import Input from '../../../components/ui/Input';
 import Alert from '../../../components/ui/Alert';
 import CrmLayout from '../../../layouts/CrmLayout';
 import CustomerSidebar from './CustomerSidebar';
+import ActivityTimeline from '../../../components/activity/ActivityTimeline';
 import { getProjectCompanies, clearCompanies } from '../../../store/companySlice';
 
 const CustomerDetail = () => {
@@ -37,7 +38,6 @@ const CustomerDetail = () => {
   const [showInteractionForm, setShowInteractionForm] = useState(false);
   const [showCustomerSidebar, setShowCustomerSidebar] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [showQuickEditModal, setShowQuickEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [noteType, setNoteType] = useState('general');
@@ -48,16 +48,6 @@ const CustomerDetail = () => {
     date: new Date().toISOString().split('T')[0],
     duration: 30,
     outcome: 'positive'
-  });
-
-  console.log(currentCustomer);
-
-  const [quickEditData, setQuickEditData] = useState({
-    status: '',
-    stage: '',
-    priority: '',
-    lifecycleStage: '',
-    company: null,
   });
 
   useEffect(() => {
@@ -122,35 +112,36 @@ const CustomerDetail = () => {
     }
   };
 
-  const handleQuickEdit = async () => {
+  const handleStatusChange = async (newStatus) => {
     try {
-      const updates = {};
-      console.log(currentCustomer);
-      if (quickEditData.status) updates.status = quickEditData.status || currentCustomer.status;
-      if (quickEditData.stage) updates.stage = quickEditData.stage || currentCustomer.stage;
-      if (quickEditData.priority) updates.priority = quickEditData.priority || currentCustomer.priority;
-      if (quickEditData.lifecycleStage) updates.lifecycleStage = quickEditData.lifecycleStage || currentCustomer.lifecycleStage;
-      if (quickEditData.company) {
-        updates.customFields = {
-          ...currentCustomer.customFields,
-          company: quickEditData.company || currentCustomer.company._id
-        };
-      }
-      
       await dispatch(updateCustomer({ 
         id: customerId, 
-        customerData: updates.customFields
+        customerData: { status: newStatus }
       })).unwrap();
-      setShowQuickEditModal(false);
-      setQuickEditData({
-        status: '',
-        stage: '',
-        priority: '',
-        lifecycleStage: '',
-        company: null
-      });
     } catch (error) {
-      console.error('Failed to update customer:', error);
+      console.error('Failed to update customer status:', error);
+    }
+  };
+
+  const handleStageChange = async (newStage) => {
+    try {
+      await dispatch(updateCustomer({ 
+        id: customerId, 
+        customerData: { stage: newStage }
+      })).unwrap();
+    } catch (error) {
+      console.error('Failed to update customer stage:', error);
+    }
+  };
+
+  const handlePriorityChange = async (newPriority) => {
+    try {
+      await dispatch(updateCustomer({ 
+        id: customerId, 
+        customerData: { priority: newPriority }
+      })).unwrap();
+    } catch (error) {
+      console.error('Failed to update customer priority:', error);
     }
   };
 
@@ -314,12 +305,6 @@ const CustomerDetail = () => {
           <div className="flex items-center space-x-3">
             <Button
               variant="outline"
-              onClick={() => setShowQuickEditModal(true)}
-            >
-              Quick Edit
-            </Button>
-            <Button
-              variant="outline"
               onClick={handleEdit}
             >
               Edit
@@ -348,17 +333,56 @@ const CustomerDetail = () => {
         {error && <Alert type="error" message={error} />}
         {successMessage && <Alert type="success" message={successMessage} />}
 
-        {/* Status Badges */}
+        {/* Status Badges with Inline Editing */}
         <div className="flex items-center space-x-4">
-          <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getStageColor(currentCustomer.stage)}`}>
-            {currentCustomer.stage}
-          </span>
-          <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getStatusColor(currentCustomer.status)}`}>
-            {currentCustomer.status}
-          </span>
-          <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getPriorityColor(currentCustomer.priority)}`}>
-            {currentCustomer.priority}
-          </span>
+          {/* Stage Select */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Stage:</label>
+            <select
+              value={currentCustomer.stage}
+              onChange={(e) => handleStageChange(e.target.value)}
+              className={`px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStageColor(currentCustomer.stage)}`}
+            >
+              <option value="prospect">Prospect</option>
+              <option value="lead">Lead</option>
+              <option value="qualified">Qualified</option>
+              <option value="opportunity">Opportunity</option>
+              <option value="customer">Customer</option>
+              <option value="churned">Churned</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+
+          {/* Status Select */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Status:</label>
+            <select
+              value={currentCustomer.status}
+              onChange={(e) => handleStatusChange(e.target.value)}
+              className={`px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(currentCustomer.status)}`}
+            >
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+              <option value="pending">Pending</option>
+              <option value="blocked">Blocked</option>
+            </select>
+          </div>
+
+          {/* Priority Select */}
+          <div className="flex items-center space-x-2">
+            <label className="text-sm font-medium text-gray-700">Priority:</label>
+            <select
+              value={currentCustomer.priority}
+              onChange={(e) => handlePriorityChange(e.target.value)}
+              className={`px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getPriorityColor(currentCustomer.priority)}`}
+            >
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+
           {currentCustomer.score && (
             <span className="inline-flex px-3 py-1 text-sm font-semibold rounded-full bg-gray-100 text-gray-800">
               Score: {currentCustomer.score}
@@ -396,7 +420,7 @@ const CustomerDetail = () => {
           <div className="p-6">
             {/* Overview Tab */}
             {activeTab === 'overview' && (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 {/* Basic Information */}
                 <div className="space-y-6">
                   <div className="bg-white border border-gray-200 rounded-lg p-6">
@@ -600,7 +624,7 @@ const CustomerDetail = () => {
                     {currentCustomer.company && (
                       <div className="md:col-span-2">
                         <label className="block text-sm font-medium text-gray-700">Linked Company</label>
-                        <p className="mt-1 text-sm text-gray-900">{currentCustomer.company.name || 'Company record linked'}</p>
+                        <Link className="mt-1 text-sm text-blue-900 underline" to={`/crm/${projectId}/companies/${currentCustomer.company._id}`}>{currentCustomer.company.name || 'Company record linked'}</Link>
                       </div>
                     )}
                   </div>
@@ -1048,79 +1072,11 @@ const CustomerDetail = () => {
             {/* Activity Tab */}
             {activeTab === 'activity' && (
               <div className="space-y-6">
-                <div className="bg-white border border-gray-200 rounded-lg p-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Timeline</h3>
-                  <div className="space-y-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Last Activity</label>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {currentCustomer.lastActivityDate ? formatDateTime(currentCustomer.lastActivityDate) : 'No activity'}
-                      </p>
-                      {currentCustomer.lastActivityType && (
-                        <p className="text-sm text-gray-500 capitalize">
-                          Type: {currentCustomer.lastActivityType.replace('_', ' ')}
-                        </p>
-                      )}
-                      {currentCustomer.lastActivityBy && (
-                        <p className="text-sm text-gray-500">
-                          By: {currentCustomer.lastActivityBy.name}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Created</label>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {formatDateTime(currentCustomer.createdAt)}
-                      </p>
-                      {currentCustomer.createdBy && (
-                        <p className="text-sm text-gray-500">
-                          By: {currentCustomer.createdBy.name}
-                        </p>
-                      )}
-                    </div>
-                    
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Last Updated</label>
-                      <p className="mt-1 text-sm text-gray-900">
-                        {formatDateTime(currentCustomer.updatedAt)}
-                      </p>
-                      {currentCustomer.updatedBy && (
-                        <p className="text-sm text-gray-500">
-                          By: {currentCustomer.updatedBy.name}
-                        </p>
-                      )}
-                    </div>
-
-                    {currentCustomer.convertedFromLead && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Converted from Lead</label>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {formatDateTime(currentCustomer.convertedAt)}
-                        </p>
-                        {currentCustomer.convertedBy && (
-                          <p className="text-sm text-gray-500">
-                            By: {currentCustomer.convertedBy.name}
-                          </p>
-                        )}
-                      </div>
-                    )}
-
-                    {currentCustomer.isArchived && (
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700">Archived</label>
-                        <p className="mt-1 text-sm text-gray-900">
-                          {formatDateTime(currentCustomer.archivedAt)}
-                        </p>
-                        {currentCustomer.archivedBy && (
-                          <p className="text-sm text-gray-500">
-                            By: {currentCustomer.archivedBy.name}
-                          </p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
+                <ActivityTimeline 
+                  entityType="Customer" 
+                  entityId={customerId} 
+                  projectId={projectId} 
+                />
               </div>
             )}
           </div>
@@ -1137,8 +1093,8 @@ const CustomerDetail = () => {
 
       {/* Assign Modal */}
       {showAssignModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50 ">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Assign Customer</h3>
             <div className="space-y-4">
               <div>
@@ -1176,104 +1132,11 @@ const CustomerDetail = () => {
         </div>
       )}
 
-      {/* Quick Edit Modal */}
-      {showQuickEditModal && (
-        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Edit</h3>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select
-                  value={quickEditData.status}
-                  onChange={(e) => setQuickEditData({...quickEditData, status: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="active">Active</option>
-                  <option value="inactive">Inactive</option>
-                  <option value="pending">Pending</option>
-                  <option value="blocked">Blocked</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stage</label>
-                <select
-                  value={quickEditData.stage}
-                  onChange={(e) => setQuickEditData({...quickEditData, stage: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="prospect">Prospect</option>
-                  <option value="lead">Lead</option>
-                  <option value="qualified">Qualified</option>
-                  <option value="opportunity">Opportunity</option>
-                  <option value="customer">Customer</option>
-                  <option value="churned">Churned</option>
-                  <option value="inactive">Inactive</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-                <select
-                  value={quickEditData.priority}
-                  onChange={(e) => setQuickEditData({...quickEditData, priority: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Lifecycle Stage</label>
-                <select
-                  value={quickEditData.lifecycleStage}
-                  onChange={(e) => setQuickEditData({...quickEditData, lifecycleStage: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="awareness">Awareness</option>
-                  <option value="consideration">Consideration</option>
-                  <option value="decision">Decision</option>
-                  <option value="retention">Retention</option>
-                  <option value="advocacy">Advocacy</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Company Reference</label>
-                <select
-                  value={quickEditData.company}
-                  onChange={(e) => setQuickEditData({...quickEditData, company: e.target.value})}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {companies.map((company) => (
-                    <option key={company._id} value={company._id}>
-                      {company.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end space-x-3">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowQuickEditModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleQuickEdit}
-                >
-                  Update
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 border border-gray-200">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Delete Customer</h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to permanently delete this customer? This action cannot be undone and will remove all associated data.

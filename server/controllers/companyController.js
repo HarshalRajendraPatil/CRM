@@ -5,6 +5,7 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import { validateCompanyData, sanitizeCompanyData } from '../utils/companyValidation.js';
 import { validateObjectId } from '../utils/validation.js';
 import notificationService from '../utils/notificationService.js';
+import ActivityService from '../utils/activityService.js';
 
 
 // @desc    Create a new company
@@ -59,6 +60,13 @@ export const createCompany = asyncHandler(async (req, res) => {
   
   // Create company
   const company = await Company.create(sanitizedData);
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyCreated(company, req.user);
+  } catch (error) {
+    console.error('Failed to log company creation activity:', error);
+  }
   
   // Populate owner, createdBy, and updatedBy fields
   await company.populate('owner', 'name email profileImage');
@@ -170,7 +178,6 @@ export const getCompanyById = asyncHandler(async (req, res) => {
     .populate('owner', 'name email profileImage')
     .populate('createdBy', 'name email profileImage')
     .populate('updatedBy', 'name email profileImage')
-    .populate('lastActivityBy', 'name email profileImage')
     .populate('notes.createdBy', 'name email profileImage')
     .populate('project', 'name description')
     .populate('deals', 'name value currency status priority probability expectedCloseDate createdAt')
@@ -250,21 +257,38 @@ export const updateCompany = asyncHandler(async (req, res) => {
   // Sanitize update data
   const sanitizedData = sanitizeCompanyData(updateData);
   
+  // Track changes for activity logging
+  const changes = {};
+  Object.keys(sanitizedData).forEach(key => {
+    if (company[key] !== sanitizedData[key] && key !== 'updatedAt' && key !== 'updatedBy') {
+      changes[key] = {
+        oldValue: company[key],
+        newValue: sanitizedData[key]
+      };
+    }
+  });
+
   // Update company
   const updatedCompany = await Company.findByIdAndUpdate(
     id,
     { 
       ...sanitizedData,
-      lastActivityDate: new Date(),
-      lastActivityType: 'company_updated',
-      lastActivityBy: req.user._id
     },
     { new: true, runValidators: true }
   )
     .populate('owner', 'name email profileImage')
     .populate('createdBy', 'name email profileImage')
     .populate('updatedBy', 'name email profileImage')
-    .populate('lastActivityBy', 'name email profileImage');
+;
+
+  // Log activity if there were changes
+  if (Object.keys(changes).length > 0) {
+    try {
+      await ActivityService.logCompanyUpdated(updatedCompany, changes, req.user);
+    } catch (error) {
+      console.error('Failed to log company update activity:', error);
+    }
+  }
   
   // Create notification for company update
   try {
@@ -323,6 +347,13 @@ export const deleteCompany = asyncHandler(async (req, res) => {
   // Store company name and project ID for notification
   const companyName = company.name;
   const projectId = company.project._id;
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyDeleted(company, req.user);
+  } catch (error) {
+    console.error('Failed to log company deletion activity:', error);
+  }
   
   // Delete company
   await company.deleteOne();
@@ -388,26 +419,30 @@ export const addCompanyNote = asyncHandler(async (req, res) => {
   }
   
   // Add note
-  company.notes.push({
+  const newNote = {
     content: content.trim(),
     createdBy: req.user._id,
     createdAt: new Date(),
     updatedAt: new Date()
-  });
+  };
   
-  // Update activity
-  company.lastActivityDate = new Date();
-  company.lastActivityType = 'note_added';
-  company.lastActivityBy = req.user._id;
+  company.notes.push(newNote);
   company.updatedBy = req.user._id;
   
   await company.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyNoteAdded(company, newNote, req.user);
+  } catch (error) {
+    console.error('Failed to log company note addition activity:', error);
+  }
   
   // Populate the newly added note's createdBy field
   await company.populate('notes.createdBy', 'name email profileImage');
   
   // Get the newly added note
-  const newNote = company.notes[company.notes.length - 1];
+  const newlyAddedNote = company.notes[company.notes.length - 1];
   
   // Create notification for note addition
   try {
@@ -426,7 +461,7 @@ export const addCompanyNote = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     message: 'Note added successfully',
-    data: { note: newNote }
+    data: { note: newlyAddedNote }
   });
 
 
@@ -537,13 +572,16 @@ export const updateCompanyNote = asyncHandler(async (req, res) => {
   note.content = content.trim();
   note.updatedAt = new Date();
   
-  // Update activity
-  company.lastActivityDate = new Date();
-  company.lastActivityType = 'note_updated';
-  company.lastActivityBy = req.user._id;
   company.updatedBy = req.user._id;
   
   await company.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyNoteUpdated(company, note, req.user);
+  } catch (error) {
+    console.error('Failed to log company note update activity:', error);
+  }
   
   // Populate the updated note
   await company.populate('notes.createdBy', 'name email profileImage');
@@ -607,13 +645,16 @@ export const deleteCompanyNote = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You can only delete your own notes');
   }
   
+  // Log activity before removing note
+  try {
+    await ActivityService.logCompanyNoteDeleted(company, noteId, req.user);
+  } catch (error) {
+    console.error('Failed to log company note deletion activity:', error);
+  }
+  
   // Remove note
   company.notes.pull(noteId);
   
-  // Update activity
-  company.lastActivityDate = new Date();
-  company.lastActivityType = 'note_deleted';
-  company.lastActivityBy = req.user._id;
   company.updatedBy = req.user._id;
   
   await company.save();
@@ -676,13 +717,16 @@ export const addCompanyTag = asyncHandler(async (req, res) => {
   // Add tag
   company.tags.push(tag.trim());
   
-  // Update activity
-  company.lastActivityDate = new Date();
-  company.lastActivityType = 'tag_added';
-  company.lastActivityBy = req.user._id;
   company.updatedBy = req.user._id;
   
   await company.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyTagAdded(company, tag.trim(), req.user);
+  } catch (error) {
+    console.error('Failed to log company tag addition activity:', error);
+  }
   
   res.json({
     success: true,
@@ -726,13 +770,16 @@ export const removeCompanyTag = asyncHandler(async (req, res) => {
   // Remove tag
   company.tags = company.tags.filter(t => t !== tag);
   
-  // Update activity
-  company.lastActivityDate = new Date();
-  company.lastActivityType = 'tag_removed';
-  company.lastActivityBy = req.user._id;
   company.updatedBy = req.user._id;
   
   await company.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyTagRemoved(company, tag, req.user);
+  } catch (error) {
+    console.error('Failed to log company tag removal activity:', error);
+  }
   
   res.json({
     success: true,
@@ -794,13 +841,16 @@ export const addCustomField = asyncHandler(async (req, res) => {
   
   company.customFields.set(key.trim(), value);
   
-  // Update activity
-  company.lastActivityDate = new Date();
-  company.lastActivityType = 'custom_field_added';
-  company.lastActivityBy = req.user._id;
   company.updatedBy = req.user._id;
   
   await company.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyCustomFieldAdded(company, key.trim(), value, req.user);
+  } catch (error) {
+    console.error('Failed to log company custom field addition activity:', error);
+  }
   
   res.json({
     success: true,
@@ -849,13 +899,16 @@ export const removeCustomField = asyncHandler(async (req, res) => {
   // Remove custom field
   company.customFields.delete(key);
   
-  // Update activity
-  company.lastActivityDate = new Date();
-  company.lastActivityType = 'custom_field_removed';
-  company.lastActivityBy = req.user._id;
   company.updatedBy = req.user._id;
   
   await company.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logCompanyCustomFieldRemoved(company, key, req.user);
+  } catch (error) {
+    console.error('Failed to log company custom field removal activity:', error);
+  }
   
   res.json({
     success: true,
@@ -963,15 +1016,15 @@ export const getCompanyStats = asyncHandler(async (req, res) => {
     { 
       $match: { 
         project: new mongoose.Types.ObjectId(projectId),
-        lastActivityDate: { $gte: thirtyDaysAgo }
+        updatedAt: { $gte: thirtyDaysAgo }
       } 
     },
     {
       $group: {
         _id: {
-          year: { $year: '$lastActivityDate' },
-          month: { $month: '$lastActivityDate' },
-          day: { $dayOfMonth: '$lastActivityDate' }
+          year: { $year: '$updatedAt' },
+          month: { $month: '$updatedAt' },
+          day: { $dayOfMonth: '$updatedAt' }
         },
         count: { $sum: 1 }
       }
@@ -979,12 +1032,12 @@ export const getCompanyStats = asyncHandler(async (req, res) => {
     { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
   ]);
   
-  // Get recent activity
+  // Get recent companies
   const recentActivity = await Company.find({ project: projectId })
-    .sort({ lastActivityDate: -1 })
+    .sort({ updatedAt: -1 })
     .limit(5)
-    .select('name lastActivityDate lastActivityType lastActivityBy')
-    .populate('lastActivityBy', 'name email profileImage');
+    .select('name updatedAt updatedBy')
+    .populate('updatedBy', 'name email profileImage');
   
   // Get companies with most notes
   const companiesWithMostNotes = await Company.aggregate([
@@ -1050,6 +1103,8 @@ export const getCompanyStats = asyncHandler(async (req, res) => {
     country: item._id || 'Unknown',
     count: item.count
   }));
+
+  console.log(formattedGrowthTrend),
   
   res.json({
     success: true,
@@ -1115,12 +1170,12 @@ export const getCompanyInsights = asyncHandler(async (req, res) => {
     { $group: { _id: null, avgNotes: { $avg: '$notesCount' } } }
   ]);
   
-  // Get companies with most activity
+  // Get recently updated companies
   const mostActiveCompanies = await Company.find({ project: projectId })
-    .sort({ lastActivityDate: -1 })
+    .sort({ updatedAt: -1 })
     .limit(5)
-    .select('name lastActivityDate lastActivityType')
-    .populate('lastActivityBy', 'name email profileImage');
+    .select('name updatedAt updatedBy')
+    .populate('updatedBy', 'name email profileImage');
   
   // Get companies by status distribution
   const statusDistribution = await Company.aggregate([
@@ -1171,12 +1226,12 @@ export const getCompanyInsights = asyncHandler(async (req, res) => {
     $expr: { $gt: [{ $size: { $objectToArray: '$customFields' } }, 0] }
   });
   
-  // Get top performing companies (by activity)
+  // Get recently updated companies
   const topPerformingCompanies = await Company.find({ project: projectId })
-    .sort({ lastActivityDate: -1 })
+    .sort({ updatedAt: -1 })
     .limit(3)
-    .select('name industry status lastActivityDate')
-    .populate('lastActivityBy', 'name');
+    .select('name industry status updatedAt')
+    .populate('updatedBy', 'name');
   
   // Get insights summary
   const insights = {
@@ -1269,9 +1324,6 @@ export const bulkUpdateCompanies = asyncHandler(async (req, res) => {
   const sanitizedUpdates = sanitizeCompanyData(updates);
   console.log(sanitizedUpdates);
   sanitizedUpdates.updatedBy = req.user._id;
-  sanitizedUpdates.lastActivityDate = new Date();
-  sanitizedUpdates.lastActivityType = 'bulk_updated';
-  sanitizedUpdates.lastActivityBy = req.user._id;
   
   // Perform bulk update
   const result = await Company.updateMany(
@@ -1498,7 +1550,6 @@ export const getCompanyForecast = asyncHandler(async (req, res) => {
     const monthStart = new Date();
     monthStart.setMonth(monthStart.getMonth() - (months - i - 1));
     monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
     
     const monthEnd = new Date(monthStart);
     monthEnd.setMonth(monthEnd.getMonth() + 1);
@@ -1560,7 +1611,7 @@ export const getCompanyForecast = asyncHandler(async (req, res) => {
       _id: '$industry', 
       count: { $sum: 1 },
       avgRevenue: { $avg: '$annualRevenue' },
-      lastActivity: { $max: '$lastActivityDate' }
+      lastUpdated: { $max: '$updatedAt' }
     }},
     { $sort: { count: -1 } },
     { $limit: 10 }
@@ -1590,12 +1641,12 @@ export const getCompanyForecast = asyncHandler(async (req, res) => {
   const activityForecast = await Company.aggregate([
     { $match: { 
       project: new mongoose.Types.ObjectId(projectId),
-      lastActivityDate: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }
+      updatedAt: { $gte: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000) }
     }},
     { $group: {
       _id: {
-        year: { $year: '$lastActivityDate' },
-        month: { $month: '$lastActivityDate' }
+        year: { $year: '$updatedAt' },
+        month: { $month: '$updatedAt' }
       },
       activeCount: { $sum: 1 }
     }},
@@ -1606,7 +1657,7 @@ export const getCompanyForecast = asyncHandler(async (req, res) => {
   const riskFactors = {
     inactiveCompanies: await Company.countDocuments({
       project: projectId,
-      lastActivityDate: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
+      updatedAt: { $lt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) }
     }),
     lowEngagement: await Company.countDocuments({
       project: projectId,

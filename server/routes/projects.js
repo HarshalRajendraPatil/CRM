@@ -22,7 +22,7 @@ import {
   reorderStages
 } from '../controllers/pipelineController.js';
 
-import { authenticateToken, requireEmailVerification, requireTenantAdmin, requireTenantManager } from '../middleware/auth.js';
+  import { authenticateToken, requireEmailVerification } from '../middleware/auth.js';
 
 const router = express.Router();
 

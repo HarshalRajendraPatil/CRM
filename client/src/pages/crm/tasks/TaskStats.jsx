@@ -276,7 +276,7 @@ const TaskStats = ({ projectId }) => {
             
             <div className="text-center">
               <div className="text-2xl font-bold text-yellow-600">
-                {stats?.overview?.tasksDueSoon || 0}
+                {insights?.data?.tasksDueSoon || 0}
               </div>
               <div className="text-sm text-gray-500">Due Soon (7 days)</div>
             </div>

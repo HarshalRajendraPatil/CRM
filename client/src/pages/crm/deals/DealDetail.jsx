@@ -6,6 +6,7 @@ import {
   updateExistingDeal, 
   deleteExistingDeal,
   archiveExistingDeal,
+  restoreExistingDeal,
   addDealNoteAction,
   updateDealNoteAction,
   deleteDealNoteAction,
@@ -29,6 +30,7 @@ import {
   getDealHealthBgColor
 } from '../../../utils/dealUtils';
 import CrmLayout from '../../../layouts/CrmLayout';
+import ActivityTimeline from '../../../components/activity/ActivityTimeline';
 import { 
   PencilIcon, 
   TrashIcon, 
@@ -80,7 +82,28 @@ const DealDetail = () => {
     setShowEditModal(true);
   };
 
-  console.log(currentDeal);
+  const handleStatusChange = async (newStatus) => {
+    try {
+      await dispatch(updateExistingDeal({ 
+        dealId: dealId, 
+        dealData: { status: newStatus }
+      })).unwrap();
+    } catch (error) {
+      console.error('Failed to update deal status:', error);
+    }
+  };
+
+  const handlePriorityChange = async (newPriority) => {
+    try {
+      await dispatch(updateExistingDeal({ 
+        dealId: dealId, 
+        dealData: { priority: newPriority }
+      })).unwrap();
+    } catch (error) {
+      console.error('Failed to update deal priority:', error);
+    }
+  };
+
 
   const handleDelete = async () => {
     try {
@@ -117,6 +140,25 @@ const DealDetail = () => {
       setShowArchiveConfirm(false);
     } catch (error) {
       console.error('Failed to archive deal:', error);
+    }
+  };
+
+  const handleUnarchive = async () => {
+    try {
+      await dispatch(restoreExistingDeal(dealId)).unwrap();
+      // Add activity for unarchiving
+      await dispatch(addDealActivityAction({
+        dealId: dealId,
+        activityData: {
+          type: 'custom',
+          description: 'Deal unarchived',
+          metadata: { action: 'unarchive' }
+        }
+      }));
+      // Refresh the deal to get updated data
+      await dispatch(fetchDeal(dealId));
+    } catch (error) {
+      console.error('Failed to unarchive deal:', error);
     }
   };
 
@@ -248,14 +290,6 @@ const DealDetail = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <Alert variant="error" title="Error" message={error} />
@@ -278,7 +312,9 @@ const DealDetail = () => {
 
   return (
     <CrmLayout>
-      <div className="space-y-6 p-6">
+      {loading ? <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div> : <div className="space-y-6 p-6">
       {/* Header */}
       <div className="bg-white shadow-sm rounded-lg p-6">
         <div className="flex items-center justify-between">
@@ -294,14 +330,39 @@ const DealDetail = () => {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">{currentDeal.name}</h1>
               <div className="flex items-center space-x-4 mt-2">
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(currentDeal.status)}`}>
-                  {currentDeal.status?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                </span>
-                {currentDeal.priority && (
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(currentDeal.priority)}`}>
-                    {currentDeal.priority}
-                  </span>
-                )}
+                {/* Status Select */}
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm font-medium text-gray-700">Status:</label>
+                  <select
+                    value={currentDeal.status}
+                    onChange={(e) => handleStatusChange(e.target.value)}
+                    className={`px-2.5 py-0.5 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(currentDeal.status)}`}
+                  >
+                    <option value="open">Open</option>
+                    <option value="qualified">Qualified</option>
+                    <option value="proposal">Proposal</option>
+                    <option value="negotiation">Negotiation</option>
+                    <option value="closed-won">Closed Won</option>
+                    <option value="closed-lost">Closed Lost</option>
+                    <option value="on-hold">On Hold</option>
+                  </select>
+                </div>
+
+                {/* Priority Select */}
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm font-medium text-gray-700">Priority:</label>
+                  <select
+                    value={currentDeal.priority || 'medium'}
+                    onChange={(e) => handlePriorityChange(e.target.value)}
+                    className={`px-2.5 py-0.5 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getPriorityColor(currentDeal.priority || 'medium')}`}
+                  >
+                    <option value="low">Low</option>
+                    <option value="medium">Medium</option>
+                    <option value="high">High</option>
+                    <option value="urgent">Urgent</option>
+                  </select>
+                </div>
+
                 <span className="text-sm text-gray-500">
                   {formatCurrency(currentDeal.value, currentDeal.currency)}
                 </span>
@@ -317,13 +378,21 @@ const DealDetail = () => {
               <PencilIcon className="w-4 h-4 mr-2" />
               Edit
             </Button>
-            {!currentDeal.isArchived && (
+            {!currentDeal.isArchived ? (
               <Button
                 variant="warning"
                 onClick={() => setShowArchiveConfirm(true)}
               >
                 <ArchiveBoxIcon className="w-4 h-4 mr-2" />
                 Archive
+              </Button>
+            ) : (
+              <Button
+                variant="success"
+                onClick={handleUnarchive}
+              >
+                <CheckCircleIcon className="w-4 h-4 mr-2" />
+                Unarchive
               </Button>
             )}
             <Button
@@ -345,9 +414,9 @@ const DealDetail = () => {
               { id: 'overview', name: 'Overview' },
               { id: 'products', name: 'Products' },
               { id: 'notes', name: 'Notes' },
-              { id: 'activities', name: 'Activities' },
               { id: 'attachments', name: 'Attachments' },
-              { id: 'competitors', name: 'Competitors' }
+              { id: 'competitors', name: 'Competitors' },
+              { id: 'activities', name: 'Activities' }
             ].map((tab) => (
               <button
                 key={tab.id}
@@ -873,79 +942,12 @@ const DealDetail = () => {
 
           {/* Activities Tab */}
           {activeTab === 'activities' && (
-            <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Activity Timeline</h3>
-                <div className="text-sm text-gray-500">
-                  {activities?.length || currentDeal.activities?.length || 0} activities
-                </div>
-              </div>
-              
-              {(activities?.length > 0 || currentDeal.activities?.length > 0) ? (
-                <div className="space-y-4">
-                  {(activities || currentDeal.activities || []).map((activity, index) => (
-                    <div key={activity._id || index} className="flex items-start space-x-4">
-                      <div className="flex-shrink-0">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                          activity.type === 'note' ? 'bg-blue-100' :
-                          activity.type === 'email' ? 'bg-green-100' :
-                          activity.type === 'call' ? 'bg-purple-100' :
-                          activity.type === 'meeting' ? 'bg-orange-100' :
-                          activity.type === 'status_change' ? 'bg-indigo-100' :
-                          activity.type === 'value_change' ? 'bg-yellow-100' :
-                          'bg-gray-100'
-                        }`}>
-                          <div className={`${
-                            activity.type === 'note' ? 'text-blue-600' :
-                            activity.type === 'email' ? 'text-green-600' :
-                            activity.type === 'call' ? 'text-purple-600' :
-                            activity.type === 'meeting' ? 'text-orange-600' :
-                            activity.type === 'status_change' ? 'text-indigo-600' :
-                            activity.type === 'value_change' ? 'text-yellow-600' :
-                            'text-gray-600'
-                          }`}>
-                            {getActivityIcon(activity.type)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="bg-white border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <p className="text-sm text-gray-900 mb-2">{activity.description}</p>
-                              {activity.metadata && Object.keys(activity.metadata).length > 0 && (
-                                <div className="text-xs text-gray-500 mb-2">
-                                  {Object.entries(activity.metadata).map(([key, value]) => (
-                                    <span key={key} className="mr-3">
-                                      <span className="font-medium">{key}:</span> {value}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                            <div className="text-right text-xs text-gray-500 ml-4">
-                              <div>{formatDateTime(activity.createdAt)}</div>
-                              <div className="mt-1">
-                                By {activity.createdBy?.name || activity.user?.name || 'System'}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No activities yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Activities will appear here as you work on this deal.
-                  </p>
-                </div>
-              )}
+            <div className="space-y-6">
+              <ActivityTimeline 
+                entityType="Deal" 
+                entityId={dealId} 
+                projectId={projectId} 
+              />
             </div>
           )}
 
@@ -1068,8 +1070,8 @@ const DealDetail = () => {
 
       {/* Add Note Modal */}
       {showAddNote && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 border border-gray-200">
             <h3 className="text-lg font-semibold mb-4">Add Note</h3>
             <form onSubmit={handleAddNote} className="space-y-4">
               <textarea
@@ -1114,8 +1116,8 @@ const DealDetail = () => {
 
       {/* Archive Confirmation Modal */}
       {showArchiveConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 border border-gray-200">
             <h3 className="text-lg font-semibold mb-4">Archive Deal</h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to archive this deal? It will be moved to the archived deals section.
@@ -1140,8 +1142,8 @@ const DealDetail = () => {
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-96">
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-96 border border-gray-200">
             <h3 className="text-lg font-semibold mb-4">Delete Deal</h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to permanently delete this deal? This action cannot be undone.
@@ -1163,7 +1165,7 @@ const DealDetail = () => {
           </div>
         </div>
       )}
-    </div>
+    </div>}
     </CrmLayout>
   );
 };

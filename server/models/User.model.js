@@ -217,27 +217,6 @@ userSchema.methods.getTenantRole = function(tenantId) {
   return membership ? membership.role : null;
 };
 
-// Instance method to check if user has permission in tenant
-userSchema.methods.hasTenantPermission = function(tenantId, requiredRole) {
-  if (this.roleGlobal === 'system-admin') return true;
-  
-  if (this.ownsTenant(tenantId)) return true;
-  
-  const role = this.getTenantRole(tenantId);
-  if (!role) return false;
-  
-  const roleHierarchy = {
-    'owner': 5,
-    'admin': 4,
-    'manager': 3,
-    'sales_executive': 2,
-    'support_executive': 2,
-    'viewer': 1
-  };
-  
-  return roleHierarchy[role] >= roleHierarchy[requiredRole];
-};
-
 // Static method to find user by email
 userSchema.statics.findByEmail = function(email) {
   return this.findOne({ email: email.toLowerCase() });

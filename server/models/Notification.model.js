@@ -49,7 +49,7 @@ const notificationSchema = new mongoose.Schema(
         'deal_assigned',
         'deal_unassigned',
         'deal_archived',
-        'deal_unarchived',
+        'deal_restored',
         'deal_deleted',
         'deal_note_added',
         'deal_status_updated',

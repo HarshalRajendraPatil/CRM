@@ -17,7 +17,7 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
     name: '',
     email: '',
     phone: '',
-    stage: 'new',
+    status: 'new',
     assignedTo: leadAutoAssignment.enabled ? leadAutoAssignment.assignTo : '',
     source: 'other',
     jobTitle: '',
@@ -176,7 +176,7 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
         name: '',
         email: '',
         phone: '',
-        stage: 'new',
+        status: 'new',
         assignedTo: '',
         source: 'other',
         jobTitle: '',
@@ -202,7 +202,7 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
       name: '',
       email: '',
       phone: '',
-      stage: 'new',
+      status: 'new',
       assignedTo: '',
       source: 'other',
       jobTitle: '',
@@ -297,8 +297,8 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
               Stage *
             </label>
             <select
-              name="stage"
-              value={formData.stage}
+              name="status"
+              value={formData.status}
               onChange={handleChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >

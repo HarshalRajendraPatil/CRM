@@ -18,7 +18,7 @@ import {
   respondToEvent,
   getEventResponses
 } from '../controllers/calendarController.js';
-import { authenticateToken, requireTenantRole } from '../middleware/auth.js';
+import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 

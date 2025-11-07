@@ -192,17 +192,6 @@ const customerSchema = new mongoose.Schema({
   interactions: [customerInteractionSchema],
   
   // Activity Tracking
-  lastActivityDate: {
-    type: Date,
-    default: Date.now
-  },
-  lastActivityType: {
-    type: String
-  },
-  lastActivityBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
-  },
   
   // Conversion Information
   convertedFromLead: {
@@ -300,7 +289,6 @@ customerSchema.index({ stage: 1, project: 1 });
 customerSchema.index({ status: 1, project: 1 });
 customerSchema.index({ tags: 1, project: 1 });
 customerSchema.index({ priority: 1, project: 1 });
-customerSchema.index({ lastActivityDate: 1, project: 1 });
 
 customerSchema.index({ score: 1, project: 1 });
 
@@ -374,7 +362,8 @@ customerSchema.statics.findByProject = function(projectId, options = {}) {
     tags,
     owner,
     priority,
-    assignedTo
+    assignedTo,
+    company
   } = options;
 
   const query = { project: projectId, isArchived: false };
@@ -386,7 +375,7 @@ customerSchema.statics.findByProject = function(projectId, options = {}) {
   if (assignedTo) query.assignedTo = assignedTo;
   if (priority) query.priority = priority;
   if (tags && tags.length > 0) query.tags = { $in: Array.isArray(tags) ? tags : [tags] };
-
+  if (company) query.company = company;
   if (search) {
     query.$or = [
       { firstName: { $regex: search, $options: 'i' } },
@@ -448,25 +437,20 @@ customerSchema.statics.findArchivedByProject = function(projectId, options = {})
 };
 
 // Instance methods
-customerSchema.methods.updateActivity = async function(userId, activityType) {
-  this.lastActivityDate = new Date();
-  this.lastActivityType = activityType;
-  this.lastActivityBy = userId;
-  this.updatedBy = userId;
-  return this.save();
-};
 
-customerSchema.methods.addNote = async function(content, type = 'general', userId) {
-  this.notes.push({
-    content,
-    type,
-    createdBy: userId,
-    createdAt: new Date(),
-    updatedAt: new Date()
-  });
-  await this.updateActivity(userId, 'note_added');
-  return this;
-};
+// customerSchema.methods.addNote = async function(content, type = 'general', userId) {
+//   console.log('adding note', content, type, userId);
+//   this.notes.push({
+//     content,
+//     type,
+//     createdBy: userId,
+//     createdAt: new Date(),
+//     updatedAt: new Date()
+//   });
+//   this.updatedBy = userId;
+
+//   return this;
+// };
 
 customerSchema.methods.addInteraction = async function(interactionData, userId) {
   this.interactions.push({
@@ -474,7 +458,7 @@ customerSchema.methods.addInteraction = async function(interactionData, userId) 
     createdBy: userId,
     createdAt: new Date()
   });
-  await this.updateActivity(userId, 'interaction_added');
+  this.updatedBy = userId;
   return this;
 };
 
@@ -499,6 +483,68 @@ customerSchema.pre('save', function(next) {
   }
   next();
 });
+
+// Activity tracking methods
+customerSchema.methods.trackActivity = async function(activityType, description, performedBy, metadata = {}) {
+  const Activity = mongoose.model('Activity');
+  return await Activity.logActivity({
+    entityType: 'Customer',
+    entityId: this._id,
+    project: this.project,
+    activityType,
+    description,
+    category: this.getActivityCategory(activityType),
+    performedBy: performedBy._id || performedBy,
+    priority: this.getActivityPriority(activityType),
+    metadata: {
+      customerName: this.fullName,
+      ...metadata
+    }
+  });
+};
+
+customerSchema.methods.getActivityCategory = function(activityType) {
+  const categoryMap = {
+    'customer_created': 'creation',
+    'customer_updated': 'update',
+    'customer_deleted': 'deletion',
+    'customer_archived': 'status_change',
+    'customer_unarchived': 'status_change',
+    'customer_note_added': 'interaction',
+    'customer_note_updated': 'interaction',
+    'customer_note_deleted': 'interaction',
+    'customer_interaction_added': 'interaction',
+    'customer_stage_changed': 'status_change',
+    'customer_status_changed': 'status_change',
+    'customer_assigned': 'assignment',
+    'customer_unassigned': 'assignment',
+    'customer_converted_from_lead': 'conversion',
+    'customer_score_updated': 'update',
+    'customer_priority_changed': 'update',
+    'customer_tag_added': 'update',
+    'customer_tag_removed': 'update',
+    'customer_custom_field_added': 'update',
+    'customer_custom_field_removed': 'update'
+  };
+  return categoryMap[activityType] || 'update';
+};
+
+customerSchema.methods.getActivityPriority = function(activityType) {
+  const priorityMap = {
+    'customer_created': 'high',
+    'customer_deleted': 'critical',
+    'customer_archived': 'medium',
+    'customer_unarchived': 'medium',
+    'customer_stage_changed': 'medium',
+    'customer_status_changed': 'medium',
+    'customer_assigned': 'medium',
+    'customer_unassigned': 'medium',
+    'customer_converted_from_lead': 'high',
+    'customer_note_added': 'low',
+    'customer_interaction_added': 'low'
+  };
+  return priorityMap[activityType] || 'low';
+};
 
 // Ensure virtual fields are included in JSON output
 customerSchema.set('toJSON', { virtuals: true });

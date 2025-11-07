@@ -1120,6 +1120,8 @@ export const getTaskInsights = asyncHandler(async (req, res) => {
     ])
   ]);
 
+  console.log(tasksDueSoon);
+
   res.json({
     success: true,
     data: {

@@ -119,7 +119,7 @@ export const validateStartDate = (startDate, dueDate = null) => {
   if (!startDate) return null;
   
   const start = validateDate(startDate, 'Start date');
-  const now = new Date();
+  const now = new Date() - 1000 * 60 * 60 * 24;
   
   // Start date cannot be in the past
   if (start < now) {

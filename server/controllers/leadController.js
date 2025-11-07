@@ -7,6 +7,7 @@ import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from
 import { validateLeadData, sanitizeLeadData } from '../utils/leadValidation.js';
 import { validateObjectId } from '../utils/validation.js';
 import notificationService from '../utils/notificationService.js';
+import ActivityService from '../utils/activityService.js';
 
 // Create a new lead
 export const createLead = asyncHandler(async (req, res) => {
@@ -45,12 +46,20 @@ export const createLead = asyncHandler(async (req, res) => {
   });
 
   await lead.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logLeadCreated(lead, req.user);
+  } catch (error) {
+    console.error('Failed to log lead creation activity:', error);
+  }
+  
   await lead.populate([
     { path: 'owner', select: 'name email profileImage' },
     { path: 'assignedTo', select: 'name email profileImage' },
     { path: 'createdBy', select: 'name email profileImage' },
     { path: 'updatedBy', select: 'name email profileImage' },
-    { path: 'company', select: 'name industry' }
+    { path: 'company', select: 'name industry address' }
   ]);
 
   // Create notification
@@ -145,11 +154,15 @@ export const unarchiveLead = asyncHandler(async (req, res) => {
 
   lead.isArchived = false;
   lead.archivedAt = null;
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = 'lead_unarchived';
-  lead.lastActivityBy = req.user._id;
   lead.updatedBy = req.user._id;
   await lead.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logLeadUnarchived(lead, req.user);
+  } catch (error) {
+    console.error('Failed to log lead unarchive activity:', error);
+  }
 
   await lead.populate([
     { path: 'owner', select: 'name email profileImage' },
@@ -209,10 +222,10 @@ export const getLeadById = asyncHandler(async (req, res) => {
     .populate('owner', 'name email profileImage')
     .populate('createdBy', 'name email profileImage')
     .populate('updatedBy', 'name email profileImage')
-    .populate('company', 'name')
+    .populate('company', 'name industry address')
     .populate('assignedTo', 'name email profileImage')
     .populate('convertedBy', 'name email profileImage')
-    .populate('lastActivityBy', 'name email profileImage')
+    .populate('convertedCustomerId', 'name email')
     .populate('notes.createdBy', 'name email');
   if (!lead) throw new NotFoundError('Lead not found');
 
@@ -235,6 +248,11 @@ export const updateLead = asyncHandler(async (req, res) => {
     throw new NotFoundError('Lead not found');
   }
 
+  // Check if lead is converted - prevent editing
+  if (lead.convertedAt) {
+    throw new ValidationError('Cannot edit a lead that has been converted to customer');
+  }
+
   const project = await Project.findById(lead.project);
   if (!project) {
     throw new NotFoundError('Project not found');
@@ -252,6 +270,17 @@ export const updateLead = asyncHandler(async (req, res) => {
   // Sanitize data
   const sanitizedData = sanitizeLeadData(updateData);
 
+  // Track changes for activity logging
+  const changes = {};
+  Object.keys(sanitizedData).forEach(key => {
+    if (lead[key] !== sanitizedData[key] && key !== 'updatedAt' && key !== 'updatedBy') {
+      changes[key] = {
+        oldValue: lead[key],
+        newValue: sanitizedData[key]
+      };
+    }
+  });
+
   // Update lead
   Object.assign(lead, {
     ...sanitizedData,
@@ -264,14 +293,22 @@ export const updateLead = asyncHandler(async (req, res) => {
   });
 
   await lead.save();
+  
+  // Log activity if there were changes
+  if (Object.keys(changes).length > 0) {
+    try {
+      await ActivityService.logLeadUpdated(lead, changes, req.user);
+    } catch (error) {
+      console.error('Failed to log lead update activity:', error);
+    }
+  }
   await lead.populate([
     { path: 'owner', select: 'name email profileImage' },
     { path: 'assignedTo', select: 'name email profileImage' },
     { path: 'createdBy', select: 'name email profileImage' },
     { path: 'updatedBy', select: 'name email profileImage' },
-    { path: 'company', select: 'name industry' },
+    { path: 'company', select: 'name industry address' },
     { path: 'convertedBy', select: 'name email profileImage' },
-    { path: 'lastActivityBy', select: 'name email profileImage' },
     { path: 'notes.createdBy', select: 'name email' }
   ]);
 
@@ -313,11 +350,15 @@ export const archiveLead = asyncHandler(async (req, res) => {
   lead.isArchived = true;
   lead.archivedAt = new Date();
   lead.status = 'disqualified';
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = 'lead_archived';
-  lead.lastActivityBy = req.user._id;
   lead.updatedBy = req.user._id;
   await lead.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logLeadArchived(lead, req.user);
+  } catch (error) {
+    console.error('Failed to log lead archive activity:', error);
+  }
 
   try {
     await notificationService.createProjectNotification(
@@ -357,15 +398,20 @@ export const addLeadNote = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You do not have permission to add notes to this lead');
   }
 
-  lead.notes.push({ content: content.trim(), createdBy: req.user._id, createdAt: new Date(), updatedAt: new Date() });
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = 'note_added';
-  lead.lastActivityBy = req.user._id;
+  const newNote = { content: content.trim(), createdBy: req.user._id, createdAt: new Date(), updatedAt: new Date() };
+  lead.notes.push(newNote);
   lead.updatedBy = req.user._id;
   await lead.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logLeadNoteAdded(lead, newNote, req.user);
+  } catch (error) {
+    console.error('Failed to log lead note addition activity:', error);
+  }
 
   await lead.populate('notes.createdBy', 'name email profileImage');
-  const newNote = lead.notes[lead.notes.length - 1];
+  const latestNote = lead.notes[lead.notes.length - 1];
 
   try {
     await notificationService.createProjectNotification(
@@ -385,7 +431,7 @@ export const addLeadNote = asyncHandler(async (req, res) => {
     console.error('Failed to create lead note notification:', e);
   }
 
-  res.status(201).json({ success: true, message: 'Note added successfully', data: { note: newNote } });
+  res.status(201).json({ success: true, message: 'Note added successfully', data: { note: latestNote } });
 });
 
 // Update lead note
@@ -419,11 +465,15 @@ export const updateLeadNote = asyncHandler(async (req, res) => {
 
   note.content = content.trim();
   note.updatedAt = new Date();
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = 'note_updated';
-  lead.lastActivityBy = req.user._id;
   lead.updatedBy = req.user._id;
   await lead.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logLeadNoteUpdated(lead, note, req.user);
+  } catch (error) {
+    console.error('Failed to log lead note update activity:', error);
+  }
 
   await lead.populate('notes.createdBy', 'name email profileImage');
 
@@ -455,11 +505,15 @@ export const deleteLeadNote = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You can only delete your own notes');
   }
 
+  // Log activity before removing note
+  try {
+    await ActivityService.logLeadNoteDeleted(lead, noteId, req.user);
+  } catch (error) {
+    console.error('Failed to log lead note deletion activity:', error);
+  }
+  
   // Remove the note from the array
   lead.notes.pull(noteId);
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = 'note_deleted';
-  lead.lastActivityBy = req.user._id;
   lead.updatedBy = req.user._id;
   await lead.save();
 
@@ -502,9 +556,6 @@ export const convertLead = asyncHandler(async (req, res) => {
         owner: req.user._id,
         createdBy: req.user._id,
         updatedBy: req.user._id,
-        lastActivityDate: new Date(),
-        lastActivityType: 'created',
-        lastActivityBy: req.user._id
       });
       try {
         await notificationService.createCompanyNotification('company_created', companyDoc, lead.project, req.user._id, [req.user._id]);
@@ -532,11 +583,16 @@ export const convertLead = asyncHandler(async (req, res) => {
   lead.convertedAt = new Date();
   lead.convertedBy = req.user._id;
   lead.isArchived = true;
+  lead.archivedAt = new Date();
   lead.convertedCustomerId = customer._id;
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = 'lead_converted';
-  lead.lastActivityBy = req.user._id;
   await lead.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logLeadConverted(lead, customer, req.user);
+  } catch (error) {
+    console.error('Failed to log lead conversion activity:', error);
+  }
 
   // Notify project
   try {
@@ -572,6 +628,11 @@ export const updateLeadStatus = asyncHandler(async (req, res) => {
   }
   const lead = await Lead.findById(id).populate('project');
   if (!lead) throw new NotFoundError('Lead not found');
+  
+  // Check if lead is converted - prevent status updates
+  if (lead.convertedAt) {
+    throw new ValidationError('Cannot update status of a lead that has been converted to customer');
+  }
 
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
@@ -584,12 +645,17 @@ export const updateLeadStatus = asyncHandler(async (req, res) => {
   // qualified -> convert (handled separately) | disqualified
   // disqualified -> archived (already terminal)
 
+  const oldStatus = lead.status;
   lead.status = status;
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = 'status_updated';
-  lead.lastActivityBy = req.user._id;
   lead.updatedBy = req.user._id;
   await lead.save();
+  
+  // Log activity
+  try {
+    await ActivityService.logLeadStatusChanged(lead, oldStatus, status, req.user);
+  } catch (error) {
+    console.error('Failed to log lead status change activity:', error);
+  }
   await lead.populate([
     { path: 'owner', select: 'name email profileImage' },
     { path: 'assignedTo', select: 'name email profileImage' },
@@ -597,7 +663,6 @@ export const updateLeadStatus = asyncHandler(async (req, res) => {
     { path: 'updatedBy', select: 'name email profileImage' },
     { path: 'company', select: 'name industry' },
     { path: 'convertedBy', select: 'name email profileImage' },
-    { path: 'lastActivityBy', select: 'name email profileImage' },
     { path: 'notes.createdBy', select: 'name email' }
   ]);
 
@@ -654,12 +719,21 @@ export const assignLeadToUser = asyncHandler(async (req, res) => {
     }
   }
 
+  const oldAssignedTo = lead.assignedTo;
   lead.assignedTo = assignedTo || null;
-  lead.lastActivityDate = new Date();
-  lead.lastActivityType = assignedTo ? 'lead_assigned' : 'lead_unassigned';
-  lead.lastActivityBy = req.user._id;
   lead.updatedBy = req.user._id;
   await lead.save();
+  
+  // Log activity
+  try {
+    if (assignedTo && !oldAssignedTo) {
+      await ActivityService.logLeadAssigned(lead, assignedTo, req.user);
+    } else if (!assignedTo && oldAssignedTo) {
+      await ActivityService.logLeadUnassigned(lead, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log lead assignment activity:', error);
+  }
 
   await lead.populate([
     { path: 'owner', select: 'name email profileImage' },
@@ -865,18 +939,16 @@ export const getLeadInsights = asyncHandler(async (req, res) => {
     });
   }
 
-  // Recent activity (last 10 leads with activity)
+  // Recent leads (last 10 leads)
   const recentActivity = leads
-    .filter(lead => lead.lastActivityDate)
-    .sort((a, b) => new Date(b.lastActivityDate) - new Date(a.lastActivityDate))
+    .sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
     .slice(0, 10)
     .map(lead => ({
       _id: lead._id,
       name: lead.name,
       status: lead.stage || lead.status,
       owner: lead.owner,
-      lastActivityDate: lead.lastActivityDate,
-      lastActivityType: lead.lastActivityType
+      updatedAt: lead.updatedAt
     }));
 
   // Company analysis
@@ -1159,9 +1231,9 @@ export const getLeadForecast = asyncHandler(async (req, res) => {
       project: projectId,
       assignedTo: null
     }),
-    noActivityLeads: await Lead.countDocuments({
+    inactiveLeads: await Lead.countDocuments({
       project: projectId,
-      lastActivityDate: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+      updatedAt: { $lt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
     })
   };
   
@@ -1169,7 +1241,7 @@ export const getLeadForecast = asyncHandler(async (req, res) => {
     (riskFactors.lowScoreLeads * 0.2) + 
     (riskFactors.staleLeads * 0.3) + 
     (riskFactors.unassignedLeads * 0.2) + 
-    (riskFactors.noActivityLeads * 0.3)
+    (riskFactors?.inactiveLeads * 0.3)
   );
   
   res.json({

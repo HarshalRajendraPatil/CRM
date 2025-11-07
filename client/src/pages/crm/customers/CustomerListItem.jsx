@@ -146,21 +146,14 @@ const CustomerListItem = ({
         )}
       </td>
 
-      {/* Last Activity */}
+      {/* Last Updated */}
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900">
-          {customer.lastActivityDate ? formatDateTime(customer.lastActivityDate) : 'No activity'}
+          {formatDateTime(customer.updatedAt)}
         </div>
-        {customer.lastActivityType && (
-          <div className="text-sm text-gray-500 capitalize">
-            {customer.lastActivityType.replace('_', ' ')}
-          </div>
-        )}
-        {customer.lastActivityBy && (
-          <div className="text-sm text-gray-500">
-            by {customer.updatedBy.name}
-          </div>
-        )}
+        <div className="text-sm text-gray-500">
+          by {customer.updatedBy?.name || 'Unknown'}
+        </div>
       </td>
 
       {/* Actions */}

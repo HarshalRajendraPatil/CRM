@@ -389,8 +389,8 @@ const LeadForecast = () => {
                 className: `h-8 w-8 ${getRiskColor(riskAssessment.score)}`
               })}
               <div className="text-right">
-                <div className={`text-2xl font-bold ${getRiskColor(riskAssessment.score)}`}>
-                  {riskAssessment.score.toFixed(0)}/100
+                <div className={`text-2xl font-bold ${getRiskColor(riskAssessment?.score)}`}>
+                  {riskAssessment?.score?.toFixed(0)}/100
                 </div>
                 <div className="text-sm text-gray-600">Quality Score</div>
               </div>

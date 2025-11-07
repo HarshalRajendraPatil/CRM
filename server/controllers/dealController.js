@@ -4,6 +4,7 @@ import Company from '../models/Company.model.js';
 import User from '../models/User.model.js';
 import { validateDealData, sanitizeDealData } from '../utils/dealValidation.js';
 import { createDealNotification } from '../utils/notificationService.js';
+import ActivityService from '../utils/activityService.js';
 import { asyncHandler, AppError, ValidationError } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';
 
@@ -320,6 +321,13 @@ export const createDeal = asyncHandler(async (req, res) => {
   // Create deal
   const deal = await Deal.create(sanitizedData);
 
+  // Log activity
+  try {
+    await ActivityService.logDealCreated(deal, req.user);
+  } catch (error) {
+    console.error('Failed to log deal creation activity:', error);
+  }
+
   await Company.findByIdAndUpdate(sanitizedData.company, { $addToSet: { deals: deal._id } });
 
   await Customer.findByIdAndUpdate(sanitizedData.customer, { $addToSet: { deals: deal._id } });
@@ -363,6 +371,16 @@ export const updateDeal = asyncHandler(async (req, res) => {
     throw new AppError('Deal not found', 404);
   }
 
+  // Track changes for activity logging
+  const changes = {};
+  Object.keys(sanitizedData).forEach(key => {
+    if (key !== 'updatedBy' && key !== 'updatedAt' && existingDeal[key] !== sanitizedData[key]) {
+      changes[key] = {
+        oldValue: existingDeal[key],
+        newValue: sanitizedData[key]
+      };
+    }
+  });
 
   // Check for changes that need activity tracking
   const statusChanged = sanitizedData.status && sanitizedData.status !== existingDeal.status;
@@ -383,9 +401,18 @@ export const updateDeal = asyncHandler(async (req, res) => {
   ).populate([
     { path: 'assignedTo', select: 'name email profileImage' },
     { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'customer', select: 'name email phone' },
+    { path: 'customer', select: 'firstName lastName email phone' },
     { path: 'company', select: 'name website' },
   ]);
+
+  // Log activity if there were changes
+  if (Object.keys(changes).length > 0) {
+    try {
+      await ActivityService.logDealUpdated(deal, changes, req.user);
+    } catch (error) {
+      console.error('Failed to log deal update activity:', error);
+    }
+  }
 
   // Track activities for various changes
   if (statusChanged) {
@@ -470,13 +497,12 @@ export const archiveDeal = asyncHandler(async (req, res) => {
     throw new AppError('Deal not found', 404);
   }
 
-  // Add activity for archiving
-  await deal.addActivity({
-    type: 'custom',
-    description: 'Deal archived',
-    createdBy: req.user.id,
-    metadata: { action: 'archive' }
-  });
+  // Log activity
+  try {
+    await ActivityService.logDealArchived(deal, req.user);
+  } catch (error) {
+    console.error('Failed to log deal archive activity:', error);
+  }
 
   // Remove deal from company's deals array if company exists
   if (deal.company) {
@@ -524,6 +550,13 @@ export const deleteDeal = asyncHandler(async (req, res) => {
     );
   }
 
+  // Log activity before deletion
+  try {
+    await ActivityService.logDealDeleted(deal, req.user);
+  } catch (error) {
+    console.error('Failed to log deal deletion activity:', error);
+  }
+
   // Add activity for deletion (before deleting the deal)
   await deal.addActivity({
     type: 'custom',
@@ -566,6 +599,13 @@ export const restoreDeal = asyncHandler(async (req, res) => {
 
   if (!deal) {
     throw new AppError('Deal not found', 404);
+  }
+
+  // Log activity
+  try {
+    await ActivityService.logDealRestored(deal, req.user);
+  } catch (error) {
+    console.error('Failed to log deal restore activity:', error);
   }
 
   // Add deal back to company's deals array if company exists
@@ -620,6 +660,13 @@ export const addDealActivity = asyncHandler(async (req, res) => {
   await deal.populate('activities.createdBy', 'name email profileImage');
 
   const newActivity = deal.activities[deal.activities.length - 1];
+
+  // Log activity
+  try {
+    await ActivityService.logDealActivityAdded(deal, newActivity, req.user);
+  } catch (error) {
+    console.error('Failed to log deal activity addition activity:', error);
+  }
 
   res.status(201).json({
     success: true,
@@ -695,6 +742,13 @@ export const addDealNote = asyncHandler(async (req, res) => {
   await deal.populate('notes.createdBy', 'name email profileImage');
 
   const newNote = deal.notes[deal.notes.length - 1];
+
+  // Log activity
+  try {
+    await ActivityService.logDealNoteAdded(deal, newNote, req.user);
+  } catch (error) {
+    console.error('Failed to log deal note addition activity:', error);
+  }
 
   // Add activity
   await deal.addActivity({
@@ -948,6 +1002,13 @@ export const bulkAssignDeals = asyncHandler(async (req, res) => {
   // Create notifications for each assigned deal
   const deals = await Deal.find({ _id: { $in: dealIds } });
   for (const deal of deals) {
+    // Log activity
+    try {
+      await ActivityService.logDealAssigned(deal, user, req.user);
+    } catch (error) {
+      console.error('Failed to log deal assignment activity:', error);
+    }
+
     await deal.addActivity({
       type: 'custom',
       description: `Deal assigned to ${user.name}`,
