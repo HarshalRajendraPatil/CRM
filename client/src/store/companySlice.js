@@ -37,9 +37,9 @@ export const getProjectCompanies = createAsyncThunk(
 // Get company by ID
 export const getCompanyById = createAsyncThunk(
   'companies/getCompanyById',
-  async (id, thunkAPI) => {
+  async ({id, projectId}, thunkAPI) => {
     try {
-      return await companyService.getCompanyById(id);
+      return await companyService.getCompanyById(id, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch company';
       return thunkAPI.rejectWithValue(message);
@@ -50,9 +50,9 @@ export const getCompanyById = createAsyncThunk(
 // Create a new company
 export const createCompany = createAsyncThunk(
   'companies/createCompany',
-  async (companyData, thunkAPI) => {
+  async ({projectId, companyData}, thunkAPI) => {
     try {
-      return await companyService.createCompany(companyData);
+      return await companyService.createCompany(projectId, companyData);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to create company';
       return thunkAPI.rejectWithValue(message);
@@ -63,9 +63,9 @@ export const createCompany = createAsyncThunk(
 // Update a company
 export const updateCompany = createAsyncThunk(
   'companies/updateCompany',
-  async ({ id, companyData }, thunkAPI) => {
+  async ({ id, companyData, projectId }, thunkAPI) => {
     try {
-      return await companyService.updateCompany(id, companyData);
+      return await companyService.updateCompany(id, companyData, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to update company';
       return thunkAPI.rejectWithValue(message);
@@ -76,9 +76,9 @@ export const updateCompany = createAsyncThunk(
 // Delete a company
 export const deleteCompany = createAsyncThunk(
   'companies/deleteCompany',
-  async (id, thunkAPI) => {
+  async ({id, projectId}, thunkAPI) => {
     try {
-      return await companyService.deleteCompany(id);
+      return await companyService.deleteCompany(id, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to delete company';
       return thunkAPI.rejectWithValue(message);
@@ -89,9 +89,9 @@ export const deleteCompany = createAsyncThunk(
 // Add a note to a company
 export const addCompanyNote = createAsyncThunk(
   'companies/addCompanyNote',
-  async ({ id, noteData }, thunkAPI) => {
+  async ({ id, noteData, projectId }, thunkAPI) => {
     try {
-      return await companyService.addCompanyNote(id, noteData);
+      return await companyService.addCompanyNote(id, noteData, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to add note';
       return thunkAPI.rejectWithValue(message);
@@ -102,9 +102,9 @@ export const addCompanyNote = createAsyncThunk(
 // Get notes for a company
 export const getCompanyNotes = createAsyncThunk(
   'companies/getCompanyNotes',
-  async (id, thunkAPI) => {
+  async ({id, projectId}, thunkAPI) => {
     try {
-      return await companyService.getCompanyNotes(id);
+      return await companyService.getCompanyNotes(id, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to fetch notes';
       return thunkAPI.rejectWithValue(message);
@@ -232,9 +232,9 @@ export const bulkDeleteCompanies = createAsyncThunk(
 // Update a company note
 export const updateCompanyNote = createAsyncThunk(
   'companies/updateCompanyNote',
-  async ({ id, noteId, noteData }, thunkAPI) => {
+  async ({ id, noteId, noteData, projectId }, thunkAPI) => {
     try {
-      return await companyService.updateCompanyNote(id, noteId, noteData);
+      return await companyService.updateCompanyNote(id, noteId, noteData, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to update note';
       return thunkAPI.rejectWithValue(message);
@@ -245,9 +245,9 @@ export const updateCompanyNote = createAsyncThunk(
 // Delete a company note
 export const deleteCompanyNote = createAsyncThunk(
   'companies/deleteCompanyNote',
-  async ({ id, noteId }, thunkAPI) => {
+  async ({ id, noteId, projectId }, thunkAPI) => {
     try {
-      return await companyService.deleteCompanyNote(id, noteId);
+      return await companyService.deleteCompanyNote(id, noteId, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to delete note';
       return thunkAPI.rejectWithValue(message);

@@ -6,36 +6,40 @@ export const getProjectLeads = async (projectId, params = {}) => {
   return axios.get(`/leads/project/${projectId}`, { params });
 };
 
-export const fetchLead = async (id) => {
-  return axios.get(`/leads/${id}`);
+export const fetchLead = async (projectId, id) => {
+  return axios.get(`/leads/${id}?projectId=${projectId}`);
 };
 
-export const createLead = async (leadData) => {
-  return axios.post('/leads', leadData);
+export const createLead = async (projectId, leadData) => {
+  return axios.post(`/leads?projectId=${projectId}`, leadData);
 };
 
-export const updateLead = async (id, leadData) => {
-  return axios.put(`/leads/${id}`, leadData);
+export const updateLead = async (projectId, id, leadData) => {
+  return axios.put(`/leads/${id}?projectId=${projectId}`, leadData);
 };
 
-export const archiveLead = async (id) => {
-  return axios.delete(`/leads/${id}`);
+export const archiveLead = async (projectId, id) => {
+  return axios.delete(`/leads/${id}?projectId=${projectId}`);
 };
 
-export const addLeadNote = async (id, noteData) => {
-  return axios.post(`/leads/${id}/notes`, noteData);
+export const deleteLead = async (projectId, id) => {
+  return axios.delete(`/leads/${id}/permanent?projectId=${projectId}`);
 };
 
-export const updateLeadStatus = async (id, status) => {
-  return axios.patch(`/leads/${id}/status`, { status });
+export const addLeadNote = async (projectId, id, noteData) => {
+  return axios.post(`/leads/${id}/notes?projectId=${projectId}`, noteData);
 };
 
-export const assignLeadToUser = async (id, userId) => {
-  return axios.patch(`/leads/${id}/assign`, { assignedTo: userId });
+export const updateLeadStatus = async (projectId, id, status) => {
+  return axios.patch(`/leads/${id}/status?projectId=${projectId}`, { status });
 };
 
-export const convertLead = async (id) => {
-  return axios.post(`/leads/${id}/convert`);
+export const assignLeadToUser = async (projectId, id, userId) => {
+  return axios.patch(`/leads/${id}/assign?projectId=${projectId}`, { assignedTo: userId });
+};
+
+export const convertLead = async (projectId, id) => {
+  return axios.post(`/leads/${id}/convert?projectId=${projectId}`);
 };
 
 export const getLeadStats = async (projectId) => {
@@ -54,20 +58,20 @@ export const getArchivedLeads = async (projectId, params = {}) => {
   return axios.get(`/leads/project/${projectId}/archived`, { params });
 };
 
-export const unarchiveLead = async (id) => {
-  return axios.patch(`/leads/${id}/unarchive`);
+export const unarchiveLead = async (projectId, id) => {
+  return axios.patch(`/leads/${id}/unarchive?projectId=${projectId}`);
 };
 
-export const cleanupArchivedLeads = async () => {
-  return axios.post('/leads/cleanup-archived');
+export const cleanupArchivedLeads = async (projectId) => {
+  return axios.post(`/leads/cleanup-archived?projectId=${projectId}`);
 };
 
-export const updateLeadNote = async (leadId, noteId, content) => {
-  return axios.put(`/leads/${leadId}/notes/${noteId}`, { content });
+export const updateLeadNote = async (projectId, id, noteId, content) => {
+  return axios.put(`/leads/${id}/notes/${noteId}?projectId=${projectId}`, { content });
 };
 
-export const deleteLeadNote = async (leadId, noteId) => {
-  return axios.delete(`/leads/${leadId}/notes/${noteId}`);
+export const deleteLeadNote = async (projectId, leadId, noteId) => {
+  return axios.delete(`/leads/${leadId}/notes/${noteId}?projectId=${projectId}`);
 };
 
 export default {
@@ -76,6 +80,7 @@ export default {
   createLead,
   updateLead,
   archiveLead,
+  deleteLead,
   addLeadNote,
   updateLeadStatus,
   assignLeadToUser,

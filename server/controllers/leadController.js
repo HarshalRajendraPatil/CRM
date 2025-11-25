@@ -381,6 +381,133 @@ export const archiveLead = asyncHandler(async (req, res) => {
   res.json({ success: true, message: 'Lead archived successfully' });
 });
 
+// Permanently delete lead (hard-delete)
+export const deleteLead = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const validation = validateObjectId(id);
+  if (!validation.isValid) {
+    throw new ValidationError(validation.message);
+  }
+
+  // Find lead and populate necessary fields
+  const lead = await Lead.findById(id).populate('project');
+  if (!lead) {
+    throw new NotFoundError('Lead not found');
+  }
+
+  const project = lead.project;
+  if (!project) {
+    throw new NotFoundError('Project not found');
+  }
+
+  // Check permissions: Only manager, owner, or system-admin can delete
+  if (
+    !project.hasPermission(req.user._id, 'manager') && 
+    lead.owner.toString() !== req.user._id.toString() && 
+    req.user.roleGlobal !== 'system-admin'
+  ) {
+    throw new AuthorizationError('You do not have permission to delete this lead');
+  }
+
+  // Prevent deletion if lead is converted (optional - you may want to allow this)
+  if (lead.convertedAt) {
+    throw new ValidationError('Cannot delete a lead that has been converted to customer. Please archive it instead.');
+  }
+
+  // Store lead information for logging and notifications before deletion
+  const leadName = lead.name;
+  const leadEmail = lead.email;
+  const projectId = lead.project._id || lead.project;
+  const leadId = lead._id;
+
+  // Log activity BEFORE deletion (so we have the lead data)
+  try {
+    await ActivityService.logLeadDeleted(lead, req.user);
+  } catch (error) {
+    console.error('Failed to log lead deletion activity:', error);
+  }
+
+  // Delete associated tasks (remove lead reference from tasks)
+  try {
+    const Task = mongoose.model('Task');
+    await Task.updateMany(
+      { 
+        'relatedEntity.type': 'lead',
+        'relatedEntity.entityId': leadId
+      },
+      { 
+        $unset: { 
+          relatedEntity: ''
+        }
+      }
+    );
+  } catch (error) {
+    console.error('Failed to remove lead reference from tasks:', error);
+  }
+
+  // Delete activity logs related to this lead
+  try {
+    const Activity = mongoose.model('Activity');
+    await Activity.deleteMany({
+      entityType: 'Lead',
+      entityId: leadId
+    });
+  } catch (error) {
+    console.error('Failed to delete lead activity logs:', error);
+  }
+
+  // Delete notifications related to this lead
+  try {
+    const Notification = mongoose.model('Notification');
+    await Notification.deleteMany({
+      $or: [
+        { type: 'lead_created', 'metadata.leadId': leadId },
+        { type: 'lead_updated', 'metadata.leadId': leadId },
+        { type: 'lead_archived', 'metadata.leadId': leadId },
+        { type: 'lead_unarchived', 'metadata.leadId': leadId },
+        { type: 'lead_deleted', 'metadata.leadId': leadId },
+        { type: 'lead_note_added', 'metadata.leadId': leadId },
+        { type: 'lead_status_updated', 'metadata.leadId': leadId },
+        { type: 'lead_assigned', 'metadata.leadId': leadId },
+        { type: 'lead_unassigned', 'metadata.leadId': leadId },
+        { type: 'lead_converted', 'metadata.leadId': leadId }
+      ]
+    });
+  } catch (error) {
+    console.error('Failed to delete lead notifications:', error);
+  }
+
+  // Remove lead reference from company if it exists (optional - you may want to keep this)
+  // Companies don't typically have a direct leads array, but if they do, handle it here
+
+  // Actually delete the lead from database
+  await lead.deleteOne();
+
+  // Create notification for lead deletion
+  try {
+    await notificationService.createProjectNotification(
+      projectId,
+      {
+        sender: req.user._id,
+        type: 'lead_deleted',
+        title: `Lead Deleted in ${project.name}`,
+        message: `${req.user.name} permanently deleted lead: ${leadName}`,
+        link: `/crm/${projectId}/leads`,
+        priority: 'high',
+        metadata: { leadId: leadId.toString(), leadName, leadEmail }
+      },
+      [req.user._id]
+    );
+  } catch (error) {
+    console.error('Failed to create lead deletion notification:', error);
+  }
+
+  res.json({ 
+    success: true, 
+    message: 'Lead deleted permanently and all associated resources have been cleaned up'
+  });
+});
+
 // Add note to lead
 export const addLeadNote = asyncHandler(async (req, res) => {
   const { id } = req.params;
@@ -1294,6 +1421,7 @@ export default {
   getLeadById,
   updateLead,
   archiveLead,
+  deleteLead,
   unarchiveLead,
   addLeadNote,
   updateLeadNote,

@@ -24,7 +24,6 @@ export const getProjectCustomers = async (req, res) => {
       assignedTo,
       company
     } = req.query;
-    console.log(company);
     const customers = await Customer.findByProject(projectId, {
       limit: parseInt(limit),
       skip: parseInt(skip),
@@ -79,7 +78,9 @@ export const getCustomer = async (req, res) => {
       .populate('company', 'name industry website')
       .populate('convertedFromLead', 'name email')
       .populate('archivedBy', 'name email profileImage')
-      .populate('deals', 'name value currency status priority probability expectedCloseDate createdAt');
+      .populate('deals', 'name value currency status priority probability expectedCloseDate createdAt')
+      .populate('notes.createdBy', 'name email profileImage')
+      .populate('interactions.createdBy', 'name email profileImage');
 
     if (!customer) {
       return res.status(404).json({
@@ -157,6 +158,7 @@ export const createCustomer = async (req, res) => {
 // Update a customer
 export const updateCustomer = async (req, res) => {
   try {
+
     const { id } = req.params;
     const updateData = {
       ...req.body,
@@ -196,7 +198,6 @@ export const updateCustomer = async (req, res) => {
     // Log activity if there were changes
     if (Object.keys(changes).length > 0) {
       try {
-        console.log('changes', changes);
         await ActivityService.logCustomerUpdated(customer, changes, req.user);
       } catch (error) {
         console.error('Failed to log customer update activity:', error);
@@ -304,6 +305,15 @@ export const unarchiveCustomer = async (req, res) => {
       console.error('Failed to log customer unarchive activity:', error);
     }
 
+    // Populate the customer before returning
+    await customer.populate([
+      { path: 'owner', select: 'name email profileImage' },
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'company', select: 'name' },
+      { path: 'notes.createdBy', select: 'name email profileImage' },
+      { path: 'interactions.createdBy', select: 'name email profileImage' }
+    ]);
+
     res.json({
       success: true,
       message: 'Customer unarchived successfully',
@@ -396,7 +406,9 @@ export const addCustomerNote = async (req, res) => {
     // Populate the updated customer
     await customer.populate([
       { path: 'owner', select: 'name email profileImage' },
-      { path: 'assignedTo', select: 'name email profileImage' }
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'notes.createdBy', select: 'name email profileImage' },
+      { path: 'interactions.createdBy', select: 'name email profileImage' }
     ]);
 
     res.json({
@@ -447,7 +459,9 @@ export const addCustomerInteraction = async (req, res) => {
     // Populate the updated customer
     await customer.populate([
       { path: 'owner', select: 'name email profileImage' },
-      { path: 'assignedTo', select: 'name email profileImage' }
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'notes.createdBy', select: 'name email profileImage' },
+      { path: 'interactions.createdBy', select: 'name email profileImage' }
     ]);
 
     res.json({
@@ -465,11 +479,284 @@ export const addCustomerInteraction = async (req, res) => {
   }
 };
 
+// Update a customer note
+export const updateCustomerNote = async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+    const { content, type } = req.body;
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Note content is required'
+      });
+    }
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const note = customer.notes.id(noteId);
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: 'Note not found'
+      });
+    }
+
+    // Check if user can edit this note (only the creator can edit)
+    if (note.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only edit your own notes'
+      });
+    }
+
+    note.content = content.trim();
+    if (type) note.type = type;
+    note.updatedAt = new Date();
+    customer.updatedBy = req.user.id;
+    await customer.save();
+
+    // Log activity
+    try {
+      await ActivityService.logCustomerNoteUpdated(customer, note, req.user);
+    } catch (error) {
+      console.error('Failed to log customer note update activity:', error);
+    }
+
+    // Populate the updated customer
+    await customer.populate([
+      { path: 'owner', select: 'name email profileImage' },
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'notes.createdBy', select: 'name email profileImage' },
+      { path: 'interactions.createdBy', select: 'name email profileImage' }
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Note updated successfully',
+      data: customer
+    });
+  } catch (error) {
+    console.error('Error updating note:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Failed to update note',
+      error: error.message
+    });
+  }
+};
+
+// Delete a customer note
+export const deleteCustomerNote = async (req, res) => {
+  try {
+    const { id, noteId } = req.params;
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const note = customer.notes.id(noteId);
+    if (!note) {
+      return res.status(404).json({
+        success: false,
+        message: 'Note not found'
+      });
+    }
+
+    // Check if user can delete this note (only the creator can delete)
+    if (note.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own notes'
+      });
+    }
+
+    // Log activity before removing note
+    try {
+      await ActivityService.logCustomerNoteDeleted(customer, noteId, req.user);
+    } catch (error) {
+      console.error('Failed to log customer note deletion activity:', error);
+    }
+
+    customer.notes.pull(noteId);
+    customer.updatedBy = req.user.id;
+    await customer.save();
+
+    // Populate the updated customer
+    await customer.populate([
+      { path: 'owner', select: 'name email profileImage' },
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'notes.createdBy', select: 'name email profileImage' },
+      { path: 'interactions.createdBy', select: 'name email profileImage' }
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Note deleted successfully',
+      data: customer
+    });
+  } catch (error) {
+    console.error('Error deleting note:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Failed to delete note',
+      error: error.message
+    });
+  }
+};
+
+// Update a customer interaction
+export const updateCustomerInteraction = async (req, res) => {
+  try {
+    const { id, interactionId } = req.params;
+    const interactionData = req.body;
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const interaction = customer.interactions.id(interactionId);
+    if (!interaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Interaction not found'
+      });
+    }
+
+    // Check if user can edit this interaction (only the creator can edit)
+    if (interaction.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only edit your own interactions'
+      });
+    }
+
+    // Update interaction fields
+    if (interactionData.type) interaction.type = interactionData.type;
+    if (interactionData.title) interaction.title = interactionData.title;
+    if (interactionData.description !== undefined) interaction.description = interactionData.description;
+    if (interactionData.date) interaction.date = interactionData.date;
+    if (interactionData.duration !== undefined) interaction.duration = interactionData.duration;
+    if (interactionData.outcome) interaction.outcome = interactionData.outcome;
+
+    customer.updatedBy = req.user.id;
+    await customer.save();
+
+    // Log activity
+    try {
+      await ActivityService.logCustomerInteractionUpdated(customer, interaction, req.user);
+    } catch (error) {
+      console.error('Failed to log customer interaction update activity:', error);
+    }
+
+    // Populate the updated customer
+    await customer.populate([
+      { path: 'owner', select: 'name email profileImage' },
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'notes.createdBy', select: 'name email profileImage' },
+      { path: 'interactions.createdBy', select: 'name email profileImage' }
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Interaction updated successfully',
+      data: customer
+    });
+  } catch (error) {
+    console.error('Error updating interaction:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Failed to update interaction',
+      error: error.message
+    });
+  }
+};
+
+// Delete a customer interaction
+export const deleteCustomerInteraction = async (req, res) => {
+  try {
+    const { id, interactionId } = req.params;
+
+    const customer = await Customer.findById(id);
+    if (!customer) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer not found'
+      });
+    }
+
+    const interaction = customer.interactions.id(interactionId);
+    if (!interaction) {
+      return res.status(404).json({
+        success: false,
+        message: 'Interaction not found'
+      });
+    }
+
+    // Check if user can delete this interaction (only the creator can delete)
+    if (interaction.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own interactions'
+      });
+    }
+
+    // Log activity before removing interaction
+    try {
+      await ActivityService.logCustomerInteractionDeleted(customer, interactionId, req.user);
+    } catch (error) {
+      console.error('Failed to log customer interaction deletion activity:', error);
+    }
+
+    customer.interactions.pull(interactionId);
+    customer.updatedBy = req.user.id;
+    await customer.save();
+
+    // Populate the updated customer
+    await customer.populate([
+      { path: 'owner', select: 'name email profileImage' },
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'notes.createdBy', select: 'name email profileImage' },
+      { path: 'interactions.createdBy', select: 'name email profileImage' }
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Interaction deleted successfully',
+      data: customer
+    });
+  } catch (error) {
+    console.error('Error deleting interaction:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Failed to delete interaction',
+      error: error.message
+    });
+  }
+};
+
 // Convert lead to customer
 export const convertLeadToCustomer = async (req, res) => {
   try {
     const { leadId } = req.params;
     const customerData = req.body;
+
+    console.log("leadId", req.params);
+    console.log("customerData", customerData);
 
     // Find the lead
     const lead = await Lead.findById(leadId);
@@ -1056,8 +1343,6 @@ export const getCustomerStats = async (req, res) => {
       },
       recentCustomers
     };
-
-    console.log(stats);
 
     res.json({
       success: true,

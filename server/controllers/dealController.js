@@ -831,7 +831,7 @@ export const deleteDealNote = asyncHandler(async (req, res) => {
     throw new AppError('Not authorized to delete this note', 403);
   }
 
-  note.remove();
+  await note.deleteOne();
   await deal.save();
 
   // Add activity

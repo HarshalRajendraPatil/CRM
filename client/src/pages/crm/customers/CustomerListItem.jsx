@@ -5,7 +5,8 @@ const CustomerListItem = ({
   customer, 
   isSelected, 
   onSelect, 
-  onView, 
+  onView,
+  isArchived,
   getStageColor,
   getPriorityColor,
   getStatusColor 
@@ -146,14 +147,22 @@ const CustomerListItem = ({
         )}
       </td>
 
-      {/* Last Updated */}
+      {/* Last Updated / Archived At */}
       <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">
-          {formatDateTime(customer.updatedAt)}
-        </div>
-        <div className="text-sm text-gray-500">
-          by {customer.updatedBy?.name || 'Unknown'}
-        </div>
+        {isArchived ? (
+          <div className="text-sm text-gray-900">
+            {formatDateTime(customer.archivedAt)}
+          </div>
+        ) : (
+          <>
+            <div className="text-sm text-gray-900">
+              {formatDateTime(customer.updatedAt)}
+            </div>
+            <div className="text-sm text-gray-500">
+              by {customer.updatedBy?.name || 'Unknown'}
+            </div>
+          </>
+        )}
       </td>
 
       {/* Actions */}
@@ -164,7 +173,7 @@ const CustomerListItem = ({
             size="sm"
             onClick={onView}
           >
-              View
+            View
           </Button>
         </div>
       </td>

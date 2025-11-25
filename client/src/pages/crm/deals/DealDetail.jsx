@@ -47,16 +47,16 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 const DealDetail = () => {
   const { projectId, dealId } = useParams();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   
-  const { currentDeal, loading, error, activities } = useSelector((state) => state.deals);
+  const { currentDeal, loading, error } = useSelector((state) => state.deals);
   const { user } = useSelector((state) => state.auth);
   const { users } = useSelector((state) => state.users);
-  const { project } = useSelector((state) => state.projects);
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showEditModal, setShowEditModal] = useState(false);
@@ -64,14 +64,16 @@ const DealDetail = () => {
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showAddNote, setShowAddNote] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
+  const {hasSupportExecutiveAccess} = useProjectAccess();
 
   // Form states
   const [noteForm, setNoteForm] = useState({ content: '' });
 
   useEffect(() => {
-    if (dealId) {
-      dispatch(fetchDeal(dealId));
-      dispatch(fetchDealActivities({ dealId }));
+    if (dealId && projectId) {
+      dispatch(getProjectById(projectId));
+      dispatch(fetchDeal({ projectId, dealId }));
+      dispatch(fetchDealActivities({ projectId, dealId }));
     }
     if (projectId) {
       dispatch(getUsers({ projectId }));
@@ -85,6 +87,7 @@ const DealDetail = () => {
   const handleStatusChange = async (newStatus) => {
     try {
       await dispatch(updateExistingDeal({ 
+        projectId,
         dealId: dealId, 
         dealData: { status: newStatus }
       })).unwrap();
@@ -96,6 +99,7 @@ const DealDetail = () => {
   const handlePriorityChange = async (newPriority) => {
     try {
       await dispatch(updateExistingDeal({ 
+        projectId,
         dealId: dealId, 
         dealData: { priority: newPriority }
       })).unwrap();
@@ -107,16 +111,7 @@ const DealDetail = () => {
 
   const handleDelete = async () => {
     try {
-      await dispatch(deleteExistingDeal(dealId));
-      // Add activity for deletion
-      await dispatch(addDealActivityAction({
-        dealId: dealId,
-        activityData: {
-          type: 'custom',
-          description: 'Deal permanently deleted',
-          metadata: { action: 'delete' }
-        }
-      }));
+      await dispatch(deleteExistingDeal({ projectId, dealId })).unwrap();
       navigate(`/crm/${projectId}/deals`);
     } catch (error) {
       console.error('Failed to delete deal:', error);
@@ -125,19 +120,9 @@ const DealDetail = () => {
 
   const handleArchive = async () => {
     try {
-      await dispatch(archiveExistingDeal(dealId));
-      // Add activity for archiving
-      await dispatch(addDealActivityAction({
-        dealId: dealId,
-        activityData: {
-          type: 'custom',
-          description: 'Deal archived',
-          metadata: { action: 'archive' }
-        }
-      }));
-      // Refresh the deal to get updated data
-      await dispatch(fetchDeal(dealId));
+      await dispatch(archiveExistingDeal({ projectId, dealId })).unwrap();
       setShowArchiveConfirm(false);
+      navigate(`/crm/${projectId}/deals`);
     } catch (error) {
       console.error('Failed to archive deal:', error);
     }
@@ -145,18 +130,9 @@ const DealDetail = () => {
 
   const handleUnarchive = async () => {
     try {
-      await dispatch(restoreExistingDeal(dealId)).unwrap();
-      // Add activity for unarchiving
-      await dispatch(addDealActivityAction({
-        dealId: dealId,
-        activityData: {
-          type: 'custom',
-          description: 'Deal unarchived',
-          metadata: { action: 'unarchive' }
-        }
-      }));
+      await dispatch(restoreExistingDeal({ projectId, dealId })).unwrap();
       // Refresh the deal to get updated data
-      await dispatch(fetchDeal(dealId));
+      await dispatch(fetchDeal({ projectId, dealId }));
     } catch (error) {
       console.error('Failed to unarchive deal:', error);
     }
@@ -166,20 +142,12 @@ const DealDetail = () => {
     try {
       const member = users.find(u => u._id === memberId);
       await dispatch(updateExistingDeal({
+        projectId,
         dealId: dealId,
         dealData: { assignedTo: memberId }
-      }));
-      // Add activity for assignment
-      await dispatch(addDealActivityAction({
-        dealId: dealId,
-        activityData: {
-          type: 'custom',
-          description: `Deal assigned to ${member?.name || 'Unknown User'}`,
-          metadata: { assignedTo: memberId, assignedToName: member?.name }
-        }
-      }));
+      })).unwrap();
       // Refresh the deal to get updated data
-      await dispatch(fetchDeal(dealId));
+      await dispatch(fetchDeal({ projectId, dealId }));
     } catch (error) {
       console.error('Failed to assign member:', error);
     }
@@ -188,20 +156,12 @@ const DealDetail = () => {
   const handleUnassignMember = async () => {
     try {
       await dispatch(updateExistingDeal({
+        projectId,
         dealId: dealId,
         dealData: { assignedTo: null }
-      }));
-      // Add activity for unassignment
-      await dispatch(addDealActivityAction({
-        dealId: dealId,
-        activityData: {
-          type: 'custom',
-          description: 'Deal unassigned',
-          metadata: { action: 'unassign' }
-        }
-      }));
+      })).unwrap();
       // Refresh the deal to get updated data
-      await dispatch(fetchDeal(dealId));
+      await dispatch(fetchDeal({ projectId, dealId }));
     } catch (error) {
       console.error('Failed to unassign member:', error);
     }
@@ -213,16 +173,17 @@ const DealDetail = () => {
 
     try {
       await dispatch(addDealNoteAction({
+        projectId,
         dealId: dealId,
         noteData: {
           content: noteForm.content,
           author: user._id
         }
-      }));
+      })).unwrap();
       setNoteForm({ content: '' });
       setShowAddNote(false);
       // Refresh the deal to get updated notes
-      await dispatch(fetchDeal(dealId));
+      await dispatch(fetchDeal({ projectId, dealId }));
     } catch (error) {
       console.error('Failed to add note:', error);
     }
@@ -239,14 +200,15 @@ const DealDetail = () => {
 
     try {
       await dispatch(updateDealNoteAction({
+        projectId,
         dealId: dealId,
         noteId: editingNote._id,
         noteData: { content: noteForm.content }
-      }));
+      })).unwrap();
       setEditingNote(null);
       setNoteForm({ content: '' });
       // Refresh the deal to get updated notes
-      await dispatch(fetchDeal(dealId));
+      await dispatch(fetchDeal({ projectId, dealId }));
     } catch (error) {
       console.error('Failed to update note:', error);
     }
@@ -255,9 +217,9 @@ const DealDetail = () => {
   const handleDeleteNote = async (noteId) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
       try {
-        await dispatch(deleteDealNoteAction({ dealId: dealId, noteId }));
+        await dispatch(deleteDealNoteAction({ projectId, dealId: dealId, noteId })).unwrap();
         // Refresh the deal to get updated notes
-        await dispatch(fetchDeal(dealId));
+        await dispatch(fetchDeal({ projectId, dealId }));
       } catch (error) {
         console.error('Failed to delete note:', error);
       }
@@ -333,7 +295,7 @@ const DealDetail = () => {
                 {/* Status Select */}
                 <div className="flex items-center space-x-2">
                   <label className="text-sm font-medium text-gray-700">Status:</label>
-                  <select
+                  {hasSupportExecutiveAccess ? <select
                     value={currentDeal.status}
                     onChange={(e) => handleStatusChange(e.target.value)}
                     className={`px-2.5 py-0.5 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(currentDeal.status)}`}
@@ -345,13 +307,13 @@ const DealDetail = () => {
                     <option value="closed-won">Closed Won</option>
                     <option value="closed-lost">Closed Lost</option>
                     <option value="on-hold">On Hold</option>
-                  </select>
+                  </select> : <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(currentDeal.status)}`}>{currentDeal.status}</span>}
                 </div>
 
                 {/* Priority Select */}
                 <div className="flex items-center space-x-2">
                   <label className="text-sm font-medium text-gray-700">Priority:</label>
-                  <select
+                  {hasSupportExecutiveAccess ? <select
                     value={currentDeal.priority || 'medium'}
                     onChange={(e) => handlePriorityChange(e.target.value)}
                     className={`px-2.5 py-0.5 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getPriorityColor(currentDeal.priority || 'medium')}`}
@@ -360,7 +322,7 @@ const DealDetail = () => {
                     <option value="medium">Medium</option>
                     <option value="high">High</option>
                     <option value="urgent">Urgent</option>
-                  </select>
+                  </select> : <span className={`px-2.5 py-0.5 text-xs font-medium rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getPriorityColor(currentDeal.priority || 'medium')}`}>{currentDeal.priority || 'medium'}</span>}
                 </div>
 
                 <span className="text-sm text-gray-500">
@@ -370,7 +332,7 @@ const DealDetail = () => {
             </div>
           </div>
           
-          <div className="flex items-center space-x-3">
+          {hasSupportExecutiveAccess && <div className="flex items-center space-x-3">
             <Button
               variant="outline"
               onClick={handleEdit}
@@ -402,7 +364,7 @@ const DealDetail = () => {
               <TrashIcon className="w-4 h-4 mr-2" />
               Delete
             </Button>
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -572,7 +534,7 @@ const DealDetail = () => {
                     {currentDeal.contactPerson && (
                       <div>
                         <dt className="text-sm font-medium text-gray-500">Contact Person</dt>
-                        <dd className="text-sm text-gray-900">
+                        {currentDeal.contactPerson?.name ? <dd className="text-sm text-gray-900">
                           <div className="font-medium">{currentDeal.contactPerson.name}</div>
                           {currentDeal.contactPerson.position && (
                             <div className="text-gray-500">{currentDeal.contactPerson.position}</div>
@@ -583,7 +545,7 @@ const DealDetail = () => {
                           {currentDeal.contactPerson.phone && (
                             <div className="text-gray-500">{currentDeal.contactPerson.phone}</div>
                           )}
-                        </dd>
+                        </dd> : <dd className="text-sm text-gray-900">N/A</dd>}
                       </div>
                     )}
                     {currentDeal.createdBy && (
@@ -679,7 +641,7 @@ const DealDetail = () => {
               {/* Sidebar */}
               <div className="space-y-6">
                 {/* Quick Actions */}
-                <div className="bg-gray-50 rounded-lg p-4">
+                {hasSupportExecutiveAccess && <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-gray-900 mb-3">Quick Actions</h3>
                   <div className="space-y-2">
                     <Button
@@ -691,7 +653,7 @@ const DealDetail = () => {
                       Add Note
                     </Button>
                   </div>
-                </div>
+                </div>}
 
                 {/* Deal Health */}
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -716,7 +678,7 @@ const DealDetail = () => {
                 </div>
 
                 {/* Member Assignment */}
-                <div className="bg-gray-50 rounded-lg p-4">
+                {hasSupportExecutiveAccess && <div className="bg-gray-50 rounded-lg p-4">
                   <h3 className="text-sm font-medium text-gray-900 mb-3">Assigned To</h3>
                   {currentDeal.assignedTo ? (
                     <div className="flex items-center justify-between">
@@ -766,7 +728,7 @@ const DealDetail = () => {
                       </select>
                     </div>
                   )}
-                </div>
+                </div>}
               </div>
             </div>
           )}
@@ -849,15 +811,16 @@ const DealDetail = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-medium text-gray-900">Notes</h3>
-                <Button
+                {hasSupportExecutiveAccess && <Button
                   variant="primary"
                   size="sm"
                   onClick={() => setShowAddNote(true)}
                 >
                   Add Note
-                </Button>
+                </Button>}
               </div>
 
+              {console.log(currentDeal.notes)}
               {currentDeal.notes && currentDeal.notes.length > 0 ? (
                 <div className="space-y-4">
                   {currentDeal.notes.map((note) => (
@@ -887,6 +850,7 @@ const DealDetail = () => {
                               type="submit"
                               variant="primary"
                               size="sm"
+                              disabled={!noteForm.content.trim() || loading}
                             >
                               Update
                             </Button>
@@ -897,11 +861,11 @@ const DealDetail = () => {
                           <p className="text-gray-900">{note.content}</p>
                           <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center text-sm text-gray-500">
-                              <span>By {note.author?.name || 'Unknown'}</span>
+                              <span>By {note.createdBy?.name || 'Unknown'}</span>
                               <span className="mx-2">•</span>
                               <span>{formatDateTime(note.createdAt)}</span>
                             </div>
-                            <div className="flex items-center space-x-2">
+                            {note.createdBy._id === user._id && <div className="flex items-center space-x-2">
                               <button
                                 onClick={() => handleEditNote(note)}
                                 className="text-gray-400 hover:text-gray-600"
@@ -918,7 +882,7 @@ const DealDetail = () => {
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                 </svg>
                               </button>
-                            </div>
+                            </div>}
                           </div>
                         </>
                       )}

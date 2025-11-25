@@ -16,9 +16,9 @@ export const fetchProjectCustomers = createAsyncThunk(
 
 export const fetchCustomer = createAsyncThunk(
   'customers/fetchCustomer',
-  async (id, { rejectWithValue }) => {
+  async ({ projectId, id }, { rejectWithValue }) => {
     try {
-      const response = await customerService.fetchCustomer(id);
+      const response = await customerService.fetchCustomer(projectId, id);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch customer');
@@ -28,9 +28,9 @@ export const fetchCustomer = createAsyncThunk(
 
 export const createCustomer = createAsyncThunk(
   'customers/createCustomer',
-  async (customerData, { rejectWithValue }) => {
+  async ({ projectId, customerData }, { rejectWithValue }) => {
     try {
-      const response = await customerService.createCustomer(customerData);
+      const response = await customerService.createCustomer(projectId, customerData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create customer');
@@ -40,9 +40,9 @@ export const createCustomer = createAsyncThunk(
 
 export const updateCustomer = createAsyncThunk(
   'customers/updateCustomer',
-  async ({ id, customerData }, { rejectWithValue }) => {
+  async ({ projectId, id, customerData }, { rejectWithValue }) => {
     try {
-      const response = await customerService.updateCustomer(id, customerData);
+      const response = await customerService.updateCustomer(projectId, id, customerData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update customer');
@@ -52,9 +52,9 @@ export const updateCustomer = createAsyncThunk(
 
 export const archiveCustomer = createAsyncThunk(
   'customers/archiveCustomer',
-  async (id, { rejectWithValue }) => {
+  async ({ projectId, id }, { rejectWithValue }) => {
     try {
-      const response = await customerService.archiveCustomer(id);
+      const response = await customerService.archiveCustomer(projectId, id);
       return { id, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to archive customer');
@@ -64,9 +64,9 @@ export const archiveCustomer = createAsyncThunk(
 
 export const unarchiveCustomer = createAsyncThunk(
   'customers/unarchiveCustomer',
-  async (id, { rejectWithValue }) => {
+  async ({ projectId, id }, { rejectWithValue }) => {
     try {
-      const response = await customerService.unarchiveCustomer(id);
+      const response = await customerService.unarchiveCustomer(projectId, id);
       return { id, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to unarchive customer');
@@ -88,9 +88,9 @@ export const fetchArchivedCustomers = createAsyncThunk(
 
 export const addCustomerNote = createAsyncThunk(
   'customers/addCustomerNote',
-  async ({ id, noteData }, { rejectWithValue }) => {
+  async ({ projectId, id, noteData }, { rejectWithValue }) => {
     try {
-      const response = await customerService.addCustomerNote(id, noteData);
+      const response = await customerService.addCustomerNote(projectId, id, noteData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add note');
@@ -100,9 +100,9 @@ export const addCustomerNote = createAsyncThunk(
 
 export const addCustomerInteraction = createAsyncThunk(
   'customers/addCustomerInteraction',
-  async ({ id, interactionData }, { rejectWithValue }) => {
+  async ({ projectId, id, interactionData }, { rejectWithValue }) => {
     try {
-      const response = await customerService.addCustomerInteraction(id, interactionData);
+      const response = await customerService.addCustomerInteraction(projectId, id, interactionData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add interaction');
@@ -110,11 +110,59 @@ export const addCustomerInteraction = createAsyncThunk(
   }
 );
 
+export const updateCustomerNote = createAsyncThunk(
+  'customers/updateCustomerNote',
+  async ({ projectId, customerId, noteId, noteData }, { rejectWithValue }) => {
+    try {
+      const response = await customerService.updateCustomerNote(projectId, customerId, noteId, noteData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update note');
+    }
+  }
+);
+
+export const deleteCustomerNote = createAsyncThunk(
+  'customers/deleteCustomerNote',
+  async ({ projectId, customerId, noteId }, { rejectWithValue }) => {
+    try {
+      const response = await customerService.deleteCustomerNote(projectId, customerId, noteId);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete note');
+    }
+  }
+);
+
+export const updateCustomerInteraction = createAsyncThunk(
+  'customers/updateCustomerInteraction',
+  async ({ projectId, customerId, interactionId, interactionData }, { rejectWithValue }) => {
+    try {
+      const response = await customerService.updateCustomerInteraction(projectId, customerId, interactionId, interactionData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to update interaction');
+    }
+  }
+);
+
+export const deleteCustomerInteraction = createAsyncThunk(
+  'customers/deleteCustomerInteraction',
+  async ({ projectId, customerId, interactionId }, { rejectWithValue }) => {
+    try {
+      const response = await customerService.deleteCustomerInteraction(projectId, customerId, interactionId);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to delete interaction');
+    }
+  }
+);
+
 export const convertLeadToCustomer = createAsyncThunk(
   'customers/convertLeadToCustomer',
-  async ({ leadId, customerData }, { rejectWithValue }) => {
+  async ({ projectId, leadId, customerData }, { rejectWithValue }) => {
     try {
-      const response = await customerService.convertLeadToCustomer(leadId, customerData);
+      const response = await customerService.convertLeadToCustomer(projectId, leadId, customerData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to convert lead');
@@ -151,7 +199,6 @@ export const fetchCustomerForecast = createAsyncThunk(
   async ({ projectId, params = {} }, { rejectWithValue }) => {
     try {
       const response = await customerService.getCustomerForecast(projectId, params);
-      console.log(response.data);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch customer forecast');
@@ -161,9 +208,9 @@ export const fetchCustomerForecast = createAsyncThunk(
 
 export const bulkUpdateCustomers = createAsyncThunk(
   'customers/bulkUpdateCustomers',
-  async ({ customerIds, updates }, { rejectWithValue }) => {
+  async ({ projectId, customerIds, updates }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkUpdateCustomers(customerIds, updates);
+      const response = await customerService.bulkUpdateCustomers(projectId, customerIds, updates);
       return { customerIds, updates, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk update customers');
@@ -173,9 +220,9 @@ export const bulkUpdateCustomers = createAsyncThunk(
 
 export const bulkArchiveCustomers = createAsyncThunk(
   'customers/bulkArchiveCustomers',
-  async ({ customerIds, projectId }, { rejectWithValue }) => {
+  async ({ projectId, customerIds }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkArchiveCustomers(customerIds);
+      const response = await customerService.bulkArchiveCustomers(projectId, customerIds);
       return { customerIds, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk archive customers');
@@ -185,9 +232,9 @@ export const bulkArchiveCustomers = createAsyncThunk(
 
 export const bulkUnarchiveCustomers = createAsyncThunk(
   'customers/bulkUnarchiveCustomers',
-  async ({ customerIds, projectId }, { rejectWithValue }) => {
+  async ({ projectId, customerIds }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkUnarchiveCustomers(customerIds);
+      const response = await customerService.bulkUnarchiveCustomers(projectId, customerIds);
       return { customerIds, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk unarchive customers');
@@ -197,9 +244,9 @@ export const bulkUnarchiveCustomers = createAsyncThunk(
 
 export const bulkAssignCustomers = createAsyncThunk(
   'customers/bulkAssignCustomers',
-  async ({ customerIds, assignedTo, projectId }, { rejectWithValue }) => {
+  async ({ projectId, customerIds, assignedTo }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkAssignCustomers(customerIds, assignedTo);
+      const response = await customerService.bulkAssignCustomers(projectId, customerIds, assignedTo);
       return { customerIds, assignedTo, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk assign customers');
@@ -209,9 +256,9 @@ export const bulkAssignCustomers = createAsyncThunk(
 
 export const bulkUpdateCustomerStages = createAsyncThunk(
   'customers/bulkUpdateCustomerStages',
-  async ({ customerIds, stage, projectId }, { rejectWithValue }) => {
+  async ({ projectId, customerIds, stage }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkUpdateCustomerStages(customerIds, stage);
+      const response = await customerService.bulkUpdateCustomerStages(projectId, customerIds, stage);
       return { customerIds, stage, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk update customer stages');
@@ -221,9 +268,9 @@ export const bulkUpdateCustomerStages = createAsyncThunk(
 
 export const deleteCustomer = createAsyncThunk(
   'customers/deleteCustomer',
-  async (id, { rejectWithValue }) => {
+  async ({ projectId, id }, { rejectWithValue }) => {
     try {
-      const response = await customerService.deleteCustomer(id);
+      const response = await customerService.deleteCustomer(projectId, id);
       return { id, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete customer');
@@ -233,9 +280,9 @@ export const deleteCustomer = createAsyncThunk(
 
 export const bulkDeleteCustomers = createAsyncThunk(
   'customers/bulkDeleteCustomers',
-  async ({ customerIds, projectId }, { rejectWithValue }) => {
+  async ({ projectId, customerIds }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkDeleteCustomers(customerIds);
+      const response = await customerService.bulkDeleteCustomers(projectId, customerIds);
       return { customerIds, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk delete customers');
@@ -245,9 +292,9 @@ export const bulkDeleteCustomers = createAsyncThunk(
 
 export const bulkUpdateCustomerPriorities = createAsyncThunk(
   'customers/bulkUpdateCustomerPriorities',
-  async ({ customerIds, priority, projectId }, { rejectWithValue }) => {
+  async ({ projectId, customerIds, priority }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkUpdateCustomerPriorities(customerIds, priority);
+      const response = await customerService.bulkUpdateCustomerPriorities(projectId, customerIds, priority);
       return { customerIds, priority, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk update customer priorities');
@@ -257,9 +304,9 @@ export const bulkUpdateCustomerPriorities = createAsyncThunk(
 
 export const bulkUpdateCustomerStatuses = createAsyncThunk(
   'customers/bulkUpdateCustomerStatuses',
-  async ({ customerIds, status, projectId }, { rejectWithValue }) => {
+  async ({ projectId, customerIds, status }, { rejectWithValue }) => {
     try {
-      const response = await customerService.bulkUpdateCustomerStatuses(customerIds, status);
+      const response = await customerService.bulkUpdateCustomerStatuses(projectId, customerIds, status);
       return { customerIds, status, data: response.data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk update customer statuses');
@@ -279,6 +326,30 @@ export const exportCustomers = createAsyncThunk(
   }
 );
 
+export const fetchCustomerDeals = createAsyncThunk(
+  'customers/fetchCustomerDeals',
+  async ({ projectId, customerId, params = {} }, { rejectWithValue }) => {
+    try {
+      const response = await customerService.getCustomerDeals(projectId, customerId, params);
+      return { customerId, deals: response.data.data, pagination: response.data.pagination };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch customer deals');
+    }
+  }
+);
+
+export const fetchCustomerDealStats = createAsyncThunk(
+  'customers/fetchCustomerDealStats',
+  async ({ projectId, customerId }, { rejectWithValue }) => {
+    try {
+      const response = await customerService.getCustomerDealStats(projectId, customerId);
+      return { customerId, stats: response.data.data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to fetch customer deal stats');
+    }
+  }
+);
+
 // Customer slice
 const customerSlice = createSlice({
   name: 'customers',
@@ -289,6 +360,8 @@ const customerSlice = createSlice({
     stats: null,
     insights: null,
     forecast: null,
+    customerDeals: {},
+    customerDealStats: {},
     filters: {
       search: '',
       stage: '',
@@ -564,8 +637,17 @@ const customerSlice = createSlice({
       })
       .addCase(unarchiveCustomer.fulfilled, (state, action) => {
         state.isArchiving = false;
+        const unarchivedCustomer = action.payload.data?.data || action.payload.data;
+        // Remove from archived customers
         state.archivedCustomers = state.archivedCustomers.filter(c => c._id !== action.payload.id);
-        state.successMessage = action.payload.data.message;
+        // Add to active customers if data is available
+        if (unarchivedCustomer && unarchivedCustomer._id) {
+          const exists = state.customers.findIndex(c => c._id === unarchivedCustomer._id);
+          if (exists === -1) {
+            state.customers.unshift(unarchivedCustomer);
+          }
+        }
+        state.successMessage = action.payload.data?.message || 'Customer unarchived successfully';
       })
       .addCase(unarchiveCustomer.rejected, (state, action) => {
         state.isArchiving = false;
@@ -627,6 +709,94 @@ const customerSlice = createSlice({
         state.successMessage = action.payload.message || 'Interaction added successfully';
       })
       .addCase(addCustomerInteraction.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload;
+      })
+      
+      // Update customer note
+      .addCase(updateCustomerNote.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(updateCustomerNote.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        const customerData = action.payload.data || action.payload;
+        const index = state.customers.findIndex(c => c._id === customerData._id);
+        if (index !== -1) {
+          state.customers[index] = customerData;
+        }
+        if (state.currentCustomer && state.currentCustomer._id === customerData._id) {
+          state.currentCustomer = customerData;
+        }
+        state.successMessage = action.payload.message || 'Note updated successfully';
+      })
+      .addCase(updateCustomerNote.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload;
+      })
+      
+      // Delete customer note
+      .addCase(deleteCustomerNote.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(deleteCustomerNote.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        const customerData = action.payload.data || action.payload;
+        const index = state.customers.findIndex(c => c._id === customerData._id);
+        if (index !== -1) {
+          state.customers[index] = customerData;
+        }
+        if (state.currentCustomer && state.currentCustomer._id === customerData._id) {
+          state.currentCustomer = customerData;
+        }
+        state.successMessage = action.payload.message || 'Note deleted successfully';
+      })
+      .addCase(deleteCustomerNote.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload;
+      })
+      
+      // Update customer interaction
+      .addCase(updateCustomerInteraction.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(updateCustomerInteraction.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        const customerData = action.payload.data || action.payload;
+        const index = state.customers.findIndex(c => c._id === customerData._id);
+        if (index !== -1) {
+          state.customers[index] = customerData;
+        }
+        if (state.currentCustomer && state.currentCustomer._id === customerData._id) {
+          state.currentCustomer = customerData;
+        }
+        state.successMessage = action.payload.message || 'Interaction updated successfully';
+      })
+      .addCase(updateCustomerInteraction.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload;
+      })
+      
+      // Delete customer interaction
+      .addCase(deleteCustomerInteraction.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(deleteCustomerInteraction.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        const customerData = action.payload.data || action.payload;
+        const index = state.customers.findIndex(c => c._id === customerData._id);
+        if (index !== -1) {
+          state.customers[index] = customerData;
+        }
+        if (state.currentCustomer && state.currentCustomer._id === customerData._id) {
+          state.currentCustomer = customerData;
+        }
+        state.successMessage = action.payload.message || 'Interaction deleted successfully';
+      })
+      .addCase(deleteCustomerInteraction.rejected, (state, action) => {
         state.isUpdating = false;
         state.error = action.payload;
       })
@@ -739,13 +909,12 @@ const customerSlice = createSlice({
       .addCase(bulkUnarchiveCustomers.fulfilled, (state, action) => {
         state.isUpdating = false;
         const { customerIds } = action.payload;
+        // Remove from archived customers
         customerIds.forEach(id => {
-          const index = state.customers.findIndex(c => c._id === id);
-          if (index !== -1) {
-            state.customers[index].isArchived = false;
-          }
+          state.archivedCustomers = state.archivedCustomers.filter(c => c._id !== id);
         });
-        state.successMessage = action.payload.data.message;
+        state.successMessage = action.payload.data?.message || 'Customers unarchived successfully';
+        // Note: Unarchived customers will be added to active list when they're fetched
       })
       .addCase(bulkUnarchiveCustomers.rejected, (state, action) => {
         state.isUpdating = false;
@@ -872,6 +1041,50 @@ const customerSlice = createSlice({
       .addCase(bulkDeleteCustomers.rejected, (state, action) => {
         state.isUpdating = false;
         state.error = action.payload;
+      })
+      
+      // Export customers
+      .addCase(exportCustomers.pending, (state) => {
+        state.isUpdating = true;
+        state.error = null;
+      })
+      .addCase(exportCustomers.fulfilled, (state, action) => {
+        state.isUpdating = false;
+        state.successMessage = 'Customers exported successfully';
+      })
+      .addCase(exportCustomers.rejected, (state, action) => {
+        state.isUpdating = false;
+        state.error = action.payload;
+      })
+      
+      // Fetch customer deals
+      .addCase(fetchCustomerDeals.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchCustomerDeals.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const { customerId, deals, pagination } = action.payload;
+        state.customerDeals[customerId] = { deals, pagination };
+      })
+      .addCase(fetchCustomerDeals.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
+      })
+      
+      // Fetch customer deal stats
+      .addCase(fetchCustomerDealStats.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(fetchCustomerDealStats.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const { customerId, stats } = action.payload;
+        state.customerDealStats[customerId] = stats;
+      })
+      .addCase(fetchCustomerDealStats.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload;
       });
   }
 });
@@ -886,14 +1099,11 @@ export const {
   updateCustomerInList,
   removeCustomerFromList,
   addCustomerToList,
-  updateCustomerNote,
-  deleteCustomerNote,
   addInteractionToCustomer,
   updateCustomerStage,
   updateCustomerStatus,
   updateCustomerPriority,
   updateCustomerScore,
-
   assignCustomerToUser,
   addTagsToCustomer,
   removeTagsFromCustomer

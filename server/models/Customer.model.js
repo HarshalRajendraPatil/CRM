@@ -436,22 +436,6 @@ customerSchema.statics.findArchivedByProject = function(projectId, options = {})
     .populate('company', 'name industry');
 };
 
-// Instance methods
-
-// customerSchema.methods.addNote = async function(content, type = 'general', userId) {
-//   console.log('adding note', content, type, userId);
-//   this.notes.push({
-//     content,
-//     type,
-//     createdBy: userId,
-//     createdAt: new Date(),
-//     updatedAt: new Date()
-//   });
-//   this.updatedBy = userId;
-
-//   return this;
-// };
-
 customerSchema.methods.addInteraction = async function(interactionData, userId) {
   this.interactions.push({
     ...interactionData,

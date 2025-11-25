@@ -12,64 +12,72 @@ export const getProjectLeads = createAsyncThunk(
 
 export const fetchLead = createAsyncThunk(
   'leads/fetchLead',
-  async (id) => {
-    const response = await leadService.fetchLead(id);
+  async ({projectId, id}) => {
+    const response = await leadService.fetchLead(projectId, id);
     return response.data.data;
   }
 );
 
 export const createLead = createAsyncThunk(
   'leads/createLead',
-  async (leadData) => {
-    const response = await leadService.createLead(leadData);
+  async ({projectId, leadData}) => {
+    const response = await leadService.createLead(projectId, leadData);
     return response.data.data;
   }
 );
 
 export const updateLead = createAsyncThunk(
   'leads/updateLead',
-  async ({ id, leadData }) => {
-    const response = await leadService.updateLead(id, leadData);
+  async ({projectId, id, leadData }) => {
+    const response = await leadService.updateLead(projectId, id, leadData);
     return response.data.data;
   }
 );
 
 export const archiveLead = createAsyncThunk(
   'leads/archiveLead',
-  async (id) => {
-    const response = await leadService.archiveLead(id);
+  async ({projectId, id}) => {
+    const response = await leadService.archiveLead(projectId, id);
     return response.data.data;
+  }
+);
+
+export const deleteLead = createAsyncThunk(
+  'leads/deleteLead',
+  async ({projectId, id}) => {
+    await leadService.deleteLead(projectId, id);
+    return { id, projectId };
   }
 );
 
 export const addLeadNote = createAsyncThunk(
   'leads/addLeadNote',
-  async ({ id, content }) => {
-    const response = await leadService.addLeadNote(id, { content });
+  async ({projectId, id, content }) => {
+    const response = await leadService.addLeadNote(projectId, id, { content });
     return response.data.data;
   }
 );
 
 export const convertLead = createAsyncThunk(
   'leads/convertLead',
-  async (id) => {
-    const response = await leadService.convertLead(id);
+  async ({projectId, id}) => {
+    const response = await leadService.convertLead(projectId, id);
     return response.data.data;
   }
 );
 
 export const updateLeadStatus = createAsyncThunk(
   'leads/updateLeadStatus',
-  async ({ id, status }) => {
-    const response = await leadService.updateLeadStatus(id, status);
+  async ({projectId, id, status }) => {
+    const response = await leadService.updateLeadStatus(projectId, id, status);
     return response.data.data;
   }
 );
 
 export const assignLeadToUser = createAsyncThunk(
   'leads/assignLeadToUser',
-  async ({ id, userId }) => {
-    const response = await leadService.assignLeadToUser(id, userId);
+  async ({projectId, id, userId }) => {
+    const response = await leadService.assignLeadToUser(projectId, id, userId);
     return response.data.data;
   }
 );
@@ -100,32 +108,32 @@ export const getArchivedLeads = createAsyncThunk(
 
 export const unarchiveLead = createAsyncThunk(
   'leads/unarchiveLead',
-  async (id) => {
-    const response = await leadService.unarchiveLead(id);
+  async ({projectId, id}) => {
+    const response = await leadService.unarchiveLead(projectId, id);
     return response.data;
   }
 );
 
 export const cleanupArchivedLeads = createAsyncThunk(
   'leads/cleanupArchivedLeads',
-  async () => {
-    const response = await leadService.cleanupArchivedLeads();
+  async ({projectId}) => {
+    const response = await leadService.cleanupArchivedLeads(projectId);
     return response.data.data;
   }
 );
 
 export const updateLeadNote = createAsyncThunk(
   'leads/updateLeadNote',
-  async ({ leadId, noteId, content }) => {
-    const response = await leadService.updateLeadNote(leadId, noteId, content);
+  async ({projectId, id, noteId, content }) => {
+    const response = await leadService.updateLeadNote(projectId, id, noteId, content);
     return response.data.data;
   }
 );
 
 export const deleteLeadNote = createAsyncThunk(
   'leads/deleteLeadNote',
-  async ({ leadId, noteId }) => {
-    const response = await leadService.deleteLeadNote(leadId, noteId);
+  async ({projectId, leadId, noteId }) => {
+    const response = await leadService.deleteLeadNote(projectId, leadId, noteId);
     return response.data.data;
   }
 );
@@ -275,6 +283,37 @@ const leadSlice = createSlice({
         }
       })
       .addCase(archiveLead.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.error.message;
+      })
+      
+      // Delete Lead (Permanent)
+      .addCase(deleteLead.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(deleteLead.fulfilled, (state, action) => {
+        state.isLoading = false;
+        const leadId = action.payload.id;
+        
+        // Remove from leads array
+        state.leads = state.leads.filter(lead => lead._id !== leadId);
+        if (state.pagination.total > 0) {
+          state.pagination.total -= 1;
+        }
+        
+        // Remove from archived leads if present
+        state.archivedLeads = state.archivedLeads.filter(lead => lead._id !== leadId);
+        
+        // Clear selected if it's the deleted lead
+        if (state.selected && state.selected._id === leadId) {
+          state.selected = null;
+        }
+        if (state.lead && state.lead._id === leadId) {
+          state.lead = null;
+        }
+      })
+      .addCase(deleteLead.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message;
       })

@@ -1236,15 +1236,6 @@ export const generateReport = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   const { reportType, format = 'pdf', dateRange = {}, filters = {} } = req.body;
 
-  console.log('Report generation request:', {
-    projectId,
-    reportType,
-    format,
-    dateRange,
-    filters,
-    userId: req.user?.id
-  });
-
   if (!reportType) {
     throw new ValidationError('Report type is required');
   }

@@ -12,15 +12,15 @@ export const getProjectDeals = async (projectId, params = {}) => {
 /**
  * Get all deals for a company with filtering and pagination
  */
-export const getCompanyDeals = async (companyId, params = {}) => {
-  return axios.get(`/deals/company/${companyId}`, { params });
+export const getCompanyDeals = async (projectId, companyId, params = {}) => {
+  return axios.get(`/deals/company/${companyId}?projectId=${projectId}`, { params });
 };
 
 /**
  * Get a single deal by ID
  */
-export const getDeal = async (id) => {
-  return axios.get(`/deals/${id}`);
+export const getDeal = async (projectId, id) => {
+  return axios.get(`/deals/${id}?projectId=${projectId}`);
 };
 
 /**
@@ -33,30 +33,29 @@ export const createDeal = async (projectId, dealData) => {
 /**
  * Update a deal
  */
-export const updateDeal = async (id, dealData) => {
-  return axios.put(`/deals/${id}`, dealData);
+export const updateDeal = async (projectId, id, dealData) => {
+  return axios.put(`/deals/${id}?projectId=${projectId}`, dealData);
 };
 
 /**
  * Archive a deal
  */
-export const archiveDeal = async (id) => {
-  return axios.patch(`/deals/${id}/archive`);
+export const archiveDeal = async (projectId, id) => {
+  return axios.patch(`/deals/${id}/archive?projectId=${projectId}`);
 };
 
 /**
  * Delete a deal permanently
  */
-export const deleteDeal = async (id) => {
-  console.log('deleteDeal', id);
-  return axios.delete(`/deals/${id}`);
+export const deleteDeal = async (projectId, id) => {
+  return axios.delete(`/deals/${id}?projectId=${projectId}`);
 };
 
 /**
  * Restore an archived deal
  */
-export const restoreDeal = async (id) => {
-  return axios.patch(`/deals/${id}/restore`);
+export const restoreDeal = async (projectId, id) => {
+  return axios.patch(`/deals/${id}/restore?projectId=${projectId}`);
 };
 
 /**
@@ -71,15 +70,15 @@ export const getArchivedDeals = async (projectId, params = {}) => {
 /**
  * Add activity to a deal
  */
-export const addDealActivity = async (id, activityData) => {
-  return axios.post(`/deals/${id}/activities`, activityData);
+export const addDealActivity = async (projectId, id, activityData) => {
+  return axios.post(`/deals/${id}/activities?projectId=${projectId}`, activityData);
 };
 
 /**
  * Get deal activities
  */
-export const getDealActivities = async (id, params = {}) => {
-  return axios.get(`/deals/${id}/activities`, { params });
+export const getDealActivities = async (projectId, id, params = {}) => {
+  return axios.get(`/deals/${id}/activities?projectId=${projectId}`, { params });
 };
 
 // ==================== DEAL NOTES ====================
@@ -87,22 +86,22 @@ export const getDealActivities = async (id, params = {}) => {
 /**
  * Add note to a deal
  */
-export const addDealNote = async (id, noteData) => {
-  return axios.post(`/deals/${id}/notes`, noteData);
+export const addDealNote = async (projectId, id, noteData) => {
+  return axios.post(`/deals/${id}/notes?projectId=${projectId}`, noteData);
 };
 
 /**
  * Update a deal note
  */
-export const updateDealNote = async (id, noteId, noteData) => {
-  return axios.put(`/deals/${id}/notes/${noteId}`, noteData);
+export const updateDealNote = async (projectId, id, noteId, noteData) => {
+  return axios.put(`/deals/${id}/notes/${noteId}?projectId=${projectId}`, noteData);
 };
 
 /**
  * Delete a deal note
  */
-export const deleteDealNote = async (id, noteId) => {
-  return axios.delete(`/deals/${id}/notes/${noteId}`);
+export const deleteDealNote = async (projectId, id, noteId) => {
+  return axios.delete(`/deals/${id}/notes/${noteId}?projectId=${projectId}`);
 };
 
 
@@ -151,15 +150,15 @@ export const bulkAssignDeals = async (projectId, dealIds, assignedTo) => {
 /**
  * Move deal to a different stage
  */
-export const moveDealToStage = async (id, stage, reason) => {
-  return axios.patch(`/deals/${id}/move-stage`, { stage, reason });
+export const moveDealToStage = async (projectId, id, stage, reason) => {
+  return axios.patch(`/deals/${id}/move-stage?projectId=${projectId}`, { stage, reason });
 };
 
 /**
  * Update deal status
  */
-export const updateDealStatus = async (id, status, reason) => {
-  return axios.patch(`/deals/${id}/status`, { status, reason });
+export const updateDealStatus = async (projectId, id, status, reason) => {
+  return axios.patch(`/deals/${id}/status?projectId=${projectId}`, { status, reason });
 };
 
 // ==================== STATISTICS AND ANALYTICS ====================

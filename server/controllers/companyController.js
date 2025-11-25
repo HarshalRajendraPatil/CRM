@@ -49,7 +49,6 @@ export const createCompany = asyncHandler(async (req, res) => {
   
   // Validate company data
   const validation = validateCompanyData(companyData);
-  console.log(validation);
   if (!validation.isValid) {
     throw new ValidationError('Validation failed', validation.errors);
   }
@@ -1104,7 +1103,6 @@ export const getCompanyStats = asyncHandler(async (req, res) => {
     count: item.count
   }));
 
-  console.log(formattedGrowthTrend),
   
   res.json({
     success: true,
@@ -1322,7 +1320,6 @@ export const bulkUpdateCompanies = asyncHandler(async (req, res) => {
   
   // Sanitize updates
   const sanitizedUpdates = sanitizeCompanyData(updates);
-  console.log(sanitizedUpdates);
   sanitizedUpdates.updatedBy = req.user._id;
   
   // Perform bulk update

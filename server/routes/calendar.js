@@ -18,7 +18,7 @@ import {
   respondToEvent,
   getEventResponses
 } from '../controllers/calendarController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireManagerRole, requireViewerRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -26,49 +26,49 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Calendar events routes
-router.get('/events', getCalendarEvents);
-router.get('/events/aggregated/:projectId', getAggregatedEvents);
-router.post('/events', createCalendarEvent);
-router.get('/events/:eventId', getCalendarEvent);
-router.put('/events/:eventId', updateCalendarEvent);
-router.delete('/events/:eventId', deleteCalendarEvent);
+router.get('/events', requireViewerRole(), getCalendarEvents);
+router.get('/events/aggregated/:projectId', requireViewerRole(), getAggregatedEvents);
+router.post('/events',requireManagerRole(), createCalendarEvent);
+router.get('/events/:eventId', requireViewerRole(), getCalendarEvent);
+router.put('/events/:eventId', requireManagerRole(), updateCalendarEvent);
+router.delete('/events/:eventId', requireManagerRole(), deleteCalendarEvent);
 
 // Event type routes
-router.get('/events/type/:projectId/:type', getEventsByType);
+router.get('/events/type/:projectId/:type', requireViewerRole(), getEventsByType);
 
 // Event range routes
-router.get('/events/range', getCalendarEvents);
+router.get('/events/range', requireViewerRole(), getCalendarEvents);
 
 // Upcoming and overdue events
-router.get('/events/upcoming/:projectId', getUpcomingEvents);
-router.get('/events/overdue/:projectId', getOverdueEvents);
+router.get('/events/upcoming/:projectId', requireViewerRole(), getUpcomingEvents);
+router.get('/events/overdue/:projectId', requireViewerRole(), getOverdueEvents);
 
 // Bulk operations
-router.patch('/events/bulk', bulkUpdateEvents);
-router.delete('/events/bulk', bulkDeleteEvents);
+router.patch('/events/bulk', requireManagerRole(), bulkUpdateEvents);
+router.delete('/events/bulk', requireManagerRole(), bulkDeleteEvents);
 
 // Event conflicts
-router.post('/events/check-conflicts', checkEventConflicts);
+router.post('/events/check-conflicts', requireManagerRole(), checkEventConflicts);
 
 // Calendar statistics
-router.get('/stats/:projectId', getCalendarStats);
+router.get('/stats/:projectId', requireViewerRole(), getCalendarStats);
 
 // Calendar settings
-router.get('/settings/:projectId', getCalendarSettings);
-router.put('/settings/:projectId', updateCalendarSettings);
+router.get('/settings/:projectId', requireViewerRole(), getCalendarSettings);
+router.put('/settings/:projectId', requireManagerRole(), updateCalendarSettings);
 
 // Event responses
-router.post('/events/:eventId/respond', respondToEvent);
-router.get('/events/:eventId/responses', getEventResponses);
+router.post('/events/:eventId/respond', requireManagerRole(), respondToEvent);
+router.get('/events/:eventId/responses', requireViewerRole(), getEventResponses);
 
 // Export events
-router.get('/events/export/:projectId', (req, res) => {
+router.get('/events/export/:projectId', requireViewerRole(), (req, res) => {
   // TODO: Implement export functionality
   res.json({ message: 'Export functionality not yet implemented' });
 });
 
 // Time zones
-router.get('/timezones', (req, res) => {
+router.get('/timezones', requireViewerRole(), (req, res) => {
   // Return common time zones
   const timezones = [
     { value: 'UTC', label: 'UTC' },
@@ -87,7 +87,7 @@ router.get('/timezones', (req, res) => {
 });
 
 // Working hours
-router.get('/working-hours/:projectId', (req, res) => {
+router.get('/working-hours/:projectId', requireViewerRole(), (req, res) => {
   // TODO: Implement working hours functionality
   res.json({ 
     workingHours: {
@@ -98,104 +98,104 @@ router.get('/working-hours/:projectId', (req, res) => {
   });
 });
 
-router.put('/working-hours/:projectId', (req, res) => {
+router.put('/working-hours/:projectId', requireManagerRole(), (req, res) => {
   // TODO: Implement working hours update
   res.json({ message: 'Working hours updated successfully' });
 });
 
 // Holidays
-router.get('/holidays/:projectId', (req, res) => {
+router.get('/holidays/:projectId', requireViewerRole(), (req, res) => {
   // TODO: Implement holidays functionality
   res.json({ holidays: [] });
 });
 
-router.post('/holidays/:projectId', (req, res) => {
+router.post('/holidays/:projectId', requireManagerRole(), (req, res) => {
   // TODO: Implement holiday creation
   res.json({ message: 'Holiday created successfully' });
 });
 
-router.put('/holidays/:holidayId', (req, res) => {
+router.put('/holidays/:holidayId', requireManagerRole(), (req, res) => {
   // TODO: Implement holiday update
   res.json({ message: 'Holiday updated successfully' });
 });
 
-router.delete('/holidays/:holidayId', (req, res) => {
+router.delete('/holidays/:holidayId', requireManagerRole(), (req, res) => {
   // TODO: Implement holiday deletion
   res.json({ message: 'Holiday deleted successfully' });
 });
 
 // Event templates
-router.get('/templates/:projectId', (req, res) => {
+router.get('/templates/:projectId', requireViewerRole(), (req, res) => {
   // TODO: Implement event templates
   res.json({ templates: [] });
 });
 
-router.post('/templates/:projectId', (req, res) => {
+router.post('/templates/:projectId', requireManagerRole(), (req, res) => {
   // TODO: Implement template creation
   res.json({ message: 'Template created successfully' });
 });
 
-router.put('/templates/:templateId', (req, res) => {
+router.put('/templates/:templateId', requireManagerRole(), (req, res) => {
   // TODO: Implement template update
   res.json({ message: 'Template updated successfully' });
 });
 
-router.delete('/templates/:templateId', (req, res) => {
+router.delete('/templates/:templateId', requireManagerRole(), (req, res) => {
   // TODO: Implement template deletion
   res.json({ message: 'Template deleted successfully' });
 });
 
-router.post('/templates/:templateId/create-event', (req, res) => {
+router.post('/templates/:templateId/create-event', requireManagerRole(), (req, res) => {
   // TODO: Implement event creation from template
   res.json({ message: 'Event created from template successfully' });
 });
 
 // User availability
-router.get('/availability/:userId', (req, res) => {
+router.get('/availability/:userId', requireViewerRole(), (req, res) => {
   // TODO: Implement user availability check
   res.json({ available: true });
 });
 
 // Event attendees
-router.get('/events/:eventId/attendees', (req, res) => {
+router.get('/events/:eventId/attendees', requireViewerRole(), (req, res) => {
   // TODO: Implement attendee management
   res.json({ attendees: [] });
 });
 
-router.patch('/events/:eventId/attendees', (req, res) => {
+router.patch('/events/:eventId/attendees', requireManagerRole(), (req, res) => {
   // TODO: Implement attendee update
   res.json({ message: 'Attendees updated successfully' });
 });
 
 // Event invitations
-router.post('/events/:eventId/invite', (req, res) => {
+router.post('/events/:eventId/invite', requireManagerRole(), (req, res) => {
   // TODO: Implement event invitations
   res.json({ message: 'Invitations sent successfully' });
 });
 
 // Event responses
-router.get('/events/:eventId/responses', (req, res) => {
+router.get('/events/:eventId/responses', requireViewerRole(), (req, res) => {
   // TODO: Implement event responses
   res.json({ responses: [] });
 });
 
-router.post('/events/:eventId/respond', (req, res) => {
+router.post('/events/:eventId/respond', requireManagerRole(), (req, res) => {
   // TODO: Implement event response
   res.json({ message: 'Response recorded successfully' });
 });
 
 // Recurring events
-router.get('/events/:eventId/recurring', (req, res) => {
+router.get('/events/:eventId/recurring', requireViewerRole(), (req, res) => {
   // TODO: Implement recurring events
   res.json({ events: [] });
 });
 
-router.patch('/events/:eventId/recurring', (req, res) => {
+router.patch('/events/:eventId/recurring', requireManagerRole(), (req, res) => {
   // TODO: Implement recurring event update
   res.json({ message: 'Recurring events updated successfully' });
 });
 
-router.delete('/events/:eventId/recurring', (req, res) => {
+router.delete('/events/:eventId/recurring', requireManagerRole(), (req, res) => {
   // TODO: Implement recurring event deletion
   res.json({ message: 'Recurring events deleted successfully' });
 });

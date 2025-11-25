@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { getProjectCompanies, getCompanyStats, clearCompanies, bulkUpdateCompanies, bulkDeleteCompanies } from '../../../store/companySlice';
+import { getProjectById } from '../../../store/projectSlice';
 import CrmLayout from '../../../layouts/CrmLayout';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -11,11 +12,19 @@ import CompanySidebar from './CompanySidebar';
 import CompanyFilters from './CompanyFilters';
 import CompanyStatsCards from './CompanyStatsCards';
 import CompanyStats from './CompanyStats';
+import useProjectAccess from '../../../hooks/useProjectAccess';
 
 const Companies = () => {
   const { projectId } = useParams();
   const dispatch = useDispatch();
   const { companies, stats, isLoading, isError, message, pagination } = useSelector((state) => state.companies);
+  
+  // Use the custom hook for project access checks
+  const {
+    hasSalesExecutiveAccess,
+  } = useProjectAccess();
+
+
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
@@ -32,14 +41,15 @@ const Companies = () => {
   // Load companies and stats on component mount
   useEffect(() => {
     if (projectId) {
+      dispatch(getProjectById(projectId));
       dispatch(getProjectCompanies({
         projectId,
         params: {
-          limit: 20,
-          skip: 0,
-          sort: sortBy,
-          order: sortOrder
-        }
+          limit: 20, 
+          skip: 0, 
+          sort: sortBy, 
+          order: sortOrder 
+        } 
       }));
       dispatch(getCompanyStats(projectId));
     }
@@ -198,8 +208,6 @@ const Companies = () => {
     setShowSidebar(!showSidebar);
   };
 
-
-
   return (
     <CrmLayout>
       <div className="p-6">
@@ -211,7 +219,7 @@ const Companies = () => {
             </p>
           </div>
           <div className="mt-4 md:mt-0">
-            <Button
+            {hasSalesExecutiveAccess && <Button
               variant="primary"
               leftIcon={
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
@@ -221,7 +229,7 @@ const Companies = () => {
               onClick={toggleSidebar}
             >
               Add Company
-            </Button>
+            </Button>}
           </div>
         </div>
 
@@ -274,7 +282,7 @@ const Companies = () => {
         </div>
 
         {/* Bulk Actions */}
-        {selectedCompanies.length > 0 && (
+        { hasSalesExecutiveAccess && selectedCompanies.length > 0 && (
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center">
@@ -347,7 +355,7 @@ const Companies = () => {
             </svg>
             <h3 className="text-lg font-medium text-gray-900 mb-1">No companies found</h3>
             <p className="text-gray-500 mb-4">Get started by adding your first company</p>
-            <Button variant="primary" onClick={toggleSidebar}>Add Company</Button>
+            {hasSalesExecutiveAccess && <Button variant="primary" onClick={toggleSidebar}>Add Company</Button>}
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm overflow-hidden">

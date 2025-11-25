@@ -233,13 +233,13 @@ const CompanySidebar = ({ isOpen, onClose, projectId, company = null }) => {
     }
 
     if (isEditing) {
-      await dispatch(updateCompany({ id: company._id, companyData }))
+      await dispatch(updateCompany({ id: company._id, companyData, projectId }))
         .unwrap()
         .then(() => {
           onClose();
         });
     } else {
-      await dispatch(createCompany(companyData))
+      await dispatch(createCompany({projectId, companyData}))
         .unwrap()
         .then(() => {
           onClose();

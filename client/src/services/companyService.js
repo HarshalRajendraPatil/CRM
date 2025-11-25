@@ -16,8 +16,10 @@ const getProjectCompanies = async (projectId, params = {}) => {
  * @param {string} id - Company ID
  * @returns {Promise} - Promise with company data
  */
-const getCompanyById = async (id) => {
-  const response = await axiosInstance.get(`/companies/${id}`);
+const getCompanyById = async (id, projectId) => {
+  console.log( 'projectId', projectId);
+  console.log( 'id', id);
+  const response = await axiosInstance.get(`/companies/${id}?projectId=${projectId}`);
   return response.data;
 };
 
@@ -26,8 +28,11 @@ const getCompanyById = async (id) => {
  * @param {Object} companyData - Company data including projectId
  * @returns {Promise} - Promise with created company data
  */
-const createCompany = async (companyData) => {
-  const response = await axiosInstance.post('/companies', companyData);
+const createCompany = async (projectId, companyData) => {
+  console.log( 'projectId', projectId);
+  console.log( 'companyData', companyData);
+  const response = await axiosInstance.post(`/companies/${projectId}`, companyData);
+  console.log( 'response', response);
   return response.data;
 };
 
@@ -37,8 +42,8 @@ const createCompany = async (companyData) => {
  * @param {Object} companyData - Updated company data
  * @returns {Promise} - Promise with updated company data
  */
-const updateCompany = async (id, companyData) => {
-  const response = await axiosInstance.put(`/companies/${id}`, companyData);
+const updateCompany = async (id, companyData, projectId) => {
+  const response = await axiosInstance.put(`/companies/${id}?projectId=${projectId}`, companyData);
   return response.data;
 };
 
@@ -47,8 +52,10 @@ const updateCompany = async (id, companyData) => {
  * @param {string} id - Company ID
  * @returns {Promise} - Promise with deletion result
  */
-const deleteCompany = async (id) => {
-  const response = await axiosInstance.delete(`/companies/${id}`);
+const deleteCompany = async (id, projectId) => {
+  console.log( 'projectId', projectId);
+  console.log( 'id', id);
+  const response = await axiosInstance.delete(`/companies/${id}?projectId=${projectId}`);
   return response.data;
 };
 
@@ -58,8 +65,8 @@ const deleteCompany = async (id) => {
  * @param {Object} noteData - Note data with content
  * @returns {Promise} - Promise with created note data
  */
-const addCompanyNote = async (id, noteData) => {
-  const response = await axiosInstance.post(`/companies/${id}/notes`, noteData);
+const addCompanyNote = async (id, noteData, projectId) => {
+  const response = await axiosInstance.post(`/companies/${id}/notes?projectId=${projectId}`, noteData);
   return response.data;
 };
 
@@ -68,8 +75,8 @@ const addCompanyNote = async (id, noteData) => {
  * @param {string} id - Company ID
  * @returns {Promise} - Promise with company notes
  */
-const getCompanyNotes = async (id) => {
-  const response = await axiosInstance.get(`/companies/${id}/notes`);
+const getCompanyNotes = async (id, projectId) => {
+  const response = await axiosInstance.get(`/companies/${id}/notes?projectId=${projectId}`);
   return response.data;
 };
 
@@ -155,8 +162,8 @@ const getCompanyForecast = async (projectId, params = {}) => {
  * @param {Object} noteData - Updated note data with content
  * @returns {Promise} - Promise with updated note data
  */
-const updateCompanyNote = async (id, noteId, noteData) => {
-  const response = await axiosInstance.put(`/companies/${id}/notes/${noteId}`, noteData);
+const updateCompanyNote = async (id, noteId, noteData, projectId) => {
+  const response = await axiosInstance.put(`/companies/${id}/notes/${noteId}?projectId=${projectId}`, noteData);
   return response.data;
 };
 
@@ -166,8 +173,8 @@ const updateCompanyNote = async (id, noteId, noteData) => {
  * @param {string} noteId - Note ID
  * @returns {Promise} - Promise with deletion result
  */
-const deleteCompanyNote = async (id, noteId) => {
-  const response = await axiosInstance.delete(`/companies/${id}/notes/${noteId}`);
+const deleteCompanyNote = async (id, noteId, projectId) => {
+  const response = await axiosInstance.delete(`/companies/${id}/notes/${noteId}?projectId=${projectId}`);
   return response.data;
 };
 

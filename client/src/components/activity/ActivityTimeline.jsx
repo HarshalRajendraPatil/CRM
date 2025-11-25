@@ -50,6 +50,7 @@ const ActivityTimeline = ({ entityType, entityId, projectId }) => {
   useEffect(() => {
     if (entityId) {
       dispatch(fetchEntityActivities({ 
+        projectId,
         entityType, 
         entityId, 
         params: { ...entityFilters, skip: (currentPage - 1) * entityPagination.limit }
@@ -73,6 +74,7 @@ const ActivityTimeline = ({ entityType, entityId, projectId }) => {
     const newSkip = entityPagination.skip + entityPagination.limit;
     dispatch(setEntityPagination({ skip: newSkip }));
     dispatch(fetchEntityActivities({ 
+      projectId,
       entityType, 
       entityId, 
       params: { ...entityFilters, skip: newSkip }

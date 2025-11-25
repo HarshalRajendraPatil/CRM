@@ -91,8 +91,8 @@ const EditDealSidebar = ({ isOpen, onClose, deal, projectId }) => {
       dispatch(fetchProjectCustomers({ projectId }));
       dispatch(getProjectCompanies({ projectId }));
       dispatch(getUsers({ projectId }));
-      if (deal?._id) {
-        dispatch(fetchDealActivities({ dealId: deal._id }));
+      if (deal?._id && projectId) {
+        dispatch(fetchDealActivities({ projectId, dealId: deal._id }));
       }
     }
   }, [dispatch, isOpen, projectId, deal?._id]);
@@ -293,13 +293,14 @@ const EditDealSidebar = ({ isOpen, onClose, deal, projectId }) => {
 
     try {
       await dispatch(addDealActivityAction({
+        projectId,
         dealId: deal._id,
         activityData: activityForm
-      }));
+      })).unwrap();
       setActivityForm({ type: 'custom', description: '', metadata: {} });
       setShowAddActivity(false);
       // Refresh activities
-      dispatch(fetchDealActivities({ dealId: deal._id }));
+      dispatch(fetchDealActivities({ projectId, dealId: deal._id }));
     } catch (error) {
       console.error('Failed to add activity:', error);
     }
@@ -368,7 +369,7 @@ const EditDealSidebar = ({ isOpen, onClose, deal, projectId }) => {
         value: parseFloat(formData.value)
       };
 
-      await dispatch(updateExistingDeal({ dealId: deal._id, dealData }));
+      await dispatch(updateExistingDeal({ projectId, dealId: deal._id, dealData })).unwrap();
       onClose();
     } catch (error) {
       console.error('Failed to update deal:', error);

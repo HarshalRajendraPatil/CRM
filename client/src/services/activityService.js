@@ -2,9 +2,9 @@ import axios from './../utils/axiosConfig';
 
 const activityService = {
   // Get activities for a specific entity (Company or Lead)
-  getEntityActivities: async (entityType, entityId, params = {}) => {
+  getEntityActivities: async (projectId, entityType, entityId, params = {}) => {
     try {
-      const response = await axios.get(`/activities/entity/${entityType}/${entityId}`, {
+      const response = await axios.get(`/activities/entity/${entityType}/${entityId}?projectId=${projectId}`, {
         params: {
           limit: params.limit || 50,
           skip: params.skip || 0,

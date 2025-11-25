@@ -4,7 +4,7 @@ import {
   getDashboardWidgets,
   getDashboardCharts
 } from '../controllers/dashboardController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireViewerRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -12,8 +12,8 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Dashboard routes
-router.get('/:projectId', getDashboardData);
-router.get('/:projectId/widgets', getDashboardWidgets);
-router.get('/:projectId/charts', getDashboardCharts);
+router.get('/:projectId', requireViewerRole(), getDashboardData);
+router.get('/:projectId/widgets', requireViewerRole(), getDashboardWidgets);
+router.get('/:projectId/charts', requireViewerRole(), getDashboardCharts);
 
 export default router;

@@ -8,7 +8,11 @@ import {
   unarchiveCustomer,
   getArchivedCustomers,
   addCustomerNote,
+  updateCustomerNote,
+  deleteCustomerNote,
   addCustomerInteraction,
+  updateCustomerInteraction,
+  deleteCustomerInteraction,
   convertLeadToCustomer,
   getCustomerStats,
   getCustomerInsights,
@@ -26,14 +30,7 @@ import {
   getCustomerDeals,
   getCustomerDealStats
 } from '../controllers/customerController.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { 
-  requireProjectAccess, 
-  requirePermission, 
-  requireAnyPermission,
-  PERMISSIONS,
-  ENTITIES
-} from '../middleware/rbac.js';
+import { authenticateToken, requireViewerRole, requireSupportExecutiveRole, requireManagerRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -42,140 +39,156 @@ router.use(authenticateToken);
 
 // Customer CRUD operations
 router.get('/project/:projectId', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireViewerRole(),
   getProjectCustomers
 );
 
+
+
+// Bulk operations
+router.patch('/bulk-update', 
+  requireSupportExecutiveRole(),
+  bulkUpdateCustomers
+);
+
+router.patch('/bulk-archive', 
+  requireSupportExecutiveRole(),
+  bulkArchiveCustomers
+);
+
+router.patch('/bulk-unarchive', 
+  requireSupportExecutiveRole(),
+  bulkUnarchiveCustomers
+);
+
+router.patch('/bulk-assign', 
+  requireSupportExecutiveRole(),
+  bulkAssignCustomers
+);
+
+router.patch('/bulk-update-stages', 
+  requireSupportExecutiveRole(),
+  bulkUpdateCustomerStages
+);
+
+router.patch('/bulk-update-priorities', 
+  requireSupportExecutiveRole(),
+  bulkUpdateCustomerPriorities
+);
+
+router.patch('/bulk-update-statuses', 
+  requireSupportExecutiveRole(),
+  bulkUpdateCustomerStatuses
+);
+
+router.delete('/bulk-delete', 
+  requireSupportExecutiveRole(),
+  bulkDeleteCustomers
+);
+
 router.get('/:id', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireViewerRole(),
   getCustomer
 );
 
 router.post('/', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.CREATE),
+  requireSupportExecutiveRole(),
   createCustomer
 );
 
 router.patch('/:id', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.UPDATE),
+  requireSupportExecutiveRole(),
   updateCustomer
 );
 
 router.delete('/:id', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.ARCHIVE),
+  requireSupportExecutiveRole(),
   archiveCustomer
 );
 
 router.delete('/:id/permanent', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.DELETE),
+  requireSupportExecutiveRole(),
   deleteCustomer
 );
 
 router.patch('/:id/unarchive', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.UNARCHIVE),
+  requireSupportExecutiveRole(),
   unarchiveCustomer
 );
 
 // Archived customers
 router.get('/project/:projectId/archived', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireSupportExecutiveRole(),
   getArchivedCustomers
 );
 
 // Customer notes and interactions
 router.post('/:id/notes', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.UPDATE),
+  requireSupportExecutiveRole(),
   addCustomerNote
 );
 
+router.put('/:id/notes/:noteId', 
+  requireSupportExecutiveRole(),
+  updateCustomerNote
+);
+
+router.delete('/:id/notes/:noteId', 
+  requireSupportExecutiveRole(),
+  deleteCustomerNote
+);
+
 router.post('/:id/interactions', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.UPDATE),
+  requireSupportExecutiveRole(),
   addCustomerInteraction
+);
+
+router.put('/:id/interactions/:interactionId', 
+  requireSupportExecutiveRole(),
+  updateCustomerInteraction
+);
+
+router.delete('/:id/interactions/:interactionId', 
+  requireSupportExecutiveRole(),
+  deleteCustomerInteraction
 );
 
 // Lead conversion
 router.post('/leads/:leadId/convert', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.CREATE),
+  requireSupportExecutiveRole(),
   convertLeadToCustomer
 );
 
 // Statistics and analytics
 router.get('/project/:projectId/stats', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireViewerRole(),
   getCustomerStats
 );
 
 router.get('/project/:projectId/insights', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireViewerRole(),
   getCustomerInsights
 );
 
 router.get('/project/:projectId/forecast', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireViewerRole(),
   getCustomerForecast
-);
-
-// Bulk operations
-router.patch('/bulk-update', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkUpdateCustomers
-);
-
-router.patch('/bulk-archive', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkArchiveCustomers
-);
-
-router.patch('/bulk-unarchive', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkUnarchiveCustomers
-);
-
-router.patch('/bulk-assign', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkAssignCustomers
-);
-
-router.patch('/bulk-update-stages', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkUpdateCustomerStages
-);
-
-router.patch('/bulk-update-priorities', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkUpdateCustomerPriorities
-);
-
-router.patch('/bulk-update-statuses', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkUpdateCustomerStatuses
-);
-
-router.delete('/bulk-delete', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.BULK_OPERATIONS),
-  bulkDeleteCustomers
 );
 
 // Export functionality
 router.get('/project/:projectId/export', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.EXPORT),
+  requireViewerRole(),
   exportCustomers
 );
 
 // Deal-related endpoints
 router.get('/:id/deals', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireViewerRole(),
   getCustomerDeals
 );
 
 router.get('/:id/deals/stats', 
-  requirePermission(ENTITIES.CUSTOMERS, PERMISSIONS.READ),
+  requireViewerRole(),
   getCustomerDealStats
 );
 

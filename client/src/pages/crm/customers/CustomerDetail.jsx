@@ -5,11 +5,18 @@ import {
   fetchCustomer, 
   updateCustomer, 
   addCustomerNote, 
+  updateCustomerNote,
+  deleteCustomerNote,
   addCustomerInteraction,
+  updateCustomerInteraction,
+  deleteCustomerInteraction,
   archiveCustomer,
   deleteCustomer,
   clearError,
-  clearSuccessMessage
+  clearSuccessMessage,
+  unarchiveCustomer,
+  fetchCustomerDeals,
+  fetchCustomerDealStats
 } from '../../../store/customerSlice';
 import { getProjectById } from '../../../store/projectSlice';
 import Button from '../../../components/ui/Button';
@@ -19,6 +26,7 @@ import CrmLayout from '../../../layouts/CrmLayout';
 import CustomerSidebar from './CustomerSidebar';
 import ActivityTimeline from '../../../components/activity/ActivityTimeline';
 import { getProjectCompanies, clearCompanies } from '../../../store/companySlice';
+import useProjectAccess from '../../../hooks/useProjectAccess';
 
 const CustomerDetail = () => {
   const dispatch = useDispatch();
@@ -30,9 +38,10 @@ const CustomerDetail = () => {
     isLoading, 
     error, 
     successMessage,
+    customerDeals,
+    customerDealStats
   } = useSelector((state) => state.customers);
   const { project } = useSelector((state) => state.projects);
-  const { companies } = useSelector((state) => state.companies);
   const [activeTab, setActiveTab] = useState('overview');
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [showInteractionForm, setShowInteractionForm] = useState(false);
@@ -49,10 +58,21 @@ const CustomerDetail = () => {
     duration: 30,
     outcome: 'positive'
   });
+  const {hasSupportExecutiveAccess} = useProjectAccess();
+  const { user } = useSelector((state) => state.auth);
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingNoteContent, setEditingNoteContent] = useState('');
+  const [editingNoteType, setEditingNoteType] = useState('general');
+  const [editingInteractionId, setEditingInteractionId] = useState(null);
+  const [editingInteractionData, setEditingInteractionData] = useState(null);
 
   useEffect(() => {
     if (customerId) {
-      dispatch(fetchCustomer(customerId));
+      dispatch(fetchCustomer({projectId, id: customerId}));
+      if (activeTab === 'deals') {
+        dispatch(fetchCustomerDeals({ projectId, customerId }));
+        dispatch(fetchCustomerDealStats({ projectId, customerId }));
+      }
     }
     if (projectId) {
       dispatch(getProjectById(projectId));
@@ -63,6 +83,13 @@ const CustomerDetail = () => {
       dispatch(clearCompanies());
     };
   }, [dispatch, customerId, projectId]);
+
+  useEffect(() => {
+    if (customerId && activeTab === 'deals') {
+      dispatch(fetchCustomerDeals({ projectId, customerId }));
+      dispatch(fetchCustomerDealStats({ projectId, customerId }));
+    }
+  }, [dispatch, customerId, projectId, activeTab]);
 
   useEffect(() => {
     // Clear error and success messages when component unmounts
@@ -80,7 +107,7 @@ const CustomerDetail = () => {
     const confirmed = window.confirm('Are you sure you want to archive this customer?');
     if (confirmed) {
       try {
-        await dispatch(archiveCustomer(customerId)).unwrap();
+        await dispatch(archiveCustomer({projectId, id: customerId})).unwrap();
         navigate(`/crm/${projectId}/customers`);
       } catch (error) {
         console.error('Failed to archive customer:', error);
@@ -103,6 +130,7 @@ const CustomerDetail = () => {
   const handleAssign = async (assignedTo) => {
     try {
       await dispatch(updateCustomer({ 
+        projectId: projectId,
         id: customerId, 
         customerData: { assignedTo } 
       })).unwrap();
@@ -115,6 +143,7 @@ const CustomerDetail = () => {
   const handleStatusChange = async (newStatus) => {
     try {
       await dispatch(updateCustomer({ 
+        projectId: projectId,
         id: customerId, 
         customerData: { status: newStatus }
       })).unwrap();
@@ -126,6 +155,7 @@ const CustomerDetail = () => {
   const handleStageChange = async (newStage) => {
     try {
       await dispatch(updateCustomer({ 
+        projectId: projectId,
         id: customerId, 
         customerData: { stage: newStage }
       })).unwrap();
@@ -137,6 +167,7 @@ const CustomerDetail = () => {
   const handlePriorityChange = async (newPriority) => {
     try {
       await dispatch(updateCustomer({ 
+        projectId: projectId,
         id: customerId, 
         customerData: { priority: newPriority }
       })).unwrap();
@@ -151,6 +182,7 @@ const CustomerDetail = () => {
 
     try {
       await dispatch(addCustomerNote({ 
+        projectId: projectId,
         id: customerId, 
         noteData: { content: noteContent, type: noteType } 
       })).unwrap();
@@ -168,6 +200,7 @@ const CustomerDetail = () => {
 
     try {
       await dispatch(addCustomerInteraction({ 
+        projectId: projectId,
         id: customerId, 
         interactionData 
       })).unwrap();
@@ -183,6 +216,123 @@ const CustomerDetail = () => {
     } catch (error) {
       console.error('Failed to add interaction:', error);
     }
+  };
+
+  const handleEditNote = (note) => {
+    setEditingNoteId(note._id);
+    setEditingNoteContent(note.content);
+    setEditingNoteType(note.type || 'general');
+  };
+
+  const handleSaveNoteEdit = async () => {
+    if (!editingNoteContent.trim()) return;
+    
+    try {
+      await dispatch(updateCustomerNote({ 
+        projectId: projectId,
+        customerId: customerId, 
+        noteId: editingNoteId,
+        noteData: { content: editingNoteContent, type: editingNoteType }
+      })).unwrap();
+      setEditingNoteId(null);
+      setEditingNoteContent('');
+      setEditingNoteType('general');
+    } catch (error) {
+      console.error('Failed to update note:', error);
+    }
+  };
+
+  const handleCancelNoteEdit = () => {
+    setEditingNoteId(null);
+    setEditingNoteContent('');
+    setEditingNoteType('general');
+  };
+
+  const handleDeleteNote = async (noteId) => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      try {
+        await dispatch(deleteCustomerNote({ 
+          projectId: projectId,
+          customerId: customerId, 
+          noteId 
+        })).unwrap();
+      } catch (error) {
+        console.error('Failed to delete note:', error);
+      }
+    }
+  };
+
+  const handleEditInteraction = (interaction) => {
+    setEditingInteractionId(interaction._id);
+    setEditingInteractionData({
+      type: interaction.type,
+      title: interaction.title,
+      description: interaction.description || '',
+      date: interaction.date ? new Date(interaction.date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+      duration: interaction.duration || 30,
+      outcome: interaction.outcome || 'positive'
+    });
+  };
+
+  const handleSaveInteractionEdit = async () => {
+    if (!editingInteractionData.title.trim()) return;
+    
+    try {
+      await dispatch(updateCustomerInteraction({ 
+        projectId: projectId,
+        customerId: customerId, 
+        interactionId: editingInteractionId,
+        interactionData: editingInteractionData
+      })).unwrap();
+      setEditingInteractionId(null);
+      setEditingInteractionData(null);
+    } catch (error) {
+      console.error('Failed to update interaction:', error);
+    }
+  };
+
+  const handleCancelInteractionEdit = () => {
+    setEditingInteractionId(null);
+    setEditingInteractionData(null);
+  };
+
+
+
+  const handleUnarchive = async (customerId) => {
+    console.log(customerId);
+    const confirmed = window.confirm('Are you sure you want to unarchive this customer?');
+    
+    if (confirmed) {
+      try {
+        await dispatch(unarchiveCustomer({ projectId, id: customerId })).unwrap();
+        // Reload customers after unarchiving
+        navigate(`/crm/${projectId}/customers`);
+      } catch (error) {
+        console.error('Failed to unarchive customer:', error);
+      }
+    }
+  };
+
+  const handleDeleteInteraction = async (interactionId) => {
+    if (window.confirm('Are you sure you want to delete this interaction?')) {
+      try {
+        await dispatch(deleteCustomerInteraction({ 
+          projectId: projectId,
+          customerId: customerId, 
+          interactionId 
+        })).unwrap();
+      } catch (error) {
+        console.error('Failed to delete interaction:', error);
+      }
+    }
+  };
+
+  const canEditNote = (note) => {
+    return user && note.createdBy && (note.createdBy._id === user._id || user.roleGlobal === 'system-admin');
+  };
+
+  const canEditInteraction = (interaction) => {
+    return user && interaction.createdBy && (interaction.createdBy._id === user._id || user.roleGlobal === 'system-admin');
   };
 
   const formatCurrency = (amount, currency = 'USD') => {
@@ -241,15 +391,15 @@ const CustomerDetail = () => {
     return first + last;
   };
 
-  if (isLoading) {
-    return (
-      <CrmLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        </div>
-      </CrmLayout>
-    );
-  }
+  // if (isLoading) {
+  //   return (
+  //     <CrmLayout>
+  //       <div className="flex items-center justify-center h-64">
+  //         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  //       </div>
+  //     </CrmLayout>
+  //   );
+  // }
 
   if (!currentCustomer) {
     return (
@@ -302,7 +452,7 @@ const CustomerDetail = () => {
               </div>
             </div>
           </div>
-          <div className="flex items-center space-x-3">
+          {hasSupportExecutiveAccess ? <div className="flex items-center space-x-3">
             <Button
               variant="outline"
               onClick={handleEdit}
@@ -313,21 +463,26 @@ const CustomerDetail = () => {
               variant="outline"
               onClick={() => setShowAssignModal(true)}
             >
-              Assign
+              {currentCustomer.assignedTo ? 'Re-assign' : 'Assign'}
             </Button>
-            <Button
+            {currentCustomer.isArchived ? <Button
+              variant="success"
+              onClick={() => handleUnarchive(customerId)}
+            >
+              Unarchive
+            </Button> : <Button
               variant="danger"
               onClick={handleArchive}
             >
               Archive
-            </Button>
+            </Button>}
             <Button
               variant="danger"
               onClick={() => setShowDeleteConfirm(true)}
             >
               Delete
             </Button>
-          </div>
+          </div> : null}
         </div>
 
         {error && <Alert type="error" message={error} />}
@@ -338,7 +493,7 @@ const CustomerDetail = () => {
           {/* Stage Select */}
           <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-gray-700">Stage:</label>
-            <select
+            {hasSupportExecutiveAccess ? <select
               value={currentCustomer.stage}
               onChange={(e) => handleStageChange(e.target.value)}
               className={`px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStageColor(currentCustomer.stage)}`}
@@ -350,13 +505,15 @@ const CustomerDetail = () => {
               <option value="customer">Customer</option>
               <option value="churned">Churned</option>
               <option value="inactive">Inactive</option>
-            </select>
+            </select> : <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getStageColor(currentCustomer.stage)}`}>
+              {currentCustomer.stage}
+            </span>}
           </div>
 
           {/* Status Select */}
           <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-gray-700">Status:</label>
-            <select
+            {hasSupportExecutiveAccess ? <select
               value={currentCustomer.status}
               onChange={(e) => handleStatusChange(e.target.value)}
               className={`px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStatusColor(currentCustomer.status)}`}
@@ -365,13 +522,15 @@ const CustomerDetail = () => {
               <option value="inactive">Inactive</option>
               <option value="pending">Pending</option>
               <option value="blocked">Blocked</option>
-            </select>
+            </select> : <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getStatusColor(currentCustomer.status)}`}>
+              {currentCustomer.status}
+            </span>}
           </div>
 
           {/* Priority Select */}
           <div className="flex items-center space-x-2">
             <label className="text-sm font-medium text-gray-700">Priority:</label>
-            <select
+            {hasSupportExecutiveAccess ? <select
               value={currentCustomer.priority}
               onChange={(e) => handlePriorityChange(e.target.value)}
               className={`px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getPriorityColor(currentCustomer.priority)}`}
@@ -380,7 +539,9 @@ const CustomerDetail = () => {
               <option value="medium">Medium</option>
               <option value="high">High</option>
               <option value="urgent">Urgent</option>
-            </select>
+            </select> : <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getPriorityColor(currentCustomer.priority)}`}>
+              {currentCustomer.priority}
+            </span>}
           </div>
 
           {currentCustomer.score && (
@@ -689,7 +850,7 @@ const CustomerDetail = () => {
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Notes</h3>
-                    <Button
+                    {hasSupportExecutiveAccess && <Button
                       onClick={() => setShowNoteForm(true)}
                       leftIcon={
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -698,7 +859,7 @@ const CustomerDetail = () => {
                       }
                     >
                       Add Note
-                    </Button>
+                    </Button>}
                   </div>
 
                   {showNoteForm && (
@@ -745,29 +906,85 @@ const CustomerDetail = () => {
                   <div className="space-y-4">
                     {currentCustomer.notes && currentCustomer.notes.length > 0 ? (
                       currentCustomer.notes.map((note, index) => (
-                        <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                                note.type === 'call' ? 'bg-blue-100 text-blue-800' :
-                                note.type === 'email' ? 'bg-green-100 text-green-800' :
-                                note.type === 'meeting' ? 'bg-purple-100 text-purple-800' :
-                                note.type === 'task' ? 'bg-yellow-100 text-yellow-800' :
-                                note.type === 'general' ? 'bg-blue-100 text-blue-800' :
-                                'bg-gray-100 text-gray-800'
-                              }`}>
-                                {note.type}
-                              </span>
-                              <span className="text-sm text-gray-500">
-                                {formatDateTime(note.createdAt)}
-                              </span>
+                        <div key={note._id || index} className="bg-white border border-gray-200 rounded-lg p-4">
+                          {editingNoteId === note._id ? (
+                            <div className="space-y-4">
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Note Type</label>
+                                <select
+                                  value={editingNoteType}
+                                  onChange={(e) => setEditingNoteType(e.target.value)}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                >
+                                  <option value="general">General</option>
+                                  <option value="call">Call</option>
+                                  <option value="email">Email</option>
+                                  <option value="meeting">Meeting</option>
+                                  <option value="task">Task</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Note Content</label>
+                                <textarea
+                                  value={editingNoteContent}
+                                  onChange={(e) => setEditingNoteContent(e.target.value)}
+                                  rows={4}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Enter your note..."
+                                  required
+                                />
+                              </div>
+                              <div className="flex space-x-3">
+                                <Button type="button" onClick={handleSaveNoteEdit} disabled={!editingNoteContent.trim()}>
+                                  Save
+                                </Button>
+                                <Button type="button" variant="outline" onClick={handleCancelNoteEdit}>
+                                  Cancel
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                          <p className="mt-2 text-sm text-gray-900">{note.content}</p>
-                          {note.createdBy && (
-                            <p className="mt-2 text-xs text-gray-500">
-                              Added by {note.createdBy.name}
-                            </p>
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                    note.type === 'call' ? 'bg-blue-100 text-blue-800' :
+                                    note.type === 'email' ? 'bg-green-100 text-green-800' :
+                                    note.type === 'meeting' ? 'bg-purple-100 text-purple-800' :
+                                    note.type === 'task' ? 'bg-yellow-100 text-yellow-800' :
+                                    note.type === 'general' ? 'bg-blue-100 text-blue-800' :
+                                    'bg-gray-100 text-gray-800'
+                                  }`}>
+                                    {note.type}
+                                  </span>
+                                  <span className="text-sm text-gray-500">
+                                    {formatDateTime(note.createdAt)}
+                                  </span>
+                                </div>
+                                {canEditNote(note) && hasSupportExecutiveAccess && (
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => handleEditNote(note)}
+                                      className="text-blue-600 hover:text-blue-800 text-sm"
+                                    >
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDeleteNote(note._id)}
+                                      className="text-red-600 hover:text-red-800 text-sm"
+                                    >
+                                      Delete
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="mt-2 text-sm text-gray-900">{note.content}</p>
+                              {note.createdBy && (
+                                <p className="mt-2 text-xs text-gray-500">
+                                  Added by {note.createdBy.name || note.createdBy.email || 'Unknown'}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
                       ))
@@ -787,7 +1004,7 @@ const CustomerDetail = () => {
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Interactions</h3>
-                    <Button
+                    {hasSupportExecutiveAccess && <Button
                       onClick={() => setShowInteractionForm(true)}
                       leftIcon={
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -796,7 +1013,7 @@ const CustomerDetail = () => {
                       }
                     >
                       Add Interaction
-                    </Button>
+                    </Button>}
                   </div>
 
                   {showInteractionForm && (
@@ -889,44 +1106,148 @@ const CustomerDetail = () => {
                   <div className="space-y-4">
                     {currentCustomer.interactions && currentCustomer.interactions.length > 0 ? (
                       currentCustomer.interactions.map((interaction, index) => (
-                        <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center space-x-2">
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                                interaction.type === 'call' ? 'bg-blue-100 text-blue-800' :
-                                interaction.type === 'email' ? 'bg-green-100 text-green-800' :
-                                interaction.type === 'meeting' ? 'bg-purple-100 text-purple-800' :
-                                interaction.type === 'task' ? 'bg-yellow-100 text-yellow-800' :
-                                interaction.type === 'note' ? 'bg-gray-100 text-gray-800' :
-                                'bg-emerald-100 text-emerald-800'
-                              }`}>
-                                {interaction.type}
-                              </span>
-                              <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
-                                interaction.outcome === 'positive' ? 'bg-green-100 text-green-800' :
-                                interaction.outcome === 'neutral' ? 'bg-gray-100 text-gray-800' :
-                                interaction.outcome === 'negative' ? 'bg-red-100 text-red-800' :
-                                'bg-yellow-100 text-yellow-800'
-                              }`}>
-                                {interaction.outcome.replace('_', ' ')}
-                              </span>
+                        <div key={interaction._id || index} className="bg-white border border-gray-200 rounded-lg p-4">
+                          {editingInteractionId === interaction._id ? (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                                  <select
+                                    value={editingInteractionData.type}
+                                    onChange={(e) => setEditingInteractionData({...editingInteractionData, type: e.target.value})}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="call">Call</option>
+                                    <option value="email">Email</option>
+                                    <option value="meeting">Meeting</option>
+                                    <option value="task">Task</option>
+                                    <option value="note">Note</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                                  <input
+                                    type="date"
+                                    value={editingInteractionData.date}
+                                    onChange={(e) => setEditingInteractionData({...editingInteractionData, date: e.target.value})}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  />
+                                </div>
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+                                <input
+                                  type="text"
+                                  value={editingInteractionData.title}
+                                  onChange={(e) => setEditingInteractionData({...editingInteractionData, title: e.target.value})}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Interaction title"
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                                <textarea
+                                  value={editingInteractionData.description}
+                                  onChange={(e) => setEditingInteractionData({...editingInteractionData, description: e.target.value})}
+                                  rows={3}
+                                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  placeholder="Interaction description"
+                                />
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
+                                  <input
+                                    type="number"
+                                    value={editingInteractionData.duration}
+                                    onChange={(e) => setEditingInteractionData({...editingInteractionData, duration: parseInt(e.target.value)})}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    min="1"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-sm font-medium text-gray-700 mb-1">Outcome</label>
+                                  <select
+                                    value={editingInteractionData.outcome}
+                                    onChange={(e) => setEditingInteractionData({...editingInteractionData, outcome: e.target.value})}
+                                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  >
+                                    <option value="positive">Positive</option>
+                                    <option value="neutral">Neutral</option>
+                                    <option value="negative">Negative</option>
+                                    <option value="follow_up_required">Follow Up Required</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="flex space-x-3">
+                                <Button type="button" onClick={handleSaveInteractionEdit} disabled={!editingInteractionData.title.trim()}>
+                                  Save
+                                </Button>
+                                <Button type="button" variant="outline" onClick={handleCancelInteractionEdit}>
+                                  Cancel
+                                </Button>
+                              </div>
                             </div>
-                            <span className="text-sm text-gray-500">
-                              {formatDate(interaction.date)}
-                            </span>
-                          </div>
-                          <h4 className="mt-2 font-medium text-gray-900">{interaction.title}</h4>
-                          {interaction.description && (
-                            <p className="mt-1 text-sm text-gray-600">{interaction.description}</p>
+                          ) : (
+                            <>
+                              <div className="flex items-start justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                    interaction.type === 'call' ? 'bg-blue-100 text-blue-800' :
+                                    interaction.type === 'email' ? 'bg-green-100 text-green-800' :
+                                    interaction.type === 'meeting' ? 'bg-purple-100 text-purple-800' :
+                                    interaction.type === 'task' ? 'bg-yellow-100 text-yellow-800' :
+                                    interaction.type === 'note' ? 'bg-gray-100 text-gray-800' :
+                                    'bg-emerald-100 text-emerald-800'
+                                  }`}>
+                                    {interaction.type}
+                                  </span>
+                                  <span className={`px-2 py-1 text-xs font-medium rounded-full capitalize ${
+                                    interaction.outcome === 'positive' ? 'bg-green-100 text-green-800' :
+                                    interaction.outcome === 'neutral' ? 'bg-gray-100 text-gray-800' :
+                                    interaction.outcome === 'negative' ? 'bg-red-100 text-red-800' :
+                                    'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {interaction.outcome.replace('_', ' ')}
+                                  </span>
+                                </div>
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-sm text-gray-500">
+                                    {formatDate(interaction.date)}
+                                  </span>
+                                  {canEditInteraction(interaction) && hasSupportExecutiveAccess && (
+                                    <>
+                                      <button
+                                        onClick={() => handleEditInteraction(interaction)}
+                                        className="text-blue-600 hover:text-blue-800 text-sm"
+                                      >
+                                        Edit
+                                      </button>
+                                      <button
+                                        onClick={() => handleDeleteInteraction(interaction._id)}
+                                        className="text-red-600 hover:text-red-800 text-sm"
+                                      >
+                                        Delete
+                                      </button>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                              <h4 className="mt-2 font-medium text-gray-900">{interaction.title}</h4>
+                              {interaction.description && (
+                                <p className="mt-1 text-sm text-gray-600">{interaction.description}</p>
+                              )}
+                              <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
+                                {interaction.duration && (
+                                  <span>Duration: {interaction.duration} minutes</span>
+                                )}
+                                {interaction.createdBy && (
+                                  <span>By {interaction.createdBy.name || interaction.createdBy.email || 'Unknown'}</span>
+                                )}
+                              </div>
+                            </>
                           )}
-                          <div className="mt-2 flex items-center space-x-4 text-xs text-gray-500">
-                            {interaction.duration && (
-                              <span>Duration: {interaction.duration} minutes</span>
-                            )}
-                            {interaction.createdBy && (
-                              <span>By {interaction.createdBy.name}</span>
-                            )}
-                          </div>
                         </div>
                       ))
                     ) : (
@@ -945,7 +1266,7 @@ const CustomerDetail = () => {
                 <div className="bg-white border border-gray-200 rounded-lg p-6">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Customer Deals</h3>
-                    <Button
+                    {hasSupportExecutiveAccess && <Button
                       onClick={() => navigate(`/crm/${projectId}/deals?customer=${customerId}`)}
                       leftIcon={
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -954,43 +1275,58 @@ const CustomerDetail = () => {
                       }
                     >
                       Create Deal
-                    </Button>
+                    </Button>}
                   </div>
 
                   {/* Deal Stats */}
-                  {/* {dealStats && (
+                  {console.log("customerDealStats", customerDealStats)}
+                  {customerDealStats[customerId] && (
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                       <div className="bg-blue-50 p-4 rounded-lg">
                         <div className="text-2xl font-bold text-blue-600">
-                          {dealStats.totalDeals || 0}
+                          {customerDealStats[customerId]?.totalDeals || 0}
                         </div>
                         <div className="text-sm text-blue-800">Total Deals</div>
                       </div>
                       <div className="bg-green-50 p-4 rounded-lg">
                         <div className="text-2xl font-bold text-green-600">
-                          {formatCurrency(dealStats.totalValue || 0)}
+                          {formatCurrency(customerDealStats[customerId]?.totalValue || 0)}
                         </div>
                         <div className="text-sm text-green-800">Total Value</div>
                       </div>
                       <div className="bg-emerald-50 p-4 rounded-lg">
                         <div className="text-2xl font-bold text-emerald-600">
-                          {dealStats.wonDeals || 0}
+                          {customerDealStats[customerId]?.wonDeals || 0}
                         </div>
                         <div className="text-sm text-emerald-800">Won Deals</div>
                       </div>
                       <div className="bg-orange-50 p-4 rounded-lg">
                         <div className="text-2xl font-bold text-orange-600">
-                          {dealStats.activeDeals || 0}
+                          {customerDealStats[customerId]?.activeDeals || 0}
                         </div>
                         <div className="text-sm text-orange-800">Active Deals</div>
                       </div>
+                      <div className="bg-purple-50 p-4 rounded-lg">
+                        <div className="text-2xl font-bold text-purple-600">
+                          {formatCurrency(customerDealStats[customerId]?.wonValue || 0)}
+                        </div>
+                        <div className="text-sm text-purple-800">Won Value</div>
+                      </div>
+                      {customerDealStats[customerId]?.conversionRate !== undefined && (
+                        <div className="bg-indigo-50 p-4 rounded-lg">
+                          <div className="text-2xl font-bold text-indigo-600">
+                            {customerDealStats[customerId]?.conversionRate?.toFixed(1) || 0}%
+                          </div>
+                          <div className="text-sm text-indigo-800">Conversion Rate</div>
+                        </div>
+                      )}
                     </div>
-                  )} */}
+                  )}
 
                   {/* Deals List */}
-                  {currentCustomer?.deals && currentCustomer?.deals.length > 0 ? (
+                  {customerDeals[customerId]?.deals && customerDeals[customerId].deals.length > 0 ? (
                     <div className="space-y-3">
-                      {currentCustomer.deals.map((deal) => (
+                      {customerDeals[customerId].deals.map((deal) => (
                         <div key={deal._id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -1047,6 +1383,11 @@ const CustomerDetail = () => {
                         </div>
                       ))}
                     </div>
+                  ) : isLoading ? (
+                    <div className="text-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                      <p className="mt-2 text-sm text-gray-500">Loading deals...</p>
+                    </div>
                   ) : (
                     <div className="text-center py-8">
                       <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1056,13 +1397,13 @@ const CustomerDetail = () => {
                       <p className="mt-1 text-sm text-gray-500">
                         Create a deal to start tracking sales opportunities for this customer.
                       </p>
-                      <div className="mt-6">
+                      {hasSupportExecutiveAccess && <div className="mt-6">
                         <Button
                           onClick={() => navigate(`/crm/${projectId}/deals?customer=${customerId}`)}
                         >
                           Create First Deal
                         </Button>
-                      </div>
+                      </div>}
                     </div>
                   )}
                 </div>

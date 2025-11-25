@@ -105,15 +105,15 @@ export const validateGlobalRole = (role) => {
   return { isValid: true };
 };
 
-export const validateTenantRole = (role) => {
-  const validTenantRoles = ['admin', 'manager', 'sales_executive', 'support_executive', 'viewer'];
+export const validateProjectRole = (role) => {
+  const validProjectRoles = ['admin', 'manager', 'sales_executive', 'support_executive', 'viewer'];
   
   if (!role) {
-    return { isValid: false, message: 'Tenant role is required' };
+    return { isValid: false, message: 'Project role is required' };
   }
   
-  if (!validTenantRoles.includes(role)) {
-    return { isValid: false, message: 'Invalid tenant role specified' };
+  if (!validProjectRoles.includes(role)) {
+    return { isValid: false, message: 'Invalid project role specified' };
   }
   
   return { isValid: true };
@@ -259,14 +259,14 @@ export const validatePasswordChangeData = (data) => {
   };
 };
 
-// Validation for tenant role assignment
-export const validateTenantRoleAssignment = (data) => {
+// Validation for project role assignment
+export const validateProjectRoleAssignment = (data) => {
   const errors = {};
   
-  // Validate tenant ID
-  const tenantIdValidation = validateObjectId(data.tenantId);
-  if (!tenantIdValidation.isValid) {
-    errors.tenantId = tenantIdValidation.message;
+  // Validate project ID
+  const projectIdValidation = validateObjectId(data.projectId);
+  if (!projectIdValidation.isValid) {
+    errors.projectId = projectIdValidation.message;
   }
   
   // Validate user ID
@@ -275,8 +275,8 @@ export const validateTenantRoleAssignment = (data) => {
     errors.userId = userIdValidation.message;
   }
   
-  // Validate tenant role
-  const roleValidation = validateTenantRole(data.role);
+  // Validate project role
+  const roleValidation = validateProjectRole(data.role);
   if (!roleValidation.isValid) {
     errors.role = roleValidation.message;
   }
@@ -294,7 +294,7 @@ export default {
   validatePhone,
   validateProfileImage,
   validateGlobalRole,
-  validateTenantRole,
+  validateProjectRole,
   validateObjectId,
   sanitizeEmail,
   sanitizeName,
@@ -303,5 +303,5 @@ export default {
   validateLoginData,
   validatePasswordResetData,
   validatePasswordChangeData,
-  validateTenantRoleAssignment
+  validateProjectRoleAssignment
 }; 

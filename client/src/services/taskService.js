@@ -149,7 +149,6 @@ export const formatTaskType = (type) => {
     review: 'Review',
     other: 'Other'
   };
-  console.log(typeMap[type]);
   return typeMap[type] || type;
 };
 

@@ -191,6 +191,8 @@ export const refreshToken = asyncHandler(async (req, res) => {
     
     // Find user
     const user = await User.findById(decoded.userId);
+    console.log('user', user);
+    console.log('user.isActive', user.isActive);
     if (!user || !user.isActive) {
       throw new AuthenticationError('Invalid refresh token');
     }
@@ -206,6 +208,7 @@ export const refreshToken = asyncHandler(async (req, res) => {
       }
     });
   } catch (error) {
+    console.log('error', error);
     throw new AuthenticationError('Invalid or expired refresh token');
   }
 });

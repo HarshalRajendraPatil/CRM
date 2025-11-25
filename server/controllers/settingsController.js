@@ -8,7 +8,7 @@ export const getCrmSettings = async (req, res) => {
     const { user } = req;
 
     // Check if user has access to this project
-    const project = user.allTenants.find(p => p.toString() === projectId);
+    const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
       throw new AppError('Access denied to this project', 403);
     }
@@ -109,7 +109,7 @@ export const updateCrmSettings = async (req, res) => {
     const updateData = req.body;
 
     // Check if user has access to this project
-    const project = user.allTenants.find(p => p.toString() === projectId);
+    const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
       throw new AppError('Access denied to this project', 403);
     }
@@ -159,7 +159,7 @@ export const updateSettingSection = async (req, res) => {
     const updateData = req.body;
 
     // Check if user has access to this project
-    const project = user.allTenants.find(p => p.toString() === projectId);
+    const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
       throw new AppError('Access denied to this project', 403);
     }
@@ -206,7 +206,7 @@ export const resetSettings = async (req, res) => {
     const { user } = req;
 
     // Check if user has access to this project
-    const project = user.allTenants.find(p => p.toString() === projectId);
+    const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
       throw new AppError('Access denied to this project', 403);
     }

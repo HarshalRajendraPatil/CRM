@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
+import useProjectAccess from '../../../hooks/useProjectAccess';
 
 const CompanyListItem = ({ company, projectId, isSelected, onSelect }) => {
   // Get status color based on company status
@@ -26,6 +27,7 @@ const CompanyListItem = ({ company, projectId, isSelected, onSelect }) => {
     }
   };
 
+  const { hasSalesExecutiveAccess } = useProjectAccess(projectId);
   return (
     <tr>
       <td className="px-6 py-4 whitespace-nowrap">
@@ -133,7 +135,7 @@ const CompanyListItem = ({ company, projectId, isSelected, onSelect }) => {
                     </Link>
                   )}
                 </Menu.Item>
-                <Menu.Item>
+                {hasSalesExecutiveAccess && <Menu.Item>
                   {({ active }) => (
                     <a
                       href="#"
@@ -148,8 +150,8 @@ const CompanyListItem = ({ company, projectId, isSelected, onSelect }) => {
                       Add Deal
                     </a>
                   )}
-                </Menu.Item>
-                <Menu.Item>
+                </Menu.Item>}
+                {hasSalesExecutiveAccess && <Menu.Item>
                   {({ active }) => (
                     <a
                       href="#"
@@ -164,7 +166,7 @@ const CompanyListItem = ({ company, projectId, isSelected, onSelect }) => {
                       Add Contact
                     </a>
                   )}
-                </Menu.Item>
+                </Menu.Item>}
               </div>
             </Menu.Items>
           </Transition>

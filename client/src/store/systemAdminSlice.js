@@ -65,7 +65,6 @@ export const fetchUserActivity = createAsyncThunk(
   async ({ userId, params }, { rejectWithValue }) => {
     try {
       const response = await getUserActivity(userId, params);
-      console.log( "response", response.data);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch user activity');

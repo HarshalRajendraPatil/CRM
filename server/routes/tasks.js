@@ -24,7 +24,7 @@ import {
   getTasksByEntity,
   exportTasks
 } from '../controllers/taskController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireManagerRole, requireViewerRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -32,44 +32,44 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Project tasks routes
-router.get('/project/:projectId', getProjectTasks);
-router.get('/project/:projectId/stats', getTaskStats);
-router.get('/project/:projectId/insights', getTaskInsights);
-router.get('/project/:projectId/overdue', getOverdueTasks);
-router.get('/project/:projectId/export', exportTasks);
+router.get('/project/:projectId', requireViewerRole(), getProjectTasks);
+router.get('/project/:projectId/stats', requireViewerRole(), getTaskStats);
+router.get('/project/:projectId/insights', requireViewerRole(), getTaskInsights);
+router.get('/project/:projectId/overdue', requireViewerRole(), getOverdueTasks);
+router.get('/project/:projectId/export', requireViewerRole(), exportTasks);
 
 // User tasks routes
-router.get('/user/:userId', getUserTasks);
+router.get('/user/:userId', requireViewerRole(), getUserTasks);
 
 // Entity-related tasks
-router.get('/entity/:entityType/:entityId', getTasksByEntity);
+router.get('/entity/:entityType/:entityId', requireViewerRole(), getTasksByEntity);
 
 // Individual task routes
-router.get('/:id', getTask);
-router.post('/', createTask);
-router.put('/:id', updateTask);
-router.delete('/:id', deleteTask);
+router.get('/:id', requireViewerRole(), getTask);
+router.post('/', requireManagerRole(), createTask);
+router.put('/:id', requireManagerRole(), updateTask);
+router.delete('/:id', requireManagerRole(), deleteTask);
 
 // Task status and assignment
-router.patch('/:id/status', updateTaskStatus);
-router.patch('/:id/assign', assignTask);
+router.patch('/:id/status', requireManagerRole(), updateTaskStatus);
+router.patch('/:id/assign', requireManagerRole(), assignTask);
 
 // Task archival
-router.patch('/:id/archive', archiveTask);
-router.patch('/:id/restore', restoreTask);
+router.patch('/:id/archive', requireManagerRole(), archiveTask);
+router.patch('/:id/restore', requireManagerRole(), restoreTask);
 
 // Comments
-router.post('/:id/comments', addTaskComment);
+router.post('/:id/comments', requireManagerRole(), addTaskComment);
 
 // Subtasks
-router.post('/:id/subtasks', addSubtask);
-router.put('/:id/subtasks/:subtaskId', updateSubtask);
+router.post('/:id/subtasks', requireManagerRole(), addSubtask);
+router.put('/:id/subtasks/:subtaskId', requireManagerRole(), updateSubtask);
 router.patch('/:id/subtasks/:subtaskId/complete', completeSubtask);
-router.delete('/:id/subtasks/:subtaskId', deleteSubtask);
+router.delete('/:id/subtasks/:subtaskId', requireManagerRole(), deleteSubtask);
 
 // Bulk operations
-router.patch('/bulk/update', bulkUpdateTasks);
-router.patch('/bulk/archive', bulkArchiveTasks);
-router.delete('/bulk/delete', bulkDeleteTasks);
+router.patch('/bulk/update', requireManagerRole(), bulkUpdateTasks);
+router.patch('/bulk/archive', requireManagerRole(), bulkArchiveTasks);
+router.delete('/bulk/delete', requireManagerRole(), bulkDeleteTasks);
 
 export default router;

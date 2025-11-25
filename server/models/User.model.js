@@ -60,13 +60,13 @@ const userSchema = new mongoose.Schema({
     default: 'user',
     required: true
   },
-  // Multi-tenant fields
-  ownedTenants: [{
+  // Multi-project fields
+  ownedProjects: [{
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project' // This will be the CRM tenant model
+    ref: 'Project' // This will be the CRM project model
   }],
-  memberTenants: [{
-    tenant: {
+  projectMembers: [{
+    project: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Project'
     },
@@ -127,10 +127,10 @@ userSchema.virtual('fullName').get(function() {
   return this.name;
 });
 
-// Virtual to get all tenant memberships (owned + member)
-userSchema.virtual('allTenants').get(function() {
-  const owned = this.ownedTenants || [];
-  const member = this.memberTenants ? this.memberTenants.map(m => m.tenant) : [];
+// Virtual to get all project memberships (owned + member)
+userSchema.virtual('allProjects').get(function() {
+  const owned = this.ownedProjects || [];
+  const member = this.projectMembers ? this.projectMembers.map(m => m.project) : [];
   return [...owned, ...member];
 });
 
@@ -138,8 +138,8 @@ userSchema.virtual('allTenants').get(function() {
 userSchema.index({ email: 1 });
 userSchema.index({ roleGlobal: 1 });
 userSchema.index({ isActive: 1 });
-userSchema.index({ ownedTenants: 1 });
-userSchema.index({ 'memberTenants.tenant': 1 });
+userSchema.index({ ownedProjects: 1 });
+userSchema.index({ 'projectMembers.project': 1 });
 
 // Pre-save middleware to hash password
 userSchema.pre('save', async function(next) {
@@ -197,24 +197,29 @@ userSchema.methods.resetLoginAttempts = function() {
   });
 };
 
-// Instance method to check if user owns a tenant
-userSchema.methods.ownsTenant = function(tenantId) {
-  return this.ownedTenants && this.ownedTenants.includes(tenantId);
+// Instance method to check if user owns a project
+userSchema.methods.ownsProject = function(projectId) {
+  return this.ownedProjects && this.ownedProjects.includes(projectId);
 };
 
-// Instance method to check if user is member of a tenant
-userSchema.methods.isMemberOf = function(tenantId) {
-  return this.memberTenants && this.memberTenants.some(m => m.tenant.toString() === tenantId.toString());
+// Instance method to check if user is member of a project
+userSchema.methods.isMemberOfProject = function(projectId) {
+  return this.projectMembers && this.projectMembers.some(m => m.project.toString() === projectId.toString());
 };
 
-// Instance method to get role in a specific tenant
-userSchema.methods.getTenantRole = function(tenantId) {
-  if (this.ownsTenant(tenantId)) {
+// Instance method to get role in a specific project
+userSchema.methods.getProjectRole = function(projectId) {
+  if (this.ownsProject(projectId)) {
     return 'owner';
   }
   
-  const membership = this.memberTenants?.find(m => m.tenant.toString() === tenantId.toString());
+  const membership = this.projectMembers?.find(m => m.project.toString() === projectId.toString());
   return membership ? membership.role : null;
+};
+
+// Static method to find user by id
+userSchema.statics.findById = function(id) {
+  return this.findOne({ _id: id }).select('+password');
 };
 
 // Static method to find user by email
@@ -232,12 +237,12 @@ userSchema.statics.findSystemAdmins = function() {
   return this.find({ roleGlobal: 'system-admin', isActive: true });
 };
 
-// Static method to find users by tenant
-userSchema.statics.findByTenant = function(tenantId) {
+// Static method to find users by project
+userSchema.statics.findByProject = function(projectId) {
   return this.find({
     $or: [
-      { ownedTenants: tenantId },
-      { 'memberTenants.tenant': tenantId }
+      { ownedProjects: projectId },
+      { 'projectMembers.project': projectId }
     ],
     isActive: true
   });

@@ -25,7 +25,6 @@ const EditLeadSidebar = ({ isOpen, onClose, lead }) => {
     score: 0,
     tags: [],
     customFields: {},
-    notes: ''
   });
 
   useEffect(() => {
@@ -76,7 +75,6 @@ const EditLeadSidebar = ({ isOpen, onClose, lead }) => {
         score: lead.score || 0,
         tags: lead.tags || [],
         customFields: lead.customFields || {},
-        notes: lead.notes?.[0]?.content || ''
       });
     }
   }, [lead]);
@@ -126,6 +124,7 @@ const EditLeadSidebar = ({ isOpen, onClose, lead }) => {
 
   const addCustomField = () => {
     if (customFieldKey.trim() && customFieldValue.trim()) {
+      console.log(customFieldKey.trim(), customFieldValue.trim());
       setFormData(prev => ({
         ...prev,
         customFields: {
@@ -187,7 +186,7 @@ const EditLeadSidebar = ({ isOpen, onClose, lead }) => {
         score: parseInt(formData.score) || 0
       };
 
-      await dispatch(updateLead({ id: lead._id, leadData })).unwrap();
+      await dispatch(updateLead({ projectId, id: lead._id, leadData })).unwrap();
       onClose();
     } catch (error) {
       console.error('Failed to update lead:', error);
@@ -382,20 +381,20 @@ const EditLeadSidebar = ({ isOpen, onClose, lead }) => {
               Custom Fields
             </label>
             <div className="space-y-2 mb-2">
-              <div className="flex gap-2">
+              <div className="grid grid-cols-5 gap-2">
                 <input
                   type="text"
                   value={customFieldKey}
                   onChange={(e) => setCustomFieldKey(e.target.value)}
                   placeholder="Field name"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="col-span-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <input
                   type="text"
                   value={customFieldValue}
                   onChange={(e) => setCustomFieldValue(e.target.value)}
                   placeholder="Field value"
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="col-span-2 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
                 <Button
                   type="button"
@@ -423,20 +422,6 @@ const EditLeadSidebar = ({ isOpen, onClose, lead }) => {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Add any additional notes..."
-            />
           </div>
 
           <div className="flex gap-3 pt-4">

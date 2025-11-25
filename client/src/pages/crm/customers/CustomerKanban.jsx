@@ -57,7 +57,7 @@ const CustomerKanban = () => {
     const newStage = destination.droppableId;
 
     try {
-      dispatch(updateCustomer({ id: customerId, customerData: { stage: newStage } }));
+      dispatch(updateCustomer({ projectId, id: customerId, customerData: { stage: newStage } }));
     } catch (error) {
       console.error('Failed to update customer stage:', error);
     }
@@ -117,9 +117,9 @@ const CustomerKanban = () => {
       }
 
       await dispatch(bulkUpdateCustomers({ 
+        projectId,
         customerIds: selectedCustomers, 
-        updateData, 
-        projectId 
+        updates: updateData, 
       })).unwrap();
 
       setSelectedCustomers([]);

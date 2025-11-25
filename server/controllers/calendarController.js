@@ -386,7 +386,6 @@ export const getAggregatedEvents = asyncHandler(async (req, res) => {
 // Create a new calendar event
 export const createCalendarEvent = asyncHandler(async (req, res) => {
   const { projectId } = req.body;
-  console.log(projectId);
   const eventData = {
     ...req.body,
     project: projectId,

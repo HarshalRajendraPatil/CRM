@@ -44,9 +44,9 @@ export const fetchProjectDeals = createAsyncThunk(
 // Get customer deals
 export const fetchCustomerDeals = createAsyncThunk(
   'deals/fetchCustomerDeals',
-  async ({ customerId, params = {} }, { rejectWithValue }) => {
+  async ({ projectId, customerId, params = {} }, { rejectWithValue }) => {
     try {
-      const response = await axios.get(`/customers/${customerId}/deals`, { params });
+      const response = await axios.get(`/customers/${customerId}/deals?projectId=${projectId}`, { params });
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch customer deals');
@@ -83,9 +83,9 @@ export const fetchArchivedDeals = createAsyncThunk(
 // Get single deal
 export const fetchDeal = createAsyncThunk(
   'deals/fetchDeal',
-  async (dealId, { rejectWithValue }) => {
+  async ({ projectId, dealId }, { rejectWithValue }) => {
     try {
-      const response = await getDeal(dealId);
+      const response = await getDeal(projectId, dealId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch deal');
@@ -109,9 +109,9 @@ export const createNewDeal = createAsyncThunk(
 // Update deal
 export const updateExistingDeal = createAsyncThunk(
   'deals/updateDeal',
-  async ({ dealId, dealData }, { rejectWithValue }) => {
+  async ({ projectId, dealId, dealData }, { rejectWithValue }) => {
     try {
-      const response = await updateDeal(dealId, dealData);
+      const response = await updateDeal(projectId, dealId, dealData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update deal');
@@ -122,9 +122,9 @@ export const updateExistingDeal = createAsyncThunk(
 // Archive deal
 export const archiveExistingDeal = createAsyncThunk(
   'deals/archiveDeal',
-  async (dealId, { rejectWithValue }) => {
+  async ({ projectId, dealId }, { rejectWithValue }) => {
     try {
-      const response = await archiveDeal(dealId);
+      const response = await archiveDeal(projectId, dealId);
       return { dealId, message: response.data.message };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to archive deal');
@@ -135,10 +135,9 @@ export const archiveExistingDeal = createAsyncThunk(
 // Delete deal permanently
 export const deleteExistingDeal = createAsyncThunk(
   'deals/deleteDeal',
-  async (dealId, { rejectWithValue }) => {
+  async ({ projectId, dealId }, { rejectWithValue }) => {
     try {
-      console.log('deleteExistingDeal', dealId);
-      const response = await deleteDeal(dealId);
+      const response = await deleteDeal(projectId, dealId);
       return { dealId, message: response.data.message };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete deal');
@@ -149,9 +148,9 @@ export const deleteExistingDeal = createAsyncThunk(
 // Restore deal
 export const restoreExistingDeal = createAsyncThunk(
   'deals/restoreDeal',
-  async (dealId, { rejectWithValue }) => {
+  async ({ projectId, dealId }, { rejectWithValue }) => {
     try {
-      const response = await restoreDeal(dealId);
+      const response = await restoreDeal(projectId, dealId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to restore deal');
@@ -162,9 +161,9 @@ export const restoreExistingDeal = createAsyncThunk(
 // Add deal activity
 export const addDealActivityAction = createAsyncThunk(
   'deals/addActivity',
-  async ({ dealId, activityData }, { rejectWithValue }) => {
+  async ({ projectId, dealId, activityData }, { rejectWithValue }) => {
     try {
-      const response = await addDealActivity(dealId, activityData);
+      const response = await addDealActivity(projectId, dealId, activityData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add activity');
@@ -175,9 +174,9 @@ export const addDealActivityAction = createAsyncThunk(
 // Get deal activities
 export const fetchDealActivities = createAsyncThunk(
   'deals/fetchActivities',
-  async ({ dealId, params = {} }, { rejectWithValue }) => {
+  async ({ projectId, dealId, params = {} }, { rejectWithValue }) => {
     try {
-      const response = await getDealActivities(dealId, params);
+      const response = await getDealActivities(projectId, dealId, params);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch activities');
@@ -188,9 +187,9 @@ export const fetchDealActivities = createAsyncThunk(
 // Add deal note
 export const addDealNoteAction = createAsyncThunk(
   'deals/addNote',
-  async ({ dealId, noteData }, { rejectWithValue }) => {
+  async ({ projectId, dealId, noteData }, { rejectWithValue }) => {
     try {
-      const response = await addDealNote(dealId, noteData);
+      const response = await addDealNote(projectId, dealId, noteData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add note');
@@ -201,9 +200,9 @@ export const addDealNoteAction = createAsyncThunk(
 // Update deal note
 export const updateDealNoteAction = createAsyncThunk(
   'deals/updateNote',
-  async ({ dealId, noteId, noteData }, { rejectWithValue }) => {
+  async ({ projectId, dealId, noteId, noteData }, { rejectWithValue }) => {
     try {
-      const response = await updateDealNote(dealId, noteId, noteData);
+      const response = await updateDealNote(projectId, dealId, noteId, noteData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update note');
@@ -214,9 +213,9 @@ export const updateDealNoteAction = createAsyncThunk(
 // Delete deal note
 export const deleteDealNoteAction = createAsyncThunk(
   'deals/deleteNote',
-  async ({ dealId, noteId }, { rejectWithValue }) => {
+  async ({ projectId, dealId, noteId }, { rejectWithValue }) => {
     try {
-      const response = await deleteDealNote(dealId, noteId);
+      const response = await deleteDealNote(projectId, dealId, noteId);
       return { dealId, noteId, message: response.data.message };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete note');
@@ -281,9 +280,9 @@ export const bulkAssignDealsAction = createAsyncThunk(
 // Update deal status
 export const updateDealStatusAction = createAsyncThunk(
   'deals/updateStatus',
-  async ({ dealId, status, reason }, { rejectWithValue }) => {
+  async ({ projectId, dealId, status, reason }, { rejectWithValue }) => {
     try {
-      const response = await updateDealStatus(dealId, status, reason);
+      const response = await updateDealStatus(projectId, dealId, status, reason);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update deal status');
@@ -680,6 +679,9 @@ const dealSlice = createSlice({
         const dealId = action.payload.dealId;
         state.deals = state.deals.filter(deal => deal._id !== dealId);
         state.selectedDeals = state.selectedDeals.filter(id => id !== dealId);
+        if (state.currentDeal && state.currentDeal._id === dealId) {
+          state.currentDeal = null;
+        }
         state.success = action.payload.message;
         state.showDeleteModal = false;
       })
@@ -887,10 +889,23 @@ const dealSlice = createSlice({
       })
       
       // Archive deal
+      .addCase(archiveExistingDeal.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
       .addCase(archiveExistingDeal.fulfilled, (state, action) => {
-        state.deals = state.deals.filter(deal => deal._id !== action.payload.dealId);
-        state.selectedDeals = state.selectedDeals.filter(id => id !== action.payload.dealId);
+        state.loading = false;
+        const dealId = action.payload.dealId;
+        state.deals = state.deals.filter(deal => deal._id !== dealId);
+        state.selectedDeals = state.selectedDeals.filter(id => id !== dealId);
+        if (state.currentDeal && state.currentDeal._id === dealId) {
+          state.currentDeal = null;
+        }
         state.success = action.payload.message;
+      })
+      .addCase(archiveExistingDeal.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
       })
       
       // Bulk archive deals

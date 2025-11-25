@@ -6,6 +6,7 @@ import {
   getLeadById,
   updateLead,
   archiveLead,
+  deleteLead,
   unarchiveLead,
   addLeadNote,
   updateLeadNote,
@@ -18,14 +19,7 @@ import {
   cleanupArchivedLeads,
   getLeadForecast
 } from '../controllers/leadController.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { 
-  requireProjectAccess, 
-  requirePermission, 
-  requireAnyPermission,
-  PERMISSIONS,
-  ENTITIES
-} from '../middleware/rbac.js';
+import { authenticateToken, requireSalesExecutiveRole, requireManagerRole, requireAdminRole, requireViewerRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -33,96 +27,95 @@ router.use(authenticateToken);
 
 // Collections
 router.post('/', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.CREATE),
+  requireSalesExecutiveRole(),
   createLead
 );
 
 router.get('/project/:projectId', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.READ),
+  requireViewerRole(),
   getProjectLeads
 );
 
 router.get('/project/:projectId/archived', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.READ),
+  requireManagerRole(),
   getArchivedLeads
 );
 
 router.get('/project/:projectId/stats', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.READ),
+  requireViewerRole(),
   getLeadStats
 );
 
 router.get('/project/:projectId/insights', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.READ),
+  requireViewerRole(),
   getLeadInsights
 );
 
 router.get('/project/:projectId/forecast', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.READ),
+  requireViewerRole(),
   getLeadForecast
 );
 
 // Single
 router.get('/:id', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.READ),
+  requireViewerRole(),
   getLeadById
 );
 
 router.put('/:id', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.UPDATE),
+  requireSalesExecutiveRole(),
   updateLead
 );
 
 router.delete('/:id', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.ARCHIVE),
+  requireSalesExecutiveRole(),
   archiveLead
 );
 
+// Permanent deletion route (separate from archive)
+router.delete('/:id/permanent', 
+  requireManagerRole(),
+  deleteLead
+);
+
 router.patch('/:id/unarchive', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.UNARCHIVE),
+  requireManagerRole(),
   unarchiveLead
 );
 
 router.post('/:id/notes', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.UPDATE),
+  requireSalesExecutiveRole(),
   addLeadNote
 );
 
 router.put('/:id/notes/:noteId', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.UPDATE),
+  requireSalesExecutiveRole(),
   updateLeadNote
 );
 
 router.delete('/:id/notes/:noteId', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.UPDATE),
+  requireSalesExecutiveRole(),
   deleteLeadNote
 );
 
 router.patch('/:id/status', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.UPDATE),
+  requireSalesExecutiveRole(),
   updateLeadStatus
 );
 
 router.patch('/:id/assign', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.ASSIGN),
+  requireManagerRole(),
   assignLeadToUser
 );
 
 router.post('/:id/convert', 
-  requirePermission(ENTITIES.LEADS, PERMISSIONS.CONVERT),
+  requireSalesExecutiveRole(),
   convertLead
 );
 
 // Cleanup - Only admins and owners
 router.post('/cleanup-archived', 
-  requireAnyPermission([
-    { entity: ENTITIES.LEADS, action: PERMISSIONS.DELETE }
-  ]),
+  requireAdminRole(),
   cleanupArchivedLeads
 );
 

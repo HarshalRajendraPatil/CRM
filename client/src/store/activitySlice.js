@@ -4,9 +4,9 @@ import activityService from '../services/activityService';
 // Async thunks
 export const fetchEntityActivities = createAsyncThunk(
   'activity/fetchEntityActivities',
-  async ({ entityType, entityId, params = {} }, { rejectWithValue }) => {
+  async ({ projectId, entityType, entityId, params = {} }, { rejectWithValue }) => {
     try {
-      const response = await activityService.getEntityActivities(entityType, entityId, params);
+      const response = await activityService.getEntityActivities(projectId, entityType, entityId, params);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch entity activities');

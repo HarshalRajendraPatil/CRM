@@ -11,7 +11,7 @@ import {
   generatePerformanceReport,
   generateFinancialReport
 } from '../controllers/reportController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireManagerRole, requireSalesExecutiveRole, requireSupportExecutiveRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -19,17 +19,17 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Main report generation endpoint
-router.post('/:projectId/generate', generateReport);
+router.post('/:projectId/generate', requireManagerRole(), generateReport);
 
 // Specific report endpoints
-router.post('/:projectId/overview', generateOverviewReport);
-router.post('/:projectId/companies', generateCompaniesReport);
-router.post('/:projectId/customers', generateCustomersReport);
-router.post('/:projectId/deals', generateDealsReport);
-router.post('/:projectId/leads', generateLeadsReport);
-router.post('/:projectId/tasks', generateTasksReport);
-router.post('/:projectId/activities', generateActivitiesReport);
-router.post('/:projectId/performance', generatePerformanceReport);
-router.post('/:projectId/financial', generateFinancialReport);
+router.post('/:projectId/overview', requireManagerRole(), generateOverviewReport);
+router.post('/:projectId/companies', requireSalesExecutiveRole(), generateCompaniesReport);
+router.post('/:projectId/customers', requireSupportExecutiveRole(), generateCustomersReport);
+router.post('/:projectId/deals', requireSupportExecutiveRole(), generateDealsReport);
+router.post('/:projectId/leads', requireSalesExecutiveRole(), generateLeadsReport);
+router.post('/:projectId/tasks', requireManagerRole(), generateTasksReport);
+router.post('/:projectId/activities', requireManagerRole(), generateActivitiesReport);
+router.post('/:projectId/performance', requireManagerRole(), generatePerformanceReport);
+router.post('/:projectId/financial', requireManagerRole(), generateFinancialReport);
 
 export default router;

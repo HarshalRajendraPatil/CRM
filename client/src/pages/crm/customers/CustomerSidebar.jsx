@@ -244,10 +244,10 @@ const CustomerSidebar = ({ isOpen, onClose, customerId = null, currentCustomer =
       if (isConverting && onConvert) {
         await onConvert(customerData);
       } else if (isEditing) {
-        await dispatch(updateCustomer({ id: customerId, customerData })).unwrap();
+        await dispatch(updateCustomer({projectId, id: customerId, customerData })).unwrap();
         onClose();
       } else {
-        await dispatch(createCustomer(customerData)).unwrap();
+        await dispatch(createCustomer({projectId, customerData})).unwrap();
         onClose();
       }
     } catch (error) {

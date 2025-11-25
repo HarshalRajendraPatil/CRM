@@ -169,14 +169,6 @@ export const getProjectInvitations = asyncHandler(async (req, res) => {
     throw new NotFoundError('Project not found');
   }
   
-  // Check if user has permission to view invitations
-  if (
-    !project.hasPermission(req.user._id, 'manager') && 
-    req.user.roleGlobal !== 'system-admin'
-  ) {
-    throw new AuthorizationError('You do not have permission to view invitations for this project');
-  }
-  
   // Get invitations
   const invitations = await Invitation.find({
     project: projectId,
@@ -310,33 +302,33 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
   
   await project.save();
   
-  // Update user's memberTenants array
-  const userHasTenant = req.user.memberTenants.some(
-    m => m.tenant && m.tenant.toString() === project._id.toString()
+  // Update user's projectMembers array
+  const userHasProject = req.user.projectMembers.some(
+    m => m.project && m.project.toString() === project._id.toString()
   );
-  
-  if (!userHasTenant) {
+
+  if (!userHasProject) {
     await User.findByIdAndUpdate(req.user._id, {
       $push: {
-        memberTenants: {
-          tenant: project._id,
+        projectMembers: {
+          project: project._id,
           role: invitation.role,
           joinedAt: new Date()
         }
       }
     });
   } else {
-    // Update existing tenant entry
+    // Update existing project entry
     await User.findByIdAndUpdate(
       req.user._id,
       {
         $set: { 
-          'memberTenants.$[elem].role': invitation.role,
-          'memberTenants.$[elem].joinedAt': new Date()
+          'projectMembers.$[elem].role': invitation.role,
+          'projectMembers.$[elem].joinedAt': new Date()
         }
       },
       {
-        arrayFilters: [{ 'elem.tenant': project._id }]
+        arrayFilters: [{ 'elem.project': project._id }]
       }
     );
   }

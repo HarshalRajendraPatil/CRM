@@ -8,6 +8,9 @@ import LeadKanban from './LeadKanban';
 import LeadStats from './LeadStats';
 import Button from '../../../components/ui/Button';
 import CrmLayout from '../../../layouts/CrmLayout';
+import { getUserById } from '../../../store/userSlice';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { getProjectById } from '../../../store/projectSlice';
 
 // Helper function to truncate text
 const truncateText = (text, maxLength = 15) => {
@@ -45,6 +48,10 @@ const Leads = () => {
   const dispatch = useDispatch();
   const { leads, archivedLeads, isLoading } = useSelector((state) => state.leads);
   const { project } = useSelector((state) => state.projects);
+  const {user} = useSelector((state) => state.auth);
+  const {hasSalesExecutiveAccess} = useProjectAccess();
+
+
   
   const [view, setView] = useState('list'); // 'list' or 'kanban' or 'stats'
   const [showCreateSidebar, setShowCreateSidebar] = useState(false);
@@ -68,6 +75,8 @@ const Leads = () => {
   };
 
   useEffect(() => {
+    dispatch(getUserById(user._id));
+    dispatch(getProjectById(projectId));
     if (showArchived) {
       dispatch(getArchivedLeads({ projectId }));
     } else {
@@ -278,28 +287,13 @@ const Leads = () => {
                         View Customer Profile
                       </button>
                     ) : (
-                      <>
+                      hasSalesExecutiveAccess && <>
                         <button
                           onClick={() => onEditLead(lead)}
                           className="text-gray-600 hover:text-gray-800 text-sm"
                         >
                           Edit
                         </button>
-                        {showArchived ? (
-                          <button
-                            onClick={() => onUnarchiveLead(lead._id)}
-                            className="text-green-600 hover:text-green-800 text-sm"
-                          >
-                            Unarchive
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => onDeleteLead(lead._id)}
-                            className="text-red-600 hover:text-red-800 text-sm"
-                          >
-                            Archive
-                          </button>
-                        )}
                       </>
                     )}
                   </div>
@@ -313,7 +307,7 @@ const Leads = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
                     <h3 className="mt-2 text-sm font-medium text-gray-900">No leads found</h3>
-                    <p className="mt-1 text-sm text-gray-500">
+                    {hasSalesExecutiveAccess && <><p className="mt-1 text-sm text-gray-500">
                       Get started by creating your first lead.
                     </p>
                     <div className="mt-6">
@@ -329,7 +323,7 @@ const Leads = () => {
                       >
                         Add Lead
                       </Button>
-                    </div>
+                    </div></>}
                   </div>
                 </td>
               </tr>
@@ -464,12 +458,12 @@ const Leads = () => {
               {showArchived ? 'Manage your archived leads' : 'Manage your lead pipeline'}
             </p>
           </div>
-          <div className="flex items-center space-x-3">
+          {hasSalesExecutiveAccess && <div className="flex items-center space-x-3">
             {view === 'list' && <Button
               variant="secondary"
               onClick={handleToggleArchived}
             >
-              {showArchived ? 'Show Active Leads' : 'Show Archived Leads'}
+              {`Show ${showArchived ? 'Active' : 'Archived'} Leads`}
             </Button>}
             {!showArchived && (
               <Button onClick={onCreateLead}>
@@ -479,7 +473,7 @@ const Leads = () => {
                 Add Lead
               </Button>
             )}
-          </div>
+          </div>}
         </div>
 
         {/* View Toggle */}
@@ -494,7 +488,7 @@ const Leads = () => {
               >
                 List View
               </button>
-              <button
+              {hasSalesExecutiveAccess && <button
                 onClick={() => setView('kanban')}
                 className={`px-3 py-1 rounded text-sm font-medium ${
                   view === 'kanban' ? 'bg-white text-gray-900 shadow' : 'text-gray-600'
@@ -502,7 +496,7 @@ const Leads = () => {
                 disabled={showArchived}
               >
                 Kanban View
-              </button>
+              </button>}
               <button
                 onClick={() => setView('stats')}
                 className={`px-3 py-1 rounded text-sm font-medium ${

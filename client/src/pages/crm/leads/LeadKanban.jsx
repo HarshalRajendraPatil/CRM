@@ -49,7 +49,7 @@ const LeadKanban = ({ projectId }) => {
     setOptimisticLeads(newOptimisticLeads);
     
     try {
-      await dispatch(updateLeadStatus({ id: leadId, status: newStatus })).unwrap();
+      await dispatch(updateLeadStatus({ projectId, id: leadId, status: newStatus })).unwrap();
       // No need to refresh - the Redux state is already updated
     } catch (error) {
       console.error('Failed to update lead status:', error);
@@ -81,7 +81,7 @@ const LeadKanban = ({ projectId }) => {
   const handleBulkStatusUpdate = async (newStatus) => {
     try {
       for (const leadId of selectedLeads) {
-        await dispatch(updateLeadStatus({ id: leadId, status: newStatus })).unwrap();
+        await dispatch(updateLeadStatus({ projectId, id: leadId, status: newStatus })).unwrap();
       }
       setSelectedLeads([]);
       setShowBulkActions(false);

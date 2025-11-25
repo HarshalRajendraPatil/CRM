@@ -11,7 +11,7 @@ import {
 } from '../utils/projectValidation.js';
 import notificationService from '../utils/notificationService.js';
 
-// @desc    Create a new project/tenant
+// @desc    Create a new project
 // @route   POST /api/projects
 // @access  Private
 export const createProject = asyncHandler(async (req, res) => {
@@ -33,12 +33,12 @@ export const createProject = asyncHandler(async (req, res) => {
     throw new ValidationError('Validation failed', validation.errors);
   }
   
-  // Check if user has reached maximum allowed tenants (if there's a limit)
-  const userTenantCount = await Project.countDocuments({ owner: req.user._id });
-  const maxTenants = process.env.MAX_TENANTS_PER_USER || 10; // Default limit or from env
+  // Check if user has reached maximum allowed projects (if there's a limit)
+  const userProjectCount = await Project.countDocuments({ owner: req.user._id });
+  const maxProjects = process.env.MAX_PROJECTS_PER_USER || 10; // Default limit or from env
   
-  if (userTenantCount >= maxTenants) {
-    throw new ValidationError(`You have reached the maximum limit of ${maxTenants} projects`);
+  if (userProjectCount >= maxProjects) {
+    throw new ValidationError(`You have reached the maximum limit of ${maxProjects} projects`);
   }
   
   // Sanitize input data
@@ -62,9 +62,9 @@ export const createProject = asyncHandler(async (req, res) => {
     logo
   });
   
-  // Update user's ownedTenants array
+  // Update user's ownedProjects array
   await User.findByIdAndUpdate(req.user._id, {
-    $push: { ownedTenants: project._id }
+    $push: { ownedProjects: project._id }
   });
   
   res.status(201).json({
@@ -268,15 +268,15 @@ export const deleteProject = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You do not have permission to delete this project');
   }
   
-  // Remove project from owner's ownedTenants array
+  // Remove project from owner's ownedProjects array
   await User.findByIdAndUpdate(project.owner, {
-    $pull: { ownedTenants: project._id }
+    $pull: { ownedProjects: project._id }
   });
   
-  // Remove project from all members' memberTenants array
+  // Remove project from all members' projectMembers array
   for (const member of project.members) {
     await User.findByIdAndUpdate(member.user, {
-      $pull: { 'memberTenants': { tenant: project._id } }
+      $pull: { 'projectMembers': { project: project._id } }
     });
   }
   
@@ -346,14 +346,14 @@ export const updateProjectMember = asyncHandler(async (req, res) => {
   project.members[memberIndex].role = role;
   await project.save();
   
-  // Update user's memberTenants array
+  // Update user's projectMembers array
   await User.findByIdAndUpdate(
     userId,
     {
-      $set: { 'memberTenants.$[elem].role': role }
+      $set: { 'projectMembers.$[elem].role': role }
     },
     {
-      arrayFilters: [{ 'elem.tenant': project._id }]
+      arrayFilters: [{ 'elem.project': project._id }]
     }
   );
   
@@ -430,9 +430,9 @@ export const removeProjectMember = asyncHandler(async (req, res) => {
   project.members.splice(memberIndex, 1);
   await project.save();
   
-  // Remove project from user's memberTenants array
+  // Remove project from user's projectMembers array
   await User.findByIdAndUpdate(userId, {
-    $pull: { memberTenants: { tenant: project._id } }
+    $pull: { projectMembers: { project: project._id } }
   });
 
   // Create notification for member removal// Create notification for role change
@@ -543,19 +543,19 @@ export const transferProjectOwnership = asyncHandler(async (req, res) => {
   await project.save();
   
   // Update user records
-  // Remove from new owner's memberTenants and add to ownedTenants
+  // Remove from new owner's projectMembers and add to ownedProjects
   await User.findByIdAndUpdate(userId, {
-    $pull: { memberTenants: { tenant: project._id } },
-    $addToSet: { ownedTenants: project._id }
+    $pull: { projectMembers: { project: project._id } },
+    $addToSet: { ownedProjects: project._id }
   });
   
-  // Remove from previous owner's ownedTenants and add to memberTenants if not self-transfer
+  // Remove from previous owner's ownedProjects and add to projectMembers if not self-transfer
   if (currentOwner.toString() !== userId) {
     await User.findByIdAndUpdate(currentOwner, {
-      $pull: { ownedTenants: project._id },
+      $pull: { ownedProjects: project._id },
       $addToSet: { 
-        memberTenants: {
-          tenant: project._id,
+        projectMembers: {
+          project: project._id,
           role: 'admin',
           joinedAt: new Date()
         }

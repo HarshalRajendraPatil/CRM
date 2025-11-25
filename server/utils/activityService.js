@@ -674,6 +674,82 @@ class ActivityService {
     });
   }
 
+  static async logCustomerNoteUpdated(customer, note, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Customer',
+      entityId: customer._id,
+      project: customer.project,
+      activityType: 'customer_note_updated',
+      description: `Note on customer "${customer.fullName}" was updated`,
+      category: 'interaction',
+      performedBy: performedBy._id,
+      priority: 'low',
+      metadata: {
+        customerName: customer.fullName,
+        customerId: customer._id,
+        noteId: note._id,
+        updatedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logCustomerNoteDeleted(customer, noteId, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Customer',
+      entityId: customer._id,
+      project: customer.project,
+      activityType: 'customer_note_deleted',
+      description: `Note on customer "${customer.fullName}" was deleted`,
+      category: 'interaction',
+      performedBy: performedBy._id,
+      priority: 'low',
+      metadata: {
+        customerName: customer.fullName,
+        customerId: customer._id,
+        noteId: noteId,
+        deletedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logCustomerInteractionUpdated(customer, interaction, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Customer',
+      entityId: customer._id,
+      project: customer.project,
+      activityType: 'customer_interaction_updated',
+      description: `Interaction "${interaction.title}" on customer "${customer.fullName}" was updated`,
+      category: 'interaction',
+      performedBy: performedBy._id,
+      priority: 'low',
+      metadata: {
+        customerName: customer.fullName,
+        customerId: customer._id,
+        interactionId: interaction._id,
+        updatedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logCustomerInteractionDeleted(customer, interactionId, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Customer',
+      entityId: customer._id,
+      project: customer.project,
+      activityType: 'customer_interaction_deleted',
+      description: `Interaction on customer "${customer.fullName}" was deleted`,
+      category: 'interaction',
+      performedBy: performedBy._id,
+      priority: 'low',
+      metadata: {
+        customerName: customer.fullName,
+        customerId: customer._id,
+        interactionId: interactionId,
+        deletedBy: performedBy.name
+      }
+    });
+  }
+
   static async logCustomerStageChanged(customer, oldStage, newStage, performedBy) {
     return await Activity.logActivity({
       entityType: 'Customer',

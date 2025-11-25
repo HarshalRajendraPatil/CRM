@@ -22,10 +22,9 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
     source: 'other',
     jobTitle: '',
     company: '',
-    score: leadScoring.enabled ? 0 : null,
+    score: leadScoring.enabled ? 0 : 0,
     tags: [],
     customFields: {},
-    notes: ''
   });
 
   const [tagInput, setTagInput] = useState('');
@@ -68,7 +67,6 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
       ...prev,
       [name]: value
     }));
-    console.log(formData);
     // Clear error when user starts typing
     if (errors[name]) {
       setErrors(prev => ({
@@ -169,7 +167,7 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
         score: parseInt(formData.score) || 0
       };
 
-      await dispatch(createLead(leadData)).unwrap();
+      await dispatch(createLead({projectId,leadData})).unwrap();
       
       // Reset form
       setFormData({
@@ -184,7 +182,6 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
         score: 0,
         tags: [],
         customFields: {},
-        notes: ''
       });
       setErrors({});
       setTagInput('');
@@ -210,7 +207,6 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
       score: 0,
       tags: [],
       customFields: {},
-      notes: ''
     });
     setErrors({});
     onClose();
@@ -445,20 +441,6 @@ const CreateLeadSidebar = ({ isOpen, onClose, projectId }) => {
                 </div>
               ))}
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Notes
-            </label>
-            <textarea
-              name="notes"
-              value={formData.notes}
-              onChange={handleChange}
-              rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Add any additional notes..."
-            />
           </div>
 
           <div className="flex gap-3 pt-4">

@@ -63,7 +63,7 @@ const pipelineSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Define the Project (tenant) schema
+// Define the Project schema
 const projectSchema = new mongoose.Schema({
   name: {
     type: String,

@@ -9,6 +9,8 @@ import Button from '../../../components/ui/Button';
 import Alert from '../../../components/ui/Alert';
 import CompanySidebar from './CompanySidebar';
 import ActivityTimeline from '../../../components/activity/ActivityTimeline';
+import useProjectAccess from '../../../hooks/useProjectAccess';
+import { getProjectById } from '../../../store/projectSlice';
 
 const CompanyDetail = () => {
   const { projectId, companyId } = useParams();
@@ -16,19 +18,21 @@ const CompanyDetail = () => {
   const dispatch = useDispatch();
   const { company, notes, isLoading, isError, message } = useSelector((state) => state.companies);
   const { customers } = useSelector((state) => state.customers);
+  const {user} = useSelector((state) => state.auth);
   const [showEditSidebar, setShowEditSidebar] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [noteContent, setNoteContent] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
   const [editingNote, setEditingNote] = useState(null);
   const [editNoteContent, setEditNoteContent] = useState('');
-
+  const { hasSalesExecutiveAccess } = useProjectAccess();
 
   // Fetch company data on mount
   useEffect(() => {
     if (companyId) {
-      dispatch(getCompanyById(companyId));
-      dispatch(getCompanyNotes(companyId));
+      dispatch(getProjectById(projectId));
+      dispatch(getCompanyById({id: companyId, projectId}));
+      dispatch(getCompanyNotes({id: companyId, projectId}));
       dispatch(fetchProjectCustomers({ projectId , params: { company: companyId } }));
     }
     
@@ -38,13 +42,11 @@ const CompanyDetail = () => {
     };
   }, [dispatch, companyId]);
 
-  console.log(customers);
-
   // Handle note submission
   const handleNoteSubmit = (e) => {
     e.preventDefault();
     if (noteContent.trim()) {
-      dispatch(addCompanyNote({ id: companyId, noteData: { content: noteContent } }))
+      dispatch(addCompanyNote({ id: companyId, noteData: { content: noteContent }, projectId }))
         .then(() => {
           setNoteContent('');
         });
@@ -63,6 +65,7 @@ const CompanyDetail = () => {
     if (editNoteContent.trim()) {
       dispatch(updateCompanyNote({ 
         id: companyId, 
+        projectId,
         noteId: editingNote, 
         noteData: { content: editNoteContent } 
       }))
@@ -76,7 +79,7 @@ const CompanyDetail = () => {
   // Handle note deletion
   const handleDeleteNote = (noteId) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
-      dispatch(deleteCompanyNote({ id: companyId, noteId }));
+      dispatch(deleteCompanyNote({ id: companyId, noteId, projectId }));
     }
   };
 
@@ -88,7 +91,7 @@ const CompanyDetail = () => {
 
   // Handle company deletion
   const handleDeleteCompany = () => {
-    dispatch(deleteCompany(companyId))
+    dispatch(deleteCompany({id: companyId, projectId}))
       .unwrap()
       .then(() => {
         navigate(`/crm/${projectId}/companies`);
@@ -204,7 +207,7 @@ const CompanyDetail = () => {
               </div>
             </div>
           </div>
-          <div className="mt-4 md:mt-0 flex space-x-3">
+          {hasSalesExecutiveAccess && (<div className="mt-4 md:mt-0 flex space-x-3">
             <Button
               variant="secondary"
               onClick={() => setShowEditSidebar(true)}
@@ -217,7 +220,7 @@ const CompanyDetail = () => {
             >
               Delete
             </Button>
-          </div>
+          </div>)}
         </div>
 
         {/* Tabs */}
@@ -458,7 +461,7 @@ const CompanyDetail = () => {
           {activeTab === 'notes' && (
             <div className="p-6">
               {/* Add Note Form */}
-              <div className="mb-6">
+              {hasSalesExecutiveAccess && <div className="mb-6">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Add Note</h3>
                 <form onSubmit={handleNoteSubmit}>
                   <div className="mb-3">
@@ -481,7 +484,7 @@ const CompanyDetail = () => {
                     </Button>
                   </div>
                 </form>
-              </div>
+              </div>}
 
               {/* Notes List */}
               <div>
@@ -536,7 +539,7 @@ const CompanyDetail = () => {
                                       </>
                                     )}
                                   </div>
-                                  <div className="flex space-x-2">
+                                  {user?._id === note.createdBy?._id && <div className="flex space-x-2">
                                     <button
                                       onClick={() => handleEditNote(note)}
                                       className="text-xs text-indigo-600 hover:text-indigo-800"
@@ -549,7 +552,7 @@ const CompanyDetail = () => {
                                     >
                                       Delete
                                     </button>
-                                  </div>
+                                  </div>}
                                 </div>
                               </>
                             )}
@@ -579,7 +582,7 @@ const CompanyDetail = () => {
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Company Deals</h3>
-                <Button
+                {hasSalesExecutiveAccess && <Button
                   onClick={() => navigate(`/crm/${projectId}/deals?company=${companyId}`)}
                   leftIcon={
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -588,7 +591,7 @@ const CompanyDetail = () => {
                   }
                 >
                   Create Deal
-                </Button>
+                </Button>}
               </div>
 
               {/* Deal Stats
@@ -694,11 +697,11 @@ const CompanyDetail = () => {
                     Create a deal to start tracking sales opportunities for this company.
                   </p>
                   <div className="mt-6">
-                    <Button
+                    {hasSalesExecutiveAccess && <Button
                       onClick={() => navigate(`/crm/${projectId}/deals?company=${companyId}`)}
                     >
                       Create First Deal
-                    </Button>
+                    </Button>}
                   </div>
                 </div>
               )}

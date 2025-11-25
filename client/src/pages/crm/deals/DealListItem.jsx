@@ -1,6 +1,7 @@
 import React from 'react';
 import { formatCurrency, formatDate, getStatusColor, getPriorityColor, getDealHealthScore, getDealHealthColor } from '../../../utils/dealUtils';
 import { PencilIcon, ArchiveBoxIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 const DealListItem = ({ 
   deal, 
@@ -8,10 +9,10 @@ const DealListItem = ({
   onSelect, 
   onEdit, 
   onView,
-  onArchive,
   onDelete,
   onDuplicate
 }) => {
+  const {hasSupportExecutiveAccess} = useProjectAccess();
   const {
     _id,
     name,
@@ -39,18 +40,9 @@ const DealListItem = ({
     onView(_id);
   };
 
-  const handleArchive = (e) => {
-    e.stopPropagation();
-    if (window.confirm('Are you sure you want to archive this deal?')) {
-      onArchive(_id);
-    }
-  };
-
   const handleDelete = (e) => {
     e.stopPropagation();
-    if (window.confirm('Are you sure you want to permanently delete this deal? This action cannot be undone.')) {
       onDelete(_id);
-    }
   };
 
   const handleDuplicate = (e) => {
@@ -138,7 +130,7 @@ const DealListItem = ({
           {expectedCloseDate ? formatDate(expectedCloseDate) : '-'}
         </div>
         <div className="text-xs text-gray-500">
-          {expectedCloseDate && getDaysUntilClose(expectedCloseDate)} days until close
+        {expectedCloseDate && getDaysUntilClose(expectedCloseDate) > 0 ? `${getDaysUntilClose(expectedCloseDate)} days until close` : 'Overdue by ' + Math.abs(getDaysUntilClose(expectedCloseDate)) + ' days'}
         </div>
       </div>
 
@@ -163,7 +155,7 @@ const DealListItem = ({
       </div>
 
       {/* Actions */}
-      <div className="col-span-1">
+      {hasSupportExecutiveAccess && <div className="col-span-1">
         <div className="flex items-center space-x-1">
           <button
             onClick={handleEdit}
@@ -172,14 +164,14 @@ const DealListItem = ({
           >
             <PencilIcon className="h-4 w-4" />
           </button>
-          
+{/*           
           <button
             onClick={handleArchive}
             className="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-colors duration-200"
             title="Archive deal"
           >
             <ArchiveBoxIcon className="h-4 w-4" />
-          </button>
+          </button> */}
           
           <button
             onClick={handleDelete}
@@ -189,7 +181,7 @@ const DealListItem = ({
             <TrashIcon className="h-4 w-4" />
           </button>
         </div>
-      </div>
+      </div>}
     </div>
   );
 };

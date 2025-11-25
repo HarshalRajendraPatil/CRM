@@ -1152,7 +1152,10 @@ export const createTaskNotification = async (eventType, task, projectId, actorId
     // For certain events, notify project members
     if (['task_completed', 'task_deleted'].includes(eventType)) {
       const projectMembers = await User.find({
-        'projects.project': projectId,
+        $or: [
+          { ownedProjects: projectId },
+          { 'projectMembers.project': projectId }
+        ],
         _id: { $nin: [actorId, ...excludeUserIds] }
       });
 

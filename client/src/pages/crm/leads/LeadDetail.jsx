@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { fetchLead, addLeadNote, updateLeadNote, deleteLeadNote, updateLeadStatus, assignLeadToUser, archiveLead, clearLead } from '../../../store/leadSlice';
+import { fetchLead, addLeadNote, updateLeadNote, deleteLeadNote, updateLeadStatus, assignLeadToUser, archiveLead, deleteLead, clearLead, unarchiveLead,  } from '../../../store/leadSlice';
 import { getProjectById } from '../../../store/projectSlice';
 import { convertLeadToCustomer } from '../../../store/customerSlice';
 import EditLeadSidebar from './EditLeadSidebar';
@@ -10,6 +10,8 @@ import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import CrmLayout from '../../../layouts/CrmLayout';
 import ActivityTimeline from '../../../components/activity/ActivityTimeline';
+import { getUserById } from '../../../store/userSlice';
+import useProjectAccess from '../../../hooks/useProjectAccess';
 
 const LeadDetail = () => {
   const { projectId, leadId } = useParams();
@@ -20,16 +22,19 @@ const LeadDetail = () => {
   const { user } = useSelector((state) => state.auth);
   const [note, setNote] = useState('');
   const [showEditSidebar, setShowEditSidebar] = useState(false);
+  const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingNoteContent, setEditingNoteContent] = useState('');
   const [showConvertSidebar, setShowConvertSidebar] = useState(false);
+  const { hasSalesExecutiveAccess, hasManagerAccess } = useProjectAccess();
 
   useEffect(() => {
-    dispatch(fetchLead(leadId));
+    dispatch(fetchLead({projectId, id: leadId}));
     dispatch(getProjectById(projectId));
+    dispatch(getUserById(user._id));
 
     return () => {
       dispatch(clearLead());
@@ -41,7 +46,7 @@ const LeadDetail = () => {
     if (!note.trim()) return;
     
     try {
-      await dispatch(addLeadNote({ id: leadId, content: note })).unwrap();
+      await dispatch(addLeadNote({ projectId, id: leadId, content: note })).unwrap();
       setNote('');
     } catch (error) {
       console.error('Failed to add note:', error);
@@ -57,9 +62,10 @@ const LeadDetail = () => {
     if (!editingNoteContent.trim()) return;
     
     try {
-      await dispatch(updateLeadNote({ leadId, noteId: editingNoteId, content: editingNoteContent })).unwrap();
+      await dispatch(updateLeadNote({ projectId, id: leadId, noteId: editingNoteId, content: editingNoteContent })).unwrap();
       setEditingNoteId(null);
       setEditingNoteContent('');
+      dispatch(fetchLead({projectId, id: leadId}));
     } catch (error) {
       console.error('Failed to update note:', error);
     }
@@ -73,7 +79,8 @@ const LeadDetail = () => {
   const onDeleteNote = async (noteId) => {
     if (window.confirm('Are you sure you want to delete this note?')) {
       try {
-        await dispatch(deleteLeadNote({ leadId, noteId })).unwrap();
+        await dispatch(deleteLeadNote({ projectId, leadId, noteId })).unwrap();
+        dispatch(fetchLead({projectId, id: leadId}));
       } catch (error) {
         console.error('Failed to delete note:', error);
       }
@@ -86,7 +93,7 @@ const LeadDetail = () => {
 
   const handleConvertToCustomer = async (customerData) => {
     try {
-      await dispatch(convertLeadToCustomer({ leadId, customerData })).unwrap();
+      await dispatch(convertLeadToCustomer({ projectId, leadId, customerData })).unwrap();
       setShowConvertSidebar(false);
       navigate(`/crm/${projectId}/customers`);
     } catch (error) {
@@ -95,21 +102,39 @@ const LeadDetail = () => {
   };
 
   const onArchive = () => {
-    setShowDeleteConfirm(true);
+    setShowArchiveConfirm(true);
+  };
+
+  const handleDelete = async () => {
+    try {
+      await dispatch(deleteLead({ projectId, id: leadId })).unwrap();
+      navigate(`/crm/${projectId}/leads`);
+    } catch (error) {
+      console.error('Failed to delete lead:', error);
+    }
   };
 
   const confirmArchive = async () => {
     try {
-      await dispatch(archiveLead(leadId)).unwrap();
+      await dispatch(archiveLead({ projectId, id: leadId })).unwrap();
       navigate(`/crm/${projectId}/leads`);
     } catch (error) {
       console.error('Failed to archive lead:', error);
     }
   };
 
+  const onUnarchive = async () => {
+    try {
+      await dispatch(unarchiveLead({ projectId, id: leadId })).unwrap();
+      navigate(`/crm/${projectId}/leads`);
+    } catch (error) {
+      console.error('Failed to unarchive lead:', error);
+    }
+  };
+
   const onStatusChange = async (newStatus) => {
     try {
-      await dispatch(updateLeadStatus({ id: leadId, status: newStatus })).unwrap();
+      await dispatch(updateLeadStatus({ projectId, id: leadId, status: newStatus })).unwrap();
     } catch (error) {
       console.error('Failed to update lead status:', error);
     }
@@ -117,7 +142,7 @@ const LeadDetail = () => {
 
   const onAssignUser = async () => {
     try {
-      await dispatch(assignLeadToUser({ id: leadId, userId: selectedUserId })).unwrap();
+      await dispatch(assignLeadToUser({ projectId, id: leadId, userId: selectedUserId })).unwrap();
       setShowAssignModal(false);
       setSelectedUserId('');
     } catch (error) {
@@ -127,7 +152,7 @@ const LeadDetail = () => {
 
   const onUnassignUser = async () => {
     try {
-      await dispatch(assignLeadToUser({ id: leadId, userId: null })).unwrap();
+      await dispatch(assignLeadToUser({ projectId, id: leadId, userId: null })).unwrap();
     } catch (error) {
       console.error('Failed to unassign lead:', error);
     }
@@ -178,20 +203,33 @@ const LeadDetail = () => {
               </Button>
             </div>
           ) : (
-            <>
+            hasSalesExecutiveAccess ? (<>
               <Button
                 variant="secondary"
                 onClick={() => setShowEditSidebar(true)}
               >
                 Edit Lead
               </Button>
-              <Button
+              {hasManagerAccess && (
+                <Button
+                  variant="danger"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete Lead
+                </Button>
+              )}
+              {lead.isArchived ? <Button
+                variant="success"
+                onClick={onUnarchive}
+              >
+                Unarchive Lead
+              </Button> : <Button
                 variant="danger"
                 onClick={onArchive}
               >
                 Archive Lead
-              </Button>
-            </>
+              </Button>}
+            </>) : null
           )}
         </div>
       </div>
@@ -221,7 +259,7 @@ const LeadDetail = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Company Reference</label>
-                <Link className="text-blue-900 underline" to={`/crm/${projectId}/companies/${lead.company._id}`}>{lead.company?.name || '-'}</Link>
+                {lead?.company ? <Link className="text-blue-900 underline" to={`/crm/${projectId}/companies/${lead.company?._id}`}>{lead.company?.name}</Link> : "-"}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
@@ -242,10 +280,10 @@ const LeadDetail = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Current Status</label>
                 <div className="flex items-center space-x-3">
                   <StatusBadge status={lead.stage || lead.status} />
-                  {!lead.convertedAt && <select
+                  { !lead.convertedAt && hasSalesExecutiveAccess && <select
                     value={lead.stage || lead.status}
                     onChange={(e) => onStatusChange(e.target.value)}
-                    className="px-3 py-1 border border-gray-300 rounded text-sm"
+                    className="px-3 py-1 border border-gray-300 rounded text-sm disabled:opacity-50"
                   >
                     <option value="new">New</option>
                     <option value="contacted">Contacted</option>
@@ -258,7 +296,7 @@ const LeadDetail = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To</label>
                 <div className="flex items-center space-x-3">
                   <p className="text-gray-900">{lead.assignedTo?.name || 'Unassigned'}</p>
-                  {!lead.convertedAt && (lead.assignedTo ? (
+                  { !lead.convertedAt && hasSalesExecutiveAccess && (lead.assignedTo ? (
                     <Button
                       variant="secondary"
                       size="sm"
@@ -287,21 +325,6 @@ const LeadDetail = () => {
               </div>
             </div>
           </div>
-
-          {/* Custom Fields */}
-          {lead.customFields && Object.keys(lead.customFields).length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold mb-4">Custom Fields</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(lead.customFields).map(([key, value]) => (
-                  <div key={key}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{key}</label>
-                    <p className="text-gray-900">{value}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Conversion Information */}
           {(lead.convertedAt || lead.convertedContactId || lead.convertedCustomerId) && (
@@ -341,30 +364,12 @@ const LeadDetail = () => {
             </div>
           )}
 
-
-          {/* Tags */}
-          {lead.tags && lead.tags.length > 0 && (
-            <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-semibold mb-4">Tags</h3>
-              <div className="flex flex-wrap gap-2">
-                {lead.tags.map(tag => (
-                  <span
-                    key={tag}
-                    className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Notes */}
           <div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Notes</h3>
             
             {/* Add Note Form */}
-            <form onSubmit={onAddNote} className="mb-4">
+            {hasSalesExecutiveAccess && (<form onSubmit={onAddNote} className="mb-4">
               <div className="flex gap-2">
                 <Input
                   value={note}
@@ -377,7 +382,7 @@ const LeadDetail = () => {
                   Add Note
                 </Button>
               </div>
-            </form>
+            </form>)}
 
             {/* Notes List */}
             <div className="space-y-3">
@@ -419,7 +424,7 @@ const LeadDetail = () => {
                         {canEditNote(note) && editingNoteId !== note._id && (
                           <>
                             <button
-                              onClick={() => onEditNote(note._id, note.content)}
+                              onClick={() => onEditNote( note._id, note.content)}
                               className="text-blue-600 hover:text-blue-800"
                             >
                               Edit
@@ -455,7 +460,7 @@ const LeadDetail = () => {
         {/* Sidebar */}
         <div className="space-y-6">
           {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow p-6">
+          {hasSalesExecutiveAccess && (<div className="bg-white rounded-lg shadow p-6">
             <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
             <div className="space-y-3">
               {(lead.stage || lead.status) === 'qualified' && (
@@ -469,22 +474,15 @@ const LeadDetail = () => {
                 </Button>
               )}
               <Button
-                onClick={() => setShowEditSidebar(true)}
-                variant="secondary"
+                onClick={() => setShowDeleteConfirm(true)}
+                variant="danger"
                 className="w-full"
                 disabled={lead.convertedAt}
               >
-                Edit Lead
+                Delete Lead
               </Button>
-              {!lead.convertedAt && <Button
-                onClick={onArchive}
-                variant="danger"
-                className="w-full"
-              >
-                Archive Lead
-              </Button>}
             </div>
-          </div>
+          </div>)}
 
           {/* Details */}
           <div className="bg-white rounded-lg shadow p-6">
@@ -520,6 +518,42 @@ const LeadDetail = () => {
               </div>
             </dl>
           </div>
+
+
+
+          {/* Custom Fields */}
+          {lead.customFields && Object.keys(lead.customFields).length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold mb-4">Custom Fields</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {Object.entries(lead.customFields).map(([key, value]) => (
+                  <div key={key}>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">{key}</label>
+                    <p className="text-gray-900">{value}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+
+          {/* Tags */}
+          {lead.tags && lead.tags.length > 0 && (
+            <div className="bg-white rounded-lg shadow p-6">
+              <h3 className="text-lg font-semibold mb-4">Tags</h3>
+              <div className="flex flex-wrap gap-2">
+                {lead.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-block px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm"
+                  >
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
 
@@ -580,6 +614,32 @@ const LeadDetail = () => {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 z-50 flex items-center justify-center">
           <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 border border-gray-200">
+            <h3 className="text-lg font-semibold mb-4">Delete Lead</h3>
+            <p className="text-gray-600 mb-6">
+              Are you sure you want to delete this lead? This action cannot be undone.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="secondary"
+                onClick={() => setShowDeleteConfirm(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={handleDelete}
+              >
+                Delete Lead
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Archive Confirmation Modal */}
+      {showArchiveConfirm && (
+        <div className="fixed inset-0 bg-transparent backdrop-blur-sm bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4 border border-gray-200">
             <h3 className="text-lg font-semibold mb-4">Archive Lead</h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to archive this lead? This action cannot be undone.
@@ -587,7 +647,7 @@ const LeadDetail = () => {
             <div className="flex justify-end space-x-3">
               <Button
                 variant="secondary"
-                onClick={() => setShowDeleteConfirm(false)}
+                onClick={() => setShowArchiveConfirm(false)}
               >
                 Cancel
               </Button>
@@ -621,10 +681,10 @@ const LeadDetail = () => {
           status: 'active',
           address: {
             street: lead?.company?.address?.street || '',
-            city: lead?.company?.address?.city || '3qe',
+            city: lead?.company?.address?.city || '',
             state: lead?.company?.address?.state || '',
             zipCode: lead?.company?.address?.zipCode || '',
-            country: lead?.company?.address?.country || 'United States'
+            country: lead?.company?.address?.country || ''
           },
           socialLinks: {
             linkedin: lead?.socialLinks?.linkedin || '',
@@ -648,7 +708,7 @@ const LeadDetail = () => {
             timezone: 'UTC',
             language: 'en'
           },
-          lifecycleStage: 'awareness'
+          lifecycleStage: 'awareness',
         }}
         isFromLead={true}
         onConvert={handleConvertToCustomer}

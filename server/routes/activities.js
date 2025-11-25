@@ -7,7 +7,7 @@ import {
   deleteActivity,
   bulkDeleteActivities
 } from '../controllers/activityController.js';
-import { authenticateToken } from '../middleware/auth.js';
+import { authenticateToken, requireManagerRole, requireViewerRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -15,15 +15,15 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Entity activity routes
-router.get('/entity/:entityType/:entityId', getEntityActivities);
+router.get('/entity/:entityType/:entityId', requireViewerRole(), getEntityActivities);
 
 // Project activity routes
-router.get('/project/:projectId', getProjectActivities);
-router.get('/project/:projectId/stats', getActivityStats);
+router.get('/project/:projectId', requireViewerRole(), getProjectActivities);
+router.get('/project/:projectId/stats', requireViewerRole(), getActivityStats);
 
 // Activity management routes
-router.get('/:id', getActivityById);
-router.delete('/:id', deleteActivity);
-router.delete('/bulk-delete', bulkDeleteActivities);
+router.get('/:id', requireViewerRole(), getActivityById);
+router.delete('/:id', requireManagerRole(), deleteActivity);
+router.delete('/bulk-delete', requireManagerRole(), bulkDeleteActivities);
 
 export default router;

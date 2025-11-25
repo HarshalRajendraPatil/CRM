@@ -38,14 +38,7 @@ import {
   // Export
   exportDeals
 } from '../controllers/dealController.js';
-import { authenticateToken } from '../middleware/auth.js';
-import { 
-  requireProjectAccess, 
-  requirePermission, 
-  requireAnyPermission,
-  PERMISSIONS,
-  ENTITIES
-} from '../middleware/rbac.js';
+import { authenticateToken, requireManagerRole, requireViewerRole, requireSupportExecutiveRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -60,8 +53,7 @@ router.use(authenticateToken);
  * @access  Private (Project Member)
  */
 router.get('/project/:projectId', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireViewerRole(),
   getProjectDeals
 );
 
@@ -71,8 +63,7 @@ router.get('/project/:projectId',
  * @access  Private (Project Member)
  */
 router.get('/project/:projectId/archived', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireManagerRole(),
   getArchivedDeals
 );
 
@@ -82,7 +73,7 @@ router.get('/project/:projectId/archived',
  * @access  Private (Project Member)
  */
 router.get('/:id', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireViewerRole(),
   getDeal
 );
 
@@ -92,8 +83,7 @@ router.get('/:id',
  * @access  Private (Project Member)
  */
 router.post('/project/:projectId', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.CREATE),
+  requireSupportExecutiveRole(),
   createDeal
 );
 
@@ -103,7 +93,7 @@ router.post('/project/:projectId',
  * @access  Private (Project Member)
  */
 router.put('/:id', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.UPDATE),
+  requireSupportExecutiveRole(),
   updateDeal
 );
 
@@ -113,7 +103,7 @@ router.put('/:id',
  * @access  Private (Project Member)
  */
 router.patch('/:id/archive', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.ARCHIVE),
+  requireManagerRole(),
   archiveDeal
 );
 
@@ -123,7 +113,7 @@ router.patch('/:id/archive',
  * @access  Private (Project Member)
  */
 router.delete('/:id', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.DELETE),
+  requireSupportExecutiveRole(),
   deleteDeal
 );
 
@@ -133,7 +123,7 @@ router.delete('/:id',
  * @access  Private (Project Member)
  */
 router.patch('/:id/restore', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.UNARCHIVE),
+  requireManagerRole(),
   restoreDeal
 );
 
@@ -145,7 +135,7 @@ router.patch('/:id/restore',
  * @access  Private (Project Member)
  */
 router.post('/:id/activities', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.UPDATE),
+  requireManagerRole(),
   addDealActivity
 );
 
@@ -155,7 +145,7 @@ router.post('/:id/activities',
  * @access  Private (Project Member)
  */
 router.get('/:id/activities', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireViewerRole(),
   getDealActivities
 );
 
@@ -167,7 +157,7 @@ router.get('/:id/activities',
  * @access  Private (Project Member)
  */
 router.post('/:id/notes', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.UPDATE),
+  requireSupportExecutiveRole(),
   addDealNote
 );
 
@@ -177,7 +167,7 @@ router.post('/:id/notes',
  * @access  Private (Project Member)
  */
 router.put('/:id/notes/:noteId', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.UPDATE),
+  requireSupportExecutiveRole(),
   updateDealNote
 );
 
@@ -187,7 +177,7 @@ router.put('/:id/notes/:noteId',
  * @access  Private (Project Member)
  */
 router.delete('/:id/notes/:noteId', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.UPDATE),
+  requireSupportExecutiveRole(),
   deleteDealNote
 );
 
@@ -200,8 +190,7 @@ router.delete('/:id/notes/:noteId',
  * @access  Private (Project Member)
  */
 router.patch('/project/:projectId/bulk-update', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.BULK_OPERATIONS),
+  requireSupportExecutiveRole(),
   bulkUpdateDeals
 );
 
@@ -211,8 +200,7 @@ router.patch('/project/:projectId/bulk-update',
  * @access  Private (Project Member)
  */
 router.patch('/project/:projectId/bulk-archive', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.BULK_OPERATIONS),
+  requireManagerRole(),
   bulkArchiveDeals
 );
 
@@ -222,8 +210,7 @@ router.patch('/project/:projectId/bulk-archive',
  * @access  Private (Project Member)
  */
 router.delete('/project/:projectId/bulk-delete', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.BULK_OPERATIONS),
+  requireManagerRole(),
   bulkDeleteDeals
 );
 
@@ -233,8 +220,7 @@ router.delete('/project/:projectId/bulk-delete',
  * @access  Private (Project Member)
  */
 router.patch('/project/:projectId/bulk-assign', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.BULK_OPERATIONS),
+  requireManagerRole(),
   bulkAssignDeals
 );
 
@@ -246,7 +232,7 @@ router.patch('/project/:projectId/bulk-assign',
  * @access  Private (Project Member)
  */
 router.patch('/:id/status', 
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.UPDATE),
+  requireManagerRole(),
   updateDealStatus
 );
 
@@ -258,8 +244,7 @@ router.patch('/:id/status',
  * @access  Private (Project Member)
  */
 router.get('/project/:projectId/stats', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireViewerRole(),
   getDealStats
 );
 
@@ -270,8 +255,7 @@ router.get('/project/:projectId/stats',
  * @access  Private (Project Member)
  */
 router.get('/project/:projectId/velocity', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireViewerRole(),
   getDealVelocity
 );
 
@@ -281,8 +265,7 @@ router.get('/project/:projectId/velocity',
  * @access  Private (Project Member)
  */
 router.get('/project/:projectId/forecast', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireViewerRole(),
   getDealForecast
 );
 
@@ -292,8 +275,7 @@ router.get('/project/:projectId/forecast',
  * @access  Private (Project Member)
  */
 router.get('/project/:projectId/insights', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.READ),
+  requireViewerRole(),
   getDealInsights
 );
 
@@ -305,8 +287,7 @@ router.get('/project/:projectId/insights',
  * @access  Private (Project Member)
  */
 router.get('/project/:projectId/export', 
-  requireProjectAccess,
-  requirePermission(ENTITIES.DEALS, PERMISSIONS.EXPORT),
+  requireViewerRole(),
   exportDeals
 );
 

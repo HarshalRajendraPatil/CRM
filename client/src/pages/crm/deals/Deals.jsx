@@ -19,6 +19,7 @@ import {
   clearSelection
 } from '../../../store/dealSlice';
 import { fetchProjectCustomers } from '../../../store/customerSlice';
+import { getProjectById } from '../../../store/projectSlice';
 import { getProjectCompanies } from '../../../store/companySlice';
 import { getUsers } from '../../../store/userSlice';
 import CreateDealSidebar from './CreateDealSidebar';
@@ -31,6 +32,7 @@ import DealForecasting from './DealForecasting';
 import Button from '../../../components/ui/Button';
 import Alert from '../../../components/ui/Alert';
 import CrmLayout from '../../../layouts/CrmLayout';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 const Deals = () => {
   const { projectId } = useParams();
@@ -62,9 +64,11 @@ const Deals = () => {
   const [currentView, setCurrentView] = useState('list'); // list, stats, insights, forecasting
   const [bulkAction, setBulkAction] = useState('');
   const [showBulkActions, setShowBulkActions] = useState(false);
+  const {hasSupportExecutiveAccess} = useProjectAccess();
 
   useEffect(() => {
     if (projectId) {
+      dispatch(getProjectById(projectId));
       if (showArchived) {
         dispatch(fetchArchivedDeals({ projectId }));
       } else {
@@ -209,13 +213,13 @@ const Deals = () => {
 
   const handleArchiveDeal = (dealId) => {
     if (window.confirm('Are you sure you want to archive this deal?')) {
-      dispatch(archiveExistingDeal(dealId));
+      dispatch(archiveExistingDeal({ projectId, dealId }));
     }
   };
 
   const handleDeleteDeal = (dealId) => {
     if (window.confirm('Are you sure you want to permanently delete this deal? This action cannot be undone.')) {
-      dispatch(deleteExistingDeal(dealId));
+      dispatch(deleteExistingDeal({ projectId, dealId }));
     }
   };
 
@@ -256,7 +260,7 @@ const Deals = () => {
               Filters
             </Button>
             
-            <Button
+            {hasSupportExecutiveAccess && <Button
               variant={showArchived ? "primary" : "outline"}
               size="sm"
               onClick={handleToggleArchived}
@@ -265,9 +269,9 @@ const Deals = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8l6 6 6-6" />
               </svg>
               {showArchived ? 'Show Active' : 'Show Archived'}
-            </Button>
+            </Button>}
             
-            <Button
+            {hasSupportExecutiveAccess && <Button
               variant="primary"
               size="sm"
               onClick={() => setShowCreateSidebar(true)}
@@ -276,7 +280,7 @@ const Deals = () => {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               New Deal
-            </Button>
+            </Button>}
           </div>
         </div>
       </div>
@@ -499,9 +503,9 @@ const Deals = () => {
               )}
             </button>
           </div>
-          <div className="col-span-1">
+          {hasSupportExecutiveAccess && <div className="col-span-1">
               Actions 
-          </div>
+          </div>}
         </div>
       </div>
 
@@ -546,7 +550,7 @@ const Deals = () => {
           <p className="mt-1 text-sm text-gray-500">
             Get started by creating a new deal.
           </p>
-          <div className="mt-6">
+          {hasSupportExecutiveAccess && <div className="mt-6">
             <Button
               variant="primary"
               onClick={() => setShowCreateSidebar(true)}
@@ -556,7 +560,7 @@ const Deals = () => {
               </svg>
               New Deal
             </Button>
-          </div>
+          </div>}
         </div>
       )}
     </div>
