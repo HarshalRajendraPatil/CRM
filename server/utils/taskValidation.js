@@ -66,6 +66,7 @@ export const validateTaskPriority = (priority) => {
 
 // Task type validation
 export const validateTaskType = (type) => {
+  console.log('type', type);
   const validTypes = ['follow_up', 'meeting', 'call', 'email', 'document', 'research', 'review', 'other'];
   
   if (!type) {
@@ -462,7 +463,12 @@ export const validateTaskData = (data, isUpdate = false) => {
         validatedData.project = validateObjectId(data.project, 'Project');
       }
       if (data.assignedTo !== undefined) {
-        validatedData.assignedTo = validateObjectId(data.assignedTo, 'Assigned to');
+        const assignedToValidation = validateObjectId(data.assignedTo, 'Assigned to');
+        if (assignedToValidation.isValid) {
+          validatedData.assignedTo = data.assignedTo;
+        } else {
+          errors.assignedTo = assignedToValidation.message;
+        }
       }
       if (data.dueDate !== undefined) {
         validatedData.dueDate = validateDueDate(data.dueDate, data.startDate);

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { validateTaskData, sanitizeTaskData } from '../utils/taskValidation.js';
 import { createTaskNotification } from '../utils/notificationService.js';
 import { AppError, asyncHandler } from '../middleware/errorHandler.js';
+import ActivityService from '../utils/activityService.js';
 
 // Helper function to format currency
 const formatCurrency = (amount, currency = 'USD') => {
@@ -26,15 +27,22 @@ export const getProjectTasks = asyncHandler(async (req, res) => {
     sortOrder = 'asc',
     page = 1,
     limit = 20,
-    includeArchived = false
+    includeArchived = false,
+    showArchived = false
   } = req.query;
 
   // Build query
   const query = { project: projectId };
   
-  if (!includeArchived) {
+  // Handle archived tasks filter
+  if (showArchived === 'true' || showArchived === true) {
+    // Show only archived tasks
+    query.isArchived = true;
+  } else if (!includeArchived || includeArchived === 'false') {
+    // Show only active tasks (default)
     query.isArchived = false;
   }
+  // If includeArchived is true and showArchived is false/undefined, show all tasks
   
   if (status) query.status = status;
   if (assignedTo) query.assignedTo = assignedTo;
@@ -236,8 +244,18 @@ export const createTask = asyncHandler(async (req, res) => {
   ]);
 
   // Create notification for assigned user
-  if (task.assignedTo.toString() !== req.user.id) {
+  if (task.assignedTo && task.assignedTo.toString() !== req.user.id) {
     await createTaskNotification('task_assigned', task, task.project, req.user.id);
+  }
+
+  // Log activity
+  try {
+    await ActivityService.logTaskCreated(task, req.user);
+    if (task.assignedTo) {
+      await ActivityService.logTaskAssigned(task, task.assignedTo, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log task creation activity:', error);
   }
 
   res.status(201).json({
@@ -258,14 +276,71 @@ export const updateTask = asyncHandler(async (req, res) => {
     throw new AppError('Task not found', 404);
   }
 
+  // Handle related entity mapping from client format to model format
+  if (req.body.relatedTo !== undefined || req.body.relatedToId !== undefined) {
+    if (req.body.relatedTo && req.body.relatedToId) {
+      sanitizedData.relatedEntity = {
+        type: req.body.relatedTo,
+        entityId: req.body.relatedToId
+      };
+    } else {
+      // Clear related entity if either is empty
+      sanitizedData.relatedEntity = null;
+    }
+  }
+
+  // Handle customFields conversion from object to Map
+  if (sanitizedData.customFields && typeof sanitizedData.customFields === 'object' && !(sanitizedData.customFields instanceof Map)) {
+    const customFieldsMap = new Map();
+    Object.entries(sanitizedData.customFields).forEach(([key, value]) => {
+      if (key && value !== undefined && value !== null) {
+        customFieldsMap.set(key, value);
+      }
+    });
+    sanitizedData.customFields = customFieldsMap;
+  }
+
+  // Handle subtasks conversion (isCompleted -> status)
+  if (sanitizedData.subtasks && Array.isArray(sanitizedData.subtasks)) {
+    sanitizedData.subtasks = sanitizedData.subtasks.map(subtask => {
+      const formattedSubtask = {
+        title: subtask.title,
+        description: subtask.description || '',
+        status: subtask.isCompleted ? 'completed' : (subtask.status || 'pending'),
+        assignedTo: subtask.assignedTo || null,
+        dueDate: subtask.dueDate || null
+      };
+      if (subtask.isCompleted && !subtask.completedAt) {
+        formattedSubtask.completedAt = new Date();
+      }
+      return formattedSubtask;
+    });
+  }
+
   // Track changes for activity log
   const changes = {};
+  const oldStatus = task.status;
+  const oldAssignedTo = task.assignedTo;
+  
   Object.keys(sanitizedData).forEach(key => {
-    if (JSON.stringify(task[key]) !== JSON.stringify(sanitizedData[key])) {
-      changes[key] = {
-        from: task[key],
-        to: sanitizedData[key]
-      };
+    if (key !== 'updatedAt' && key !== 'updatedBy') {
+      // Special handling for Maps and nested objects
+      if (key === 'customFields' && sanitizedData[key] instanceof Map) {
+        const oldMap = task[key] || new Map();
+        const newMap = sanitizedData[key];
+        if (oldMap.size !== newMap.size || 
+            Array.from(oldMap.keys()).some(k => oldMap.get(k) !== newMap.get(k))) {
+          changes[key] = {
+            oldValue: Object.fromEntries(oldMap),
+            newValue: Object.fromEntries(newMap)
+          };
+        }
+      } else if (JSON.stringify(task[key]) !== JSON.stringify(sanitizedData[key])) {
+        changes[key] = {
+          oldValue: task[key],
+          newValue: sanitizedData[key]
+        };
+      }
     }
   });
 
@@ -292,14 +367,42 @@ export const updateTask = asyncHandler(async (req, res) => {
     { path: 'relatedEntity.entityId' }
   ]);
 
+  // Log activities
+  try {
+    // Log status changes
+    if (changes.status) {
+      if (task.status === 'completed') {
+        await ActivityService.logTaskCompleted(task, req.user);
+      } else {
+        await ActivityService.logTaskStatusChanged(task, oldStatus, task.status, req.user);
+      }
+    }
+    
+    // Log assignment changes
+    if (changes.assignedTo) {
+      if (task.assignedTo) {
+        await ActivityService.logTaskAssigned(task, task.assignedTo, req.user);
+      } else {
+        await ActivityService.logTaskUnassigned(task, req.user);
+      }
+    }
+    
+    // Log general updates (if no specific activity was logged)
+    if (Object.keys(changes).length > 0 && !changes.status && !changes.assignedTo) {
+      await ActivityService.logTaskUpdated(task, changes, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log task update activity:', error);
+  }
+
   // Create notifications for significant changes
-  if (changes.assignedTo && changes.assignedTo.to !== req.user.id) {
+  if (changes.assignedTo && task.assignedTo && task.assignedTo.toString() !== req.user.id) {
     await createTaskNotification('task_reassigned', task, task.project, req.user.id);
   }
   
-  if (changes.status && changes.status.to === 'completed') {
+  if (changes.status && task.status === 'completed') {
     await createTaskNotification('task_completed', task, task.project, req.user.id);
-  } else if (changes.status && changes.status.from === 'completed' && changes.status.to !== 'completed') {
+  } else if (changes.status && oldStatus === 'completed' && task.status !== 'completed') {
     await createTaskNotification('task_reopened', task, task.project, req.user.id);
   } else if (Object.keys(changes).length > 0) {
     // General task update notification
@@ -322,10 +425,17 @@ export const deleteTask = asyncHandler(async (req, res) => {
     throw new AppError('Task not found', 404);
   }
 
+  // Log activity before deletion
+  try {
+    await ActivityService.logTaskDeleted(task, req.user);
+  } catch (error) {
+    console.error('Failed to log task deletion activity:', error);
+  }
+
   // Unlink task from related entity if specified
-  if (task.relatedTo && task.relatedToId) {
+  if (task.relatedEntity && task.relatedEntity.type && task.relatedEntity.entityId) {
     let relatedModel;
-    switch (task.relatedTo) {
+    switch (task.relatedEntity.type) {
       case 'deal':
         relatedModel = await import('../models/Deal.model.js');
         break;
@@ -346,7 +456,7 @@ export const deleteTask = asyncHandler(async (req, res) => {
     if (relatedModel) {
       const Model = relatedModel.default;
       await Model.findByIdAndUpdate(
-        task.relatedToId,
+        task.relatedEntity.entityId,
         { $pull: { tasks: task._id } }
       );
     }
@@ -384,6 +494,20 @@ export const archiveTask = asyncHandler(async (req, res) => {
 
   await task.save();
 
+  // Populate task for activity logging
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' }
+  ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskArchived(task, req.user);
+  } catch (error) {
+    console.error('Failed to log task archive activity:', error);
+  }
+
   // Create notification for task archive
   await createTaskNotification('task_archived', task, task.project, req.user.id);
 
@@ -415,6 +539,20 @@ export const restoreTask = asyncHandler(async (req, res) => {
 
   await task.save();
 
+  // Populate task for activity logging
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' }
+  ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskRestored(task, req.user);
+  } catch (error) {
+    console.error('Failed to log task restore activity:', error);
+  }
+
   // Create notification for task restore
   await createTaskNotification('task_restored', task, task.project, req.user.id);
 
@@ -444,6 +582,17 @@ export const updateTaskStatus = asyncHandler(async (req, res) => {
     { path: 'createdBy', select: 'name email profileImage' },
     { path: 'project', select: 'name' }
   ]);
+
+  // Log activity
+  try {
+    if (status === 'completed') {
+      await ActivityService.logTaskCompleted(task, req.user);
+    } else {
+      await ActivityService.logTaskStatusChanged(task, oldStatus, status, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log task status change activity:', error);
+  }
 
   // Create notification for status change
   if (status === 'completed') {
@@ -479,8 +628,19 @@ export const assignTask = asyncHandler(async (req, res) => {
     { path: 'project', select: 'name' }
   ]);
 
+  // Log activity
+  try {
+    if (assignedTo) {
+      await ActivityService.logTaskAssigned(task, task.assignedTo, req.user);
+    } else {
+      await ActivityService.logTaskUnassigned(task, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log task assignment activity:', error);
+  }
+
   // Create notification for new assignee
-  if (assignedTo !== req.user.id) {
+  if (assignedTo && assignedTo !== req.user.id) {
     await createTaskNotification('task_assigned', task, task.project, req.user.id);
   }
 
@@ -516,6 +676,14 @@ export const addTaskComment = asyncHandler(async (req, res) => {
     { path: 'comments.mentions', select: 'name email' }
   ]);
 
+  // Log activity
+  try {
+    const newComment = task.comments[task.comments.length - 1];
+    await ActivityService.logTaskCommentAdded(task, newComment, req.user);
+  } catch (error) {
+    console.error('Failed to log task comment activity:', error);
+  }
+
   // Create notifications for mentions
   if (mentions.length > 0) {
     await createTaskNotification('task_mentioned', task, task.project, req.user.id, mentions);
@@ -525,6 +693,122 @@ export const addTaskComment = asyncHandler(async (req, res) => {
     success: true,
     data: task,
     message: 'Comment added successfully'
+  });
+});
+
+// Update comment in task
+export const updateTaskComment = asyncHandler(async (req, res) => {
+  const { id, commentId } = req.params;
+  const { content } = req.body;
+
+  if (!content || content.trim().length === 0) {
+    throw new AppError('Comment content is required', 400);
+  }
+
+  const task = await Task.findById(id);
+  if (!task) {
+    throw new AppError('Task not found', 404);
+  }
+
+  const comment = task.comments.id(commentId);
+  if (!comment) {
+    throw new AppError('Comment not found', 404);
+  }
+
+  // Check if the user is the author of the comment
+  if (comment.author.toString() !== req.user.id.toString()) {
+    throw new AppError('You can only edit your own comments', 403);
+  }
+
+  // Update comment
+  comment.content = content.trim();
+  comment.updatedAt = new Date();
+
+  // Add activity log
+  task.activityLog.push({
+    action: 'commented',
+    description: 'Comment updated',
+    actor: req.user.id,
+    metadata: { commentId: comment._id }
+  });
+
+  await task.save();
+
+  // Populate the updated task
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' },
+    { path: 'comments.author', select: 'name email profileImage' },
+    { path: 'comments.mentions', select: 'name email' }
+  ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskCommentUpdated(task, commentId, req.user);
+  } catch (error) {
+    console.error('Failed to log task comment update activity:', error);
+  }
+
+  res.json({
+    success: true,
+    data: task,
+    message: 'Comment updated successfully'
+  });
+});
+
+// Delete comment from task
+export const deleteTaskComment = asyncHandler(async (req, res) => {
+  const { id, commentId } = req.params;
+
+  const task = await Task.findById(id);
+  if (!task) {
+    throw new AppError('Task not found', 404);
+  }
+
+  const comment = task.comments.id(commentId);
+  if (!comment) {
+    throw new AppError('Comment not found', 404);
+  }
+
+  // Check if the user is the author of the comment
+  if (comment.author.toString() !== req.user.id.toString()) {
+    throw new AppError('You can only delete your own comments', 403);
+  }
+
+  // Remove comment
+  task.comments.pull(commentId);
+
+  // Add activity log
+  task.activityLog.push({
+    action: 'commented',
+    description: 'Comment deleted',
+    actor: req.user.id,
+    metadata: { commentId: commentId }
+  });
+
+  await task.save();
+
+  // Populate the updated task
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' },
+    { path: 'comments.author', select: 'name email profileImage' },
+    { path: 'comments.mentions', select: 'name email' }
+  ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskCommentDeleted(task, commentId, req.user);
+  } catch (error) {
+    console.error('Failed to log task comment deletion activity:', error);
+  }
+
+  res.json({
+    success: true,
+    data: task,
+    message: 'Comment deleted successfully'
   });
 });
 
@@ -547,6 +831,14 @@ export const addSubtask = asyncHandler(async (req, res) => {
     { path: 'project', select: 'name' },
     { path: 'subtasks.assignedTo', select: 'name email' }
   ]);
+
+  // Log activity
+  try {
+    const newSubtask = task.subtasks[task.subtasks.length - 1];
+    await ActivityService.logTaskSubtaskAdded(task, newSubtask, req.user);
+  } catch (error) {
+    console.error('Failed to log task subtask addition activity:', error);
+  }
 
   // Create notification for subtask addition
   await createTaskNotification('subtask_added', task, task.project, req.user.id);
@@ -597,6 +889,13 @@ export const updateSubtask = asyncHandler(async (req, res) => {
     { path: 'project', select: 'name' },
     { path: 'subtasks.assignedTo', select: 'name email' }
   ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskSubtaskUpdated(task, subtask, req.user);
+  } catch (error) {
+    console.error('Failed to log task subtask update activity:', error);
+  }
 
   // Create notification for subtask completion
   if (!wasCompleted && subtask.status === 'completed') {
@@ -695,6 +994,16 @@ export const completeSubtask = asyncHandler(async (req, res) => {
     { path: 'subtasks.assignedTo', select: 'name email' }
   ]);
 
+  // Log activity
+  try {
+    await ActivityService.logTaskSubtaskUpdated(task, subtask, req.user);
+    if (task.status === 'completed') {
+      await ActivityService.logTaskCompleted(task, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log task subtask completion activity:', error);
+  }
+
   // Create notification for subtask completion
   await createTaskNotification('subtask_completed', task, task.project, req.user.id);
 
@@ -740,10 +1049,185 @@ export const deleteSubtask = asyncHandler(async (req, res) => {
 
   await task.save();
 
+  // Populate the updated task
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' },
+    { path: 'subtasks.assignedTo', select: 'name email' }
+  ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskSubtaskDeleted(task, subtaskId, req.user);
+  } catch (error) {
+    console.error('Failed to log task subtask deletion activity:', error);
+  }
+
   res.json({
     success: true,
     data: task,
     message: 'Subtask deleted successfully'
+  });
+});
+
+// Add custom field to task
+export const addTaskCustomField = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { key, value } = req.body;
+
+  if (!key || !key.trim()) {
+    throw new AppError('Custom field key is required', 400);
+  }
+
+  if (value === undefined || value === null) {
+    throw new AppError('Custom field value is required', 400);
+  }
+
+  const task = await Task.findById(id);
+  if (!task) {
+    throw new AppError('Task not found', 404);
+  }
+
+  // Initialize customFields if it doesn't exist
+  if (!task.customFields) {
+    task.customFields = new Map();
+  }
+
+  const oldValue = task.customFields.get(key.trim());
+  task.customFields.set(key.trim(), value);
+
+  // Add activity log
+  task.activityLog.push({
+    action: 'updated',
+    description: `Custom field "${key.trim()}" ${oldValue ? 'updated' : 'added'}`,
+    actor: req.user.id,
+    metadata: { fieldKey: key.trim(), oldValue, newValue: value }
+  });
+
+  await task.save();
+
+  // Populate the updated task
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' }
+  ]);
+
+  // Log activity
+  try {
+    if (oldValue !== undefined) {
+      await ActivityService.logTaskCustomFieldUpdated(task, key.trim(), oldValue, value, req.user);
+    } else {
+      await ActivityService.logTaskCustomFieldAdded(task, key.trim(), value, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log task custom field activity:', error);
+  }
+
+  res.json({
+    success: true,
+    data: task,
+    message: 'Custom field added successfully'
+  });
+});
+
+// Update custom field in task
+export const updateTaskCustomField = asyncHandler(async (req, res) => {
+  const { id, key } = req.params;
+  const { value } = req.body;
+
+  if (value === undefined || value === null) {
+    throw new AppError('Custom field value is required', 400);
+  }
+
+  const task = await Task.findById(id);
+  if (!task) {
+    throw new AppError('Task not found', 404);
+  }
+
+  if (!task.customFields || !task.customFields.has(key)) {
+    throw new AppError('Custom field not found', 404);
+  }
+
+  const oldValue = task.customFields.get(key);
+  task.customFields.set(key, value);
+
+  // Add activity log
+  task.activityLog.push({
+    action: 'updated',
+    description: `Custom field "${key}" updated`,
+    actor: req.user.id,
+    metadata: { fieldKey: key, oldValue, newValue: value }
+  });
+
+  await task.save();
+
+  // Populate the updated task
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' }
+  ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskCustomFieldUpdated(task, key, oldValue, value, req.user);
+  } catch (error) {
+    console.error('Failed to log task custom field update activity:', error);
+  }
+
+  res.json({
+    success: true,
+    data: task,
+    message: 'Custom field updated successfully'
+  });
+});
+
+// Delete custom field from task
+export const deleteTaskCustomField = asyncHandler(async (req, res) => {
+  const { id, key } = req.params;
+
+  const task = await Task.findById(id);
+  if (!task) {
+    throw new AppError('Task not found', 404);
+  }
+
+  if (!task.customFields || !task.customFields.has(key)) {
+    throw new AppError('Custom field not found', 404);
+  }
+
+  const oldValue = task.customFields.get(key);
+  task.customFields.delete(key);
+
+  // Add activity log
+  task.activityLog.push({
+    action: 'updated',
+    description: `Custom field "${key}" deleted`,
+    actor: req.user.id,
+    metadata: { fieldKey: key }
+  });
+
+  await task.save();
+
+  // Populate the updated task
+  await task.populate([
+    { path: 'assignedTo', select: 'name email profileImage' },
+    { path: 'createdBy', select: 'name email profileImage' },
+    { path: 'project', select: 'name' }
+  ]);
+
+  // Log activity
+  try {
+    await ActivityService.logTaskCustomFieldDeleted(task, key, req.user);
+  } catch (error) {
+    console.error('Failed to log task custom field deletion activity:', error);
+  }
+
+  res.json({
+    success: true,
+    data: task,
+    message: 'Custom field deleted successfully'
   });
 });
 
@@ -756,7 +1240,9 @@ export const bulkUpdateTasks = asyncHandler(async (req, res) => {
   }
 
   const validatedUpdates = validateTaskData(updates, true);
-  
+
+  console.log(validatedUpdates);
+
   const result = await Task.updateMany(
     { _id: { $in: taskIds } },
     { $set: validatedUpdates }
@@ -828,6 +1314,62 @@ export const bulkArchiveTasks = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     message: `${result.modifiedCount} tasks archived successfully`
+  });
+});
+
+export const bulkRestoreTasks = asyncHandler(async (req, res) => {
+  const { taskIds } = req.body;
+
+  if (!Array.isArray(taskIds) || taskIds.length === 0) {
+    throw new AppError('Task IDs are required', 400);
+  }
+
+  const result = await Task.updateMany(
+    { _id: { $in: taskIds } },
+    { 
+      $set: { 
+        isArchived: false
+      },
+      $unset: {
+        archivedAt: '',
+        archivedBy: ''
+      }
+    }
+  );
+
+  // Get restored tasks for notifications and activity logging
+  const restoredTasks = await Task.find({ _id: { $in: taskIds } });
+  
+  // Add activity log and create notifications for each restored task
+  for (const task of restoredTasks) {
+    task.activityLog.push({
+      action: 'restored',
+      description: 'Task restored from archive',
+      actor: req.user.id
+    });
+    await task.save();
+    
+    // Populate task for activity logging
+    await task.populate([
+      { path: 'assignedTo', select: 'name email profileImage' },
+      { path: 'createdBy', select: 'name email profileImage' },
+      { path: 'project', select: 'name' }
+    ]);
+
+    // Log activity
+    try {
+      await ActivityService.logTaskRestored(task, req.user);
+    } catch (error) {
+      console.error('Failed to log task restore activity:', error);
+    }
+
+    // Create notification
+    await createTaskNotification('task_restored', task, task.project, req.user.id);
+  }
+
+  res.json({
+    success: true,
+    message: `${result.modifiedCount} tasks restored successfully`
   });
 });
 

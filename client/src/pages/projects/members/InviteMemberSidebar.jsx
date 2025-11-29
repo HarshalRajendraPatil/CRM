@@ -79,7 +79,7 @@ const InviteMemberSidebar = ({ projectId, isOpen, onClose }) => {
       return;
     }
     
-    dispatch(createInvitation(formData));
+    dispatch(createInvitation({projectId, invitationData: formData}));
   };
   
   return (

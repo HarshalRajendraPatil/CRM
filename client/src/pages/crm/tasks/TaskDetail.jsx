@@ -5,6 +5,7 @@ import {
   fetchTask,
   updateTaskAction,
   archiveExistingTask,
+  restoreExistingTask,
   deleteExistingTask,
   addTaskCommentAction,
   updateTaskComment,
@@ -34,11 +35,16 @@ import {
 } from '../../../services/taskService';
 import { formatDate, formatDateTime } from '../../../utils/dealUtils';
 import CrmLayout from '../../../layouts/CrmLayout';
+import { getProjectById } from '../../../store/projectSlice';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import ActivityTimeline from '../../../components/activity/ActivityTimeline';
+import EditTaskSidebar from './EditTaskSidebar';
 
 const TaskDetail = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { projectId, taskId } = useParams();
+  const { hasManagerAccess } = useProjectAccess();
   
   const {
     currentTask: task,
@@ -47,15 +53,25 @@ const TaskDetail = () => {
   } = useSelector((state) => state.tasks);
   
   const { users } = useSelector((state) => state.users);
+  const { user } = useSelector((state) => state.auth);
   
   const [activeTab, setActiveTab] = useState('overview');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showArchiveConfirm, setShowArchiveConfirm] = useState(false);
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [showAddComment, setShowAddComment] = useState(false);
+  const [showEditComment, setShowEditComment] = useState(false);
+  const [showDeleteCommentConfirm, setShowDeleteCommentConfirm] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState(null);
+  const [editingCommentContent, setEditingCommentContent] = useState('');
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
   const [showAddSubtask, setShowAddSubtask] = useState(false);
   const [showAddTag, setShowAddTag] = useState(false);
   const [showAddCustomField, setShowAddCustomField] = useState(false);
+  const [showEditCustomField, setShowEditCustomField] = useState(false);
+  const [editingCustomFieldKey, setEditingCustomFieldKey] = useState(null);
+  const [editingCustomFieldValue, setEditingCustomFieldValue] = useState('');
   const [newComment, setNewComment] = useState('');
   const [newSubtask, setNewSubtask] = useState('');
   const [newTag, setNewTag] = useState('');
@@ -64,7 +80,8 @@ const TaskDetail = () => {
 
   useEffect(() => {
     if (taskId) {
-      dispatch(fetchTask(taskId));
+      dispatch(getProjectById(projectId));
+      dispatch(fetchTask({ projectId, taskId }));
       dispatch(getUsers());
     }
   }, [dispatch, taskId]);
@@ -72,7 +89,8 @@ const TaskDetail = () => {
   const handleStatusChange = async (newStatus) => {
     try {
       await dispatch(updateTaskAction({
-        id: taskId,
+        projectId, 
+        taskId,
         data: { status: newStatus }
       })).unwrap();
     } catch (error) {
@@ -83,7 +101,8 @@ const TaskDetail = () => {
   const handlePriorityChange = async (newPriority) => {
     try {
       await dispatch(updateTaskAction({
-        id: taskId,
+        projectId,
+        taskId,
         data: { priority: newPriority }
       })).unwrap();
     } catch (error) {
@@ -94,7 +113,8 @@ const TaskDetail = () => {
   const handleAssignMember = async (userId) => {
     try {
       await dispatch(updateTaskAction({
-        id: taskId,
+        projectId,
+        taskId,
         data: { assignedTo: userId }
       })).unwrap();
     } catch (error) {
@@ -105,7 +125,8 @@ const TaskDetail = () => {
   const handleUnassignMember = async () => {
     try {
       await dispatch(updateTaskAction({
-        id: taskId,
+        projectId,
+        taskId,
         data: { assignedTo: null }
       })).unwrap();
     } catch (error) {
@@ -115,16 +136,25 @@ const TaskDetail = () => {
 
   const handleArchive = async () => {
     try {
-      await dispatch(archiveExistingTask(taskId)).unwrap();
+      await dispatch(archiveExistingTask({ projectId, taskId })).unwrap();
       navigate(`/crm/${projectId}/tasks`);
     } catch (error) {
       console.error('Failed to archive task:', error);
     }
   };
 
+  const handleRestore = async () => {
+    try {
+      await dispatch(restoreExistingTask({ projectId, taskId })).unwrap();
+      navigate(`/crm/${projectId}/tasks`);
+    } catch (error) {
+      console.error('Failed to restore task:', error);
+    }
+  };
+
   const handleDelete = async () => {
     try {
-      await dispatch(deleteExistingTask(taskId)).unwrap();
+      await dispatch(deleteExistingTask({ projectId, taskId })).unwrap();
       navigate(`/crm/${projectId}/tasks`);
     } catch (error) {
       console.error('Failed to delete task:', error);
@@ -136,6 +166,7 @@ const TaskDetail = () => {
     
     try {
       await dispatch(addTaskCommentAction({
+        projectId,
         taskId,
         content: newComment.trim()
       })).unwrap();
@@ -146,11 +177,57 @@ const TaskDetail = () => {
     }
   };
 
+  const handleEditComment = (comment) => {
+    setEditingCommentId(comment._id);
+    setEditingCommentContent(comment.content);
+    setShowEditComment(true);
+  };
+
+  const handleUpdateComment = async () => {
+    if (!editingCommentContent.trim()) return;
+    
+    try {
+      await dispatch(updateTaskComment({
+        projectId,
+        taskId,
+        commentId: editingCommentId,
+        content: editingCommentContent.trim()
+      })).unwrap();
+      setEditingCommentId(null);
+      setEditingCommentContent('');
+      setShowEditComment(false);
+    } catch (error) {
+      console.error('Failed to update comment:', error);
+    }
+  };
+
+  const handleDeleteComment = async () => {
+    if (!deletingCommentId) return;
+    
+    try {
+      await dispatch(deleteTaskComment({
+        projectId,
+        taskId,
+        commentId: deletingCommentId
+      })).unwrap();
+      setDeletingCommentId(null);
+      setShowDeleteCommentConfirm(false);
+    } catch (error) {
+      console.error('Failed to delete comment:', error);
+    }
+  };
+
+  const handleDeleteCommentClick = (commentId) => {
+    setDeletingCommentId(commentId);
+    setShowDeleteCommentConfirm(true);
+  };
+
   const handleAddSubtask = async () => {
     if (!newSubtask.trim()) return;
     
     try {
       await dispatch(addTaskSubtask({
+        projectId,
         taskId,
         data: { title: newSubtask.trim() }
       })).unwrap();
@@ -163,7 +240,7 @@ const TaskDetail = () => {
 
   const handleCompleteSubtask = async (subtaskId) => {
     try {
-      await dispatch(completeSubtaskAction({ taskId, subtaskId })).unwrap();
+      await dispatch(completeSubtaskAction({ projectId, taskId, subtaskId })).unwrap();
     } catch (error) {
       console.error('Failed to complete subtask:', error);
     }
@@ -171,7 +248,7 @@ const TaskDetail = () => {
 
   const handleDeleteSubtask = async (subtaskId) => {
     try {
-      await dispatch(deleteTaskSubtask({ taskId, subtaskId })).unwrap();
+      await dispatch(deleteTaskSubtask({ projectId, taskId, subtaskId })).unwrap();
     } catch (error) {
       console.error('Failed to delete subtask:', error);
     }
@@ -182,6 +259,7 @@ const TaskDetail = () => {
     
     try {
       await dispatch(addTaskTag({
+        projectId,
         taskId,
         data: { tag: newTag.trim() }
       })).unwrap();
@@ -194,7 +272,7 @@ const TaskDetail = () => {
 
   const handleRemoveTag = async (tag) => {
     try {
-      await dispatch(removeTaskTag({ taskId, tag })).unwrap();
+      await dispatch(removeTaskTag({ projectId, taskId, tag })).unwrap();
     } catch (error) {
       console.error('Failed to remove tag:', error);
     }
@@ -205,6 +283,7 @@ const TaskDetail = () => {
     
     try {
       await dispatch(addTaskCustomField({
+        projectId,
         taskId,
         data: { key: newCustomFieldKey.trim(), value: newCustomFieldValue.trim() }
       })).unwrap();
@@ -216,9 +295,33 @@ const TaskDetail = () => {
     }
   };
 
+  const handleEditCustomField = (key, value) => {
+    setEditingCustomFieldKey(key);
+    setEditingCustomFieldValue(value);
+    setShowEditCustomField(true);
+  };
+
+  const handleUpdateCustomField = async () => {
+    if (!editingCustomFieldKey || !editingCustomFieldValue.trim()) return;
+    
+    try {
+      await dispatch(updateTaskCustomField({
+        projectId,
+        taskId,
+        key: editingCustomFieldKey,
+        data: { value: editingCustomFieldValue.trim() }
+      })).unwrap();
+      setEditingCustomFieldKey(null);
+      setEditingCustomFieldValue('');
+      setShowEditCustomField(false);
+    } catch (error) {
+      console.error('Failed to update custom field:', error);
+    }
+  };
+
   const handleDeleteCustomField = async (key) => {
     try {
-      await dispatch(deleteTaskCustomField({ taskId, key })).unwrap();
+      await dispatch(deleteTaskCustomField({ projectId, taskId, key })).unwrap();
     } catch (error) {
       console.error('Failed to delete custom field:', error);
     }
@@ -353,26 +456,40 @@ const TaskDetail = () => {
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
-              >
-                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                Edit
-              </button>
-              
-              <button
-                onClick={() => setShowArchiveConfirm(true)}
-                className="inline-flex items-center px-3 py-2 border border-yellow-300 shadow-sm text-sm leading-4 font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50"
-              >
-                <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8l6 6m0 0l6-6m-6 6V4" />
-                </svg>
-                Archive
-              </button>
+            {hasManagerAccess && <div className="flex items-center space-x-2">
+              {task?.isArchived ? (
+                <button
+                  onClick={() => setShowRestoreConfirm(true)}
+                  className="inline-flex items-center px-3 py-2 border border-indigo-300 shadow-sm text-sm leading-4 font-medium rounded-md text-indigo-700 bg-white hover:bg-indigo-50"
+                >
+                  <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Restore
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => setShowEditModal(true)}
+                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Edit
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowArchiveConfirm(true)}
+                    className="inline-flex items-center px-3 py-2 border border-yellow-300 shadow-sm text-sm leading-4 font-medium rounded-md text-yellow-700 bg-white hover:bg-yellow-50"
+                  >
+                    <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8l6 6m0 0l6-6m-6 6V4" />
+                    </svg>
+                    Archive
+                  </button>
+                </>
+              )}
               
               <button
                 onClick={() => setShowDeleteConfirm(true)}
@@ -383,7 +500,7 @@ const TaskDetail = () => {
                 </svg>
                 Delete
               </button>
-            </div>
+            </div>}
           </div>
         </div>
 
@@ -393,7 +510,7 @@ const TaskDetail = () => {
             <div className="flex items-center space-x-4">
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Status</label>
-                <select
+                {hasManagerAccess ? <select
                   value={task.status}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   className="text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
@@ -403,12 +520,14 @@ const TaskDetail = () => {
                   <option value="completed">Completed</option>
                   <option value="on_hold">On Hold</option>
                   <option value="cancelled">Cancelled</option>
-                </select>
+                </select> : <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
+                  {formatTaskStatus(task.status)}
+                </span>}
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Priority</label>
-                <select
+                {hasManagerAccess ? <select
                   value={task.priority}
                   onChange={(e) => handlePriorityChange(e.target.value)}
                   className="text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
@@ -417,12 +536,14 @@ const TaskDetail = () => {
                   <option value="medium">Medium</option>
                   <option value="high">High</option>
                   <option value="urgent">Urgent</option>
-                </select>
+                </select> : <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskPriorityColor(task.priority)}`}>
+                  {formatTaskPriority(task.priority)}
+                </span>}
               </div>
               
               <div>
                 <label className="block text-xs font-medium text-gray-700 mb-1">Assign To</label>
-                <select
+                {hasManagerAccess ? <select
                   value={task.assignedTo?._id || ''}
                   onChange={(e) => e.target.value ? handleAssignMember(e.target.value) : handleUnassignMember()}
                   className="text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
@@ -433,7 +554,9 @@ const TaskDetail = () => {
                       {user.name}
                     </option>
                   ))}
-                </select>
+                </select> : <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium`}>
+                  {task.assignedTo?.name || 'Unassigned'}
+                </span>}
               </div>
             </div>
             
@@ -741,7 +864,7 @@ const TaskDetail = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Subtasks</h3>
-                <button
+                {hasManagerAccess && <button
                   onClick={() => setShowAddSubtask(true)}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
@@ -749,7 +872,7 @@ const TaskDetail = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Add Subtask
-                </button>
+                </button>}
               </div>
               
               {task.subtasks && task.subtasks.length > 0 ? (
@@ -763,6 +886,7 @@ const TaskDetail = () => {
                         <span className={`text-sm ${subtask.status === 'completed' ? 'line-through text-gray-500' : 'text-gray-900'}`}>
                           {subtask.title}
                         </span>
+                        {(task.assignedTo._id === user._id || hasManagerAccess) && <div>
                         {subtask.status === 'pending' && (
                           <button
                             onClick={() => handleCompleteSubtask(subtask._id)}
@@ -776,15 +900,16 @@ const TaskDetail = () => {
                             Completed
                           </span>
                         )}
+                        </div>}
                       </div>
-                      <button
+                      {hasManagerAccess && <button
                         onClick={() => handleDeleteSubtask(subtask._id)}
                         className="text-red-600 hover:text-red-800"
                       >
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
-                      </button>
+                      </button>}
                     </div>
                   ))}
                 </div>
@@ -801,7 +926,7 @@ const TaskDetail = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Comments</h3>
-                <button
+                {hasManagerAccess && <button
                   onClick={() => setShowAddComment(true)}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
@@ -809,41 +934,71 @@ const TaskDetail = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Add Comment
-                </button>
+                </button>}
               </div>
               
               {task.comments && task.comments.length > 0 ? (
                 <div className="space-y-4">
-                  {task.comments.map((comment, index) => (
-                    <div key={index} className="flex space-x-3 p-4 bg-gray-50 rounded-md">
-                      <div className="flex-shrink-0">
-                        {comment.createdBy?.profileImage ? (
-                          <img
-                            className="h-8 w-8 rounded-full"
-                            src={comment.createdBy.profileImage}
-                            alt={comment.createdBy.name}
-                          />
-                        ) : (
-                          <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
-                            <span className="text-xs font-medium text-gray-700">
-                              {comment.createdBy?.name?.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2">
-                          <p className="text-sm font-medium text-gray-900">
-                            {comment.createdBy?.name}
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {formatDateTime(comment.createdAt)}
-                          </p>
+                  {task.comments.map((comment, index) => {
+                    const isCommentAuthor = comment.author?._id === user._id || comment.author?.toString() === user._id;
+                    return (
+                      <div key={comment._id || index} className="flex space-x-3 p-4 bg-gray-50 rounded-md group">
+                        <div className="flex-shrink-0">
+                          {comment.author?.profileImage ? (
+                            <img
+                              className="h-8 w-8 rounded-full"
+                              src={comment.author.profileImage}
+                              alt={comment.author.name}
+                            />
+                          ) : (
+                            <div className="h-8 w-8 rounded-full bg-gray-300 flex items-center justify-center">
+                              <span className="text-xs font-medium text-gray-700">
+                                {comment.author?.name?.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-2">
+                              <p className="text-sm font-medium text-gray-900">
+                                {comment.author?.name}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {formatDateTime(comment.createdAt)}
+                                {comment.updatedAt && comment.updatedAt !== comment.createdAt && (
+                                  <span className="ml-1">(edited)</span>
+                                )}
+                              </p>
+                            </div>
+                            {isCommentAuthor && (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleEditComment(comment)}
+                                  className="text-indigo-600 hover:text-indigo-800 text-sm"
+                                  title="Edit comment"
+                                >
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                  </svg>
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteCommentClick(comment._id)}
+                                  className="text-red-600 hover:text-red-800 text-sm"
+                                  title="Delete comment"
+                                >
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                          <p className="text-sm text-gray-700 mt-1">{comment.content}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center py-8 text-gray-500">
@@ -855,38 +1010,11 @@ const TaskDetail = () => {
 
           {/* Activities Tab */}
           {activeTab === 'activities' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium text-gray-900">Activity Timeline</h3>
-              
-              {task.activityLog && task.activityLog.length > 0 ? (
-                <div className="space-y-4">
-                  {task.activityLog.map((activity, index) => (
-                    <div key={index} className="flex space-x-3">
-                      <div className="flex-shrink-0 mt-1">
-                        {getActivityIcon(activity?.action)}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900">{activity?.description}</p>
-                        <div className="flex items-center space-x-2 mt-1">
-                          <span className="text-xs text-gray-500">
-                            {formatDateTime(activity?.timestamp)}
-                          </span>
-                          {activity?.actor && (
-                            <span className="text-xs text-gray-500">
-                              by {activity?.actor?.name}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  No activities yet
-                </div>
-              )}
-            </div>
+            <ActivityTimeline 
+              entityType="Task" 
+              entityId={taskId} 
+              projectId={projectId} 
+            />
           )}
 
           {/* Custom Fields Tab */}
@@ -894,7 +1022,7 @@ const TaskDetail = () => {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-medium text-gray-900">Custom Fields</h3>
-                <button
+                {hasManagerAccess && <button
                   onClick={() => setShowAddCustomField(true)}
                   className="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                 >
@@ -902,7 +1030,7 @@ const TaskDetail = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                   </svg>
                   Add Field
-                </button>
+                </button>}
               </div>
               
               {task.customFields && Object.keys(task.customFields).length > 0 ? (
@@ -910,20 +1038,34 @@ const TaskDetail = () => {
                   {Object.entries(task.customFields).map(([key, value]) => (
                     <div
                       key={key}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-md"
+                      className="flex items-center justify-between p-3 bg-gray-50 rounded-md group"
                     >
                       <div className="flex items-center space-x-2">
                         <span className="text-sm font-medium text-gray-900">{key}:</span>
                         <span className="text-sm text-gray-600">{value}</span>
                       </div>
-                      <button
-                        onClick={() => handleDeleteCustomField(key)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
+                      {hasManagerAccess && (
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => handleEditCustomField(key, value)}
+                            className="text-indigo-600 hover:text-indigo-800"
+                            title="Edit custom field"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteCustomField(key)}
+                            className="text-red-600 hover:text-red-800"
+                            title="Delete custom field"
+                          >
+                            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1177,7 +1319,7 @@ const TaskDetail = () => {
 
       {showAddCustomField && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowAddCustomField(false)} />
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => setShowAddCustomField(false)} />
           <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Add Custom Field</h3>
@@ -1272,6 +1414,172 @@ const TaskDetail = () => {
           </div>
         </div>
       )}
+
+      {showRestoreConfirm && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => setShowRestoreConfirm(false)} />
+          <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Restore Task</h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to restore this task? It will be moved back to the active tasks list.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => setShowRestoreConfirm(false)}
+                  className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRestore}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
+                >
+                  Restore
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditComment && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => {
+            setShowEditComment(false);
+            setEditingCommentId(null);
+            setEditingCommentContent('');
+          }} />
+          <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Comment</h3>
+              <textarea
+                value={editingCommentContent}
+                onChange={(e) => setEditingCommentContent(e.target.value)}
+                rows={4}
+                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Enter your comment..."
+              />
+              <div className="flex justify-end space-x-3 mt-4">
+                <button
+                  onClick={() => {
+                    setShowEditComment(false);
+                    setEditingCommentId(null);
+                    setEditingCommentContent('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateComment}
+                  disabled={!editingCommentContent.trim()}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  Update Comment
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteCommentConfirm && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => {
+            setShowDeleteCommentConfirm(false);
+            setDeletingCommentId(null);
+          }} />
+          <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Delete Comment</h3>
+              <p className="text-sm text-gray-600 mb-6">
+                Are you sure you want to delete this comment? This action cannot be undone.
+              </p>
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowDeleteCommentConfirm(false);
+                    setDeletingCommentId(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDeleteComment}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditCustomField && (
+        <div className="fixed inset-0 z-50 overflow-hidden">
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => {
+            setShowEditCustomField(false);
+            setEditingCustomFieldKey(null);
+            setEditingCustomFieldValue('');
+          }} />
+          <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
+            <div className="p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Edit Custom Field</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Field Name</label>
+                  <input
+                    type="text"
+                    value={editingCustomFieldKey || ''}
+                    disabled
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-gray-100 text-gray-600"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Field Value</label>
+                  <input
+                    type="text"
+                    value={editingCustomFieldValue}
+                    onChange={(e) => setEditingCustomFieldValue(e.target.value)}
+                    className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                    placeholder="Enter field value..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 mt-4">
+                <button
+                  onClick={() => {
+                    setShowEditCustomField(false);
+                    setEditingCustomFieldKey(null);
+                    setEditingCustomFieldValue('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleUpdateCustomField}
+                  disabled={!editingCustomFieldValue.trim()}
+                  className="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  Update Field
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Sidebar */}
+      <EditTaskSidebar
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        task={task}
+        projectId={projectId}
+      />
     </div>
     </CrmLayout>
   );

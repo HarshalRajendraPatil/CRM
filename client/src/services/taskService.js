@@ -6,86 +6,115 @@ export const getProjectTasks = async (projectId, params = {}) => {
 };
 
 // Get tasks assigned to a specific user
-export const getUserTasks = async (userId, params = {}) => {
-  return axios.get(`/tasks/user/${userId}`, { params });
+export const getUserTasks = async (projectId, userId, params = {}) => {
+  return axios.get(`/tasks/user/${userId}?projectId=${projectId}`, { params });
 };
 
 // Get a single task by ID
-export const getTask = async (id) => {
-  return axios.get(`/tasks/${id}`);
+export const getTask = async (projectId, id) => {
+  return axios.get(`/tasks/${id}?projectId=${projectId}`);
 };
 
 // Create a new task
-export const createTask = async (taskData) => {
-  return axios.post('/tasks', taskData);
+export const createTask = async (projectId, taskData) => {
+  return axios.post(`/tasks?projectId=${projectId}`, taskData);
 };
 
 // Update a task
-export const updateTask = async (id, taskData) => {
-  return axios.put(`/tasks/${id}`, taskData);
+export const updateTask = async (projectId, id, taskData) => {
+  return axios.put(`/tasks/${id}?projectId=${projectId}`, taskData);
 };
 
 // Delete a task
-export const deleteTask = async (id) => {
-  return axios.delete(`/tasks/${id}`);
+export const deleteTask = async (projectId, id) => {
+  return axios.delete(`/tasks/${id}?projectId=${projectId}`);
 };
 
 // Archive a task
-export const archiveTask = async (id) => {
-  return axios.patch(`/tasks/${id}/archive`);
+export const archiveTask = async (projectId, id) => {
+  return axios.patch(`/tasks/${id}/archive?projectId=${projectId}`);
 };
 
 // Restore an archived task
-export const restoreTask = async (id) => {
-  return axios.patch(`/tasks/${id}/restore`);
+export const restoreTask = async (projectId, id) => {
+  return axios.patch(`/tasks/${id}/restore?projectId=${projectId}`);
 };
 
 // Update task status
-export const updateTaskStatus = async (id, status, notes = '') => {
-  return axios.patch(`/tasks/${id}/status`, { status, notes });
+export const updateTaskStatus = async (projectId, id, status, notes = '') => {
+  return axios.patch(`/tasks/${id}/status?projectId=${projectId}`, { status, notes });
 };
 
 // Assign task to user
-export const assignTask = async (id, assignedTo) => {
-  return axios.patch(`/tasks/${id}/assign`, { assignedTo });
+export const assignTask = async (projectId, id, assignedTo) => {
+  return axios.patch(`/tasks/${id}/assign?projectId=${projectId}`, { assignedTo });
 };
 
 // Add comment to task
-export const addTaskComment = async (id, content, mentions = []) => {
-  return axios.post(`/tasks/${id}/comments`, { content, mentions });
+export const addTaskComment = async (projectId, id, content, mentions = []) => {
+  return axios.post(`/tasks/${id}/comments?projectId=${projectId}`, { content, mentions });
+};
+
+// Update comment in task
+export const updateTaskCommentAction = async (projectId, id, commentId, content) => {
+  return axios.put(`/tasks/${id}/comments/${commentId}?projectId=${projectId}`, { content });
+};
+
+// Delete comment from task
+export const deleteTaskCommentAction = async (projectId, id, commentId) => {
+  return axios.delete(`/tasks/${id}/comments/${commentId}?projectId=${projectId}`);
 };
 
 // Add subtask to task
-export const addSubtask = async (id, subtaskData) => {
-  return axios.post(`/tasks/${id}/subtasks`, subtaskData);
+export const addSubtask = async (projectId, id, subtaskData) => {
+  return axios.post(`/tasks/${id}/subtasks?projectId=${projectId}`, subtaskData);
 };
 
 // Update subtask
-export const updateSubtask = async (id, subtaskId, subtaskData) => {
-  return axios.put(`/tasks/${id}/subtasks/${subtaskId}`, subtaskData);
+export const updateSubtask = async (projectId, id, subtaskId, subtaskData) => {
+  return axios.put(`/tasks/${id}/subtasks/${subtaskId}?projectId=${projectId}`, subtaskData);
 };
 
 // Complete subtask
-export const completeSubtask = async (id, subtaskId) => {
-  return axios.patch(`/tasks/${id}/subtasks/${subtaskId}/complete`);
+export const completeSubtask = async (projectId, id, subtaskId) => {
+  return axios.patch(`/tasks/${id}/subtasks/${subtaskId}/complete?projectId=${projectId}`);
 };
 
 // Delete subtask
-export const deleteSubtask = async (id, subtaskId) => {
-  return axios.delete(`/tasks/${id}/subtasks/${subtaskId}`);
+export const deleteSubtask = async (projectId, id, subtaskId) => {
+  return axios.delete(`/tasks/${id}/subtasks/${subtaskId}?projectId=${projectId}`);
+};
+
+// Add custom field to task
+export const addTaskCustomFieldAction = async (projectId, id, key, value) => {
+  return axios.post(`/tasks/${id}/custom-fields?projectId=${projectId}`, { key, value });
+};
+
+// Update custom field in task
+export const updateTaskCustomFieldAction = async (projectId, id, key, value) => {
+  return axios.put(`/tasks/${id}/custom-fields/${key}?projectId=${projectId}`, { value });
+};
+
+// Delete custom field from task
+export const deleteTaskCustomFieldAction = async (projectId, id, key) => {
+  return axios.delete(`/tasks/${id}/custom-fields/${key}?projectId=${projectId}`);
 };
 
 // Bulk operations
-export const bulkUpdateTasks = async (taskIds, updates) => {
-  return axios.patch('/tasks/bulk/update', { taskIds, updates });
+export const bulkUpdateTasks = async (projectId, taskIds, updates) => {
+  return axios.patch(`/tasks/bulk/update?projectId=${projectId}`, { taskIds, updates });
 };
 
-export const bulkDeleteTasks = async (taskIds) => {
-  return axios.delete('/tasks/bulk/delete', { data: { taskIds } });
+export const bulkDeleteTasks = async (projectId, taskIds) => {
+  return axios.delete(`/tasks/bulk/delete?projectId=${projectId}`, { data: { taskIds } });
 };
 
-export const bulkArchiveTasks = async (taskIds) => {
-  return axios.patch('/tasks/bulk/archive', { taskIds });
+export const bulkArchiveTasks = async (projectId, taskIds) => {
+  return axios.patch(`/tasks/bulk/archive?projectId=${projectId}`, { taskIds });
+};
+
+export const bulkRestoreTasks = async (projectId, taskIds) => {
+  return axios.patch(`/tasks/bulk/restore?projectId=${projectId}`, { taskIds });
 };
 
 // Get task statistics
@@ -104,13 +133,13 @@ export const getOverdueTasks = async (projectId) => {
 };
 
 // Get tasks by related entity
-export const getTasksByEntity = async (entityType, entityId, params = {}) => {
-  return axios.get(`/tasks/entity/${entityType}/${entityId}`, { params });
+export const getTasksByEntity = async (projectId, entityType, entityId, params = {}) => {
+  return axios.get(`/tasks/entity/${entityType}/${entityId}?projectId=${projectId}`, { params });
 };
 
 // Export tasks
 export const exportTasks = async (projectId, format = 'json', filters = {}) => {
-  return axios.get(`/tasks/project/${projectId}/export`, {
+  return axios.get(`/tasks/project/${projectId}/export?projectId=${projectId}`, {
     params: { format, ...filters },
     responseType: format === 'csv' ? 'blob' : 'json'
   });
@@ -566,12 +595,15 @@ export default {
   updateTaskStatus,
   assignTask,
   addTaskComment,
+  updateTaskCommentAction,
+  deleteTaskCommentAction,
   addSubtask,
   updateSubtask,
   deleteSubtask,
   bulkUpdateTasks,
   bulkDeleteTasks,
   bulkArchiveTasks,
+  bulkRestoreTasks,
   getTaskStats,
   getTaskInsights,
   getOverdueTasks,

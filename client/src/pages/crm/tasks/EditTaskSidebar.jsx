@@ -3,11 +3,21 @@ import { useDispatch, useSelector } from 'react-redux';
 import { updateTaskAction, fetchTaskActivities } from '../../../store/taskSlice';
 import { getUsers } from '../../../store/userSlice';
 import { formatDate, formatDateTime } from '../../../utils/dealUtils';
+import { getProjectById } from '../../../store/projectSlice';
+import { getProjectLeads } from '../../../store/leadSlice';
+import { fetchProjectCustomers } from '../../../store/customerSlice';
+import { fetchProjectDeals } from '../../../store/dealSlice';
+import { getProjectCompanies } from '../../../store/companySlice';
 
 const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
+  console.log(projectId)
   const dispatch = useDispatch();
   const { loading, error, activities } = useSelector((state) => state.tasks);
   const { users } = useSelector((state) => state.users);
+  const { leads } = useSelector((state) => state.leads);
+  const { customers } = useSelector((state) => state.customers);
+  const { deals } = useSelector((state) => state.deals);
+  const { companies } = useSelector((state) => state.companies);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -54,8 +64,29 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
   useEffect(() => {
     if (isOpen && task) {
       dispatch(getUsers());
-      dispatch(fetchTaskActivities(task._id));
+      dispatch(getProjectById(projectId ));
+      dispatch(getProjectLeads({ projectId }));
+      dispatch(fetchProjectCustomers({ projectId }));
+      dispatch(fetchProjectDeals({ projectId }));
+      dispatch(getProjectCompanies({ projectId }));
+      // dispatch(fetchTaskActivities({ projectId, taskId: task._id }));
       
+      // Convert customFields Map to object if needed
+      let customFieldsObj = {};
+      if (task.customFields) {
+        if (task.customFields instanceof Map) {
+          customFieldsObj = Object.fromEntries(task.customFields);
+        } else if (typeof task.customFields === 'object') {
+          customFieldsObj = task.customFields;
+        }
+      }
+
+      // Convert subtasks to include isCompleted for UI
+      const formattedSubtasks = (task.subtasks || []).map(subtask => ({
+        ...subtask,
+        isCompleted: subtask.status === 'completed'
+      }));
+
       // Populate form with task data
       setFormData({
         title: task.title || '',
@@ -65,18 +96,22 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
         type: task.type || 'other',
         dueDate: task.dueDate ? formatDate(task.dueDate) : '',
         startDate: task.startDate ? formatDate(task.startDate) : '',
-        assignedTo: task.assignedTo?._id || '',
+        assignedTo: task.assignedTo?._id || task.assignedTo || '',
         relatedTo: task.relatedEntity?.type || '',
-        relatedToId: task.relatedEntity?.entityId || '',
+        relatedToId: task.relatedEntity?.entityId || task.relatedEntity?.entityId?._id || '',
         estimatedHours: task.estimatedHours || '',
         actualHours: task.actualHours || 0,
         progress: task.progress || 0,
         completionNotes: task.completionNotes || '',
         tags: task.tags || [],
-        subtasks: task.subtasks || [],
-        customFields: task.customFields || {},
+        subtasks: formattedSubtasks,
+        customFields: customFieldsObj,
         visibility: task.visibility || 'project',
-        recurrence: task.recurrence || {
+        recurrence: task.recurrence ? {
+          ...task.recurrence,
+          endDate: task.recurrence.endDate ? formatDate(task.recurrence.endDate) : '',
+          occurrences: task.recurrence.occurrences || ''
+        } : {
           enabled: false,
           pattern: 'daily',
           interval: 1,
@@ -260,8 +295,21 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
     }
 
     try {
+      // Format subtasks: convert isCompleted to status
+      const formattedSubtasks = formData.subtasks.map(subtask => ({
+        title: subtask.title,
+        description: subtask.description || '',
+        status: subtask.isCompleted ? 'completed' : (subtask.status || 'pending'),
+        assignedTo: subtask.assignedTo || undefined,
+        dueDate: subtask.dueDate || undefined
+      }));
+
       const taskData = {
-        ...formData,
+        title: formData.title,
+        description: formData.description || undefined,
+        status: formData.status,
+        priority: formData.priority,
+        type: formData.type,
         dueDate: formData.dueDate || undefined,
         startDate: formData.startDate || undefined,
         assignedTo: formData.assignedTo || undefined,
@@ -271,11 +319,19 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
         actualHours: formData.actualHours || 0,
         progress: formData.progress || 0,
         completionNotes: formData.completionNotes || undefined,
-        recurrence: formData.recurrence.enabled ? formData.recurrence : undefined,
+        tags: formData.tags.length > 0 ? formData.tags : undefined,
+        subtasks: formattedSubtasks.length > 0 ? formattedSubtasks : undefined,
+        customFields: Object.keys(formData.customFields).length > 0 ? formData.customFields : undefined,
+        visibility: formData.visibility,
+        recurrence: formData.recurrence.enabled ? {
+          ...formData.recurrence,
+          endDate: formData.recurrence.endDate || undefined,
+          occurrences: formData.recurrence.occurrences || undefined
+        } : undefined,
         reminders: formData.reminders.length > 0 ? formData.reminders : undefined
       };
 
-      await dispatch(updateTaskAction({ id: task._id, data: taskData })).unwrap();
+      await dispatch(updateTaskAction({ projectId, taskId: task._id, data: taskData })).unwrap();
       onClose();
     } catch (error) {
       console.error('Failed to update task:', error);
@@ -355,7 +411,6 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
                 { id: 'subtasks', name: 'Subtasks' },
                 { id: 'recurrence', name: 'Recurrence' },
                 { id: 'reminders', name: 'Reminders' },
-                { id: 'activities', name: 'Activities' },
                 { id: 'custom', name: 'Custom Fields' }
               ].map((tab) => (
                 <button
@@ -669,24 +724,42 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
                         <option value="customer">Customer</option>
                         <option value="company">Company</option>
                         <option value="lead">Lead</option>
-                        <option value="project">Project</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Related ID
+                        Related to
                       </label>
-                      <input
-                        type="text"
+                      <select
                         name="relatedToId"
                         value={formData.relatedToId}
                         onChange={handleInputChange}
-                        className={`block w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 ${
-                          errors.relatedToId ? 'border-red-300' : 'border-gray-300'
-                        }`}
-                        placeholder="Enter related ID"
-                      />
+                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                        disabled={!formData.relatedTo}
+                      >
+                        <option value={null}>Select related to</option>
+                        {formData.relatedTo === 'deal' && deals.map(deal => (
+                          <option key={deal._id} value={deal._id}>
+                            {deal.name}
+                          </option>
+                        ))}
+                        {formData.relatedTo === 'customer' && customers.map(customer => (
+                          <option key={customer._id} value={customer._id}>
+                            {customer.fullName}
+                          </option>
+                        ))}
+                        {formData.relatedTo === 'company' && companies.map(company => (
+                          <option key={company._id} value={company._id}>
+                            {company.name}
+                          </option>
+                        ))}
+                        {formData.relatedTo === 'lead' && leads.map(lead => (
+                          <option key={lead._id} value={lead._id}>
+                            {lead.name}
+                          </option>
+                        ))}
+                      </select>
                       {errors.relatedToId && (
                         <p className="mt-1 text-sm text-red-600">{errors.relatedToId}</p>
                       )}

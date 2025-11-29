@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
+  fetchUserTasks,
   fetchProjectTasks,
   setFilters,
   setViewMode,
@@ -15,37 +16,25 @@ import {
   toggleBulkActions,
   bulkUpdateTasksAction,
   bulkArchiveTasksAction,
+  bulkRestoreTasksAction,
   bulkDeleteTasksAction,
-  updateTaskStatusAction,
-  assignTaskAction,
   archiveExistingTask,
+  restoreExistingTask,
   deleteExistingTask
 } from '../../../store/taskSlice';
 import { getUsers } from '../../../store/userSlice';
-import {
-  formatTaskPriority,
-  formatTaskStatus,
-  formatTaskType,
-  getTaskPriorityColor,
-  getTaskStatusColor,
-  getTaskTypeIcon,
-  calculateDaysUntilDue,
-  isTaskOverdue,
-  getTaskHealthScore,
-  getTaskHealthColor
-} from '../../../services/taskService';
+import { getProjectById } from '../../../store/projectSlice';
 import TaskListItem from './TaskListItem';
 import TaskFilters from './TaskFilters';
 import CreateTaskSidebar from './CreateTaskSidebar';
 import EditTaskSidebar from './EditTaskSidebar';
-import TaskDetail from './TaskDetail';
 import TaskStats from './TaskStats';
 import TaskKanban from './TaskKanban';
 import BulkActionsModal from './BulkActionsModal';
-import BulkAssignModal from './BulkAssignModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 import ArchiveConfirmModal from './ArchiveConfirmModal';
 import CrmLayout from '../../../layouts/CrmLayout';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 const Tasks = () => {
   const dispatch = useDispatch();
@@ -74,26 +63,29 @@ const Tasks = () => {
   } = useSelector((state) => state.tasks);
   
   const { users } = useSelector((state) => state.users);
-  
+  const { hasManagerAccess } = useProjectAccess();
+  const { user } = useSelector((state) => state.auth);
   const [searchTerm, setSearchTerm] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [deletingTask, setDeletingTask] = useState(null);
   const [archivingTask, setArchivingTask] = useState(null);
   const [bulkAction, setBulkAction] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     if (projectId) {
-      dispatch(fetchProjectTasks({ projectId, params: { ...filters } }));
-      dispatch(getUsers());
+      dispatch(getProjectById(projectId));
+      dispatch(fetchProjectTasks({ 
+        projectId,
+        params: {
+          ...filters,
+          showArchived: showArchived
+        }
+      }));
     }
-  }, [dispatch, projectId]);
-
-  useEffect(() => {
-    if (projectId) {
-      dispatch(fetchProjectTasks({ projectId, params: { ...filters } }));
-    }
-  }, [dispatch, projectId, filters]);
+    dispatch(getUsers());
+  }, [dispatch, projectId, showArchived]);
 
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -103,6 +95,17 @@ const Tasks = () => {
 
   const handleFilterChange = (newFilters) => {
     dispatch(setFilters(newFilters));
+    // Refresh tasks with new filters
+    if (hasManagerAccess) {
+      dispatch(fetchProjectTasks({
+        projectId,
+        params: {
+          ...newFilters,
+          showArchived: showArchived,
+          page: 1
+        }
+      }));
+    }
   };
 
   const handleSortChange = (field) => {
@@ -116,10 +119,25 @@ const Tasks = () => {
         projectId,
         params: {
           ...filters,
-          page: pagination.current + 1
+          page: pagination.current + 1,
+          showArchived: showArchived
         }
       }));
     }
+  };
+
+  const handleToggleArchived = () => {
+    setShowArchived(!showArchived);
+    dispatch(clearSelection());
+    // Reset to first page when toggling
+    dispatch(fetchProjectTasks({
+      projectId,
+      params: {
+        ...filters,
+        showArchived: !showArchived,
+        page: 1
+      }
+    }));
   };
 
   const handleTaskSelect = (taskId) => {
@@ -139,6 +157,7 @@ const Tasks = () => {
     
     try {
       await dispatch(bulkUpdateTasksAction({
+        projectId,
         taskIds: selectedTasks,
         updates: { status: newStatus }
       })).unwrap();
@@ -149,10 +168,12 @@ const Tasks = () => {
   };
 
   const handleBulkAssign = async (assignedTo) => {
+    console.log(assignedTo);
     if (selectedTasks.length === 0) return;
     
     try {
       await dispatch(bulkUpdateTasksAction({
+        projectId,
         taskIds: selectedTasks,
         updates: { assignedTo }
       })).unwrap();
@@ -166,18 +187,51 @@ const Tasks = () => {
     if (selectedTasks.length === 0) return;
     
     try {
-      await dispatch(bulkArchiveTasksAction(selectedTasks)).unwrap();
+      await dispatch(bulkArchiveTasksAction({ projectId, taskIds: selectedTasks })).unwrap();
       dispatch(clearSelection());
+      // Refresh tasks list
+      if (hasManagerAccess) {
+        await dispatch(fetchProjectTasks({ 
+          projectId,
+          params: {
+            ...filters,
+            showArchived: showArchived
+          }
+        })).unwrap();
+      }
     } catch (error) {
       console.error('Failed to archive tasks:', error);
     }
   };
 
-  const handleBulkDelete = async () => {
+  const handleBulkRestore = async () => {
     if (selectedTasks.length === 0) return;
     
     try {
-      await dispatch(bulkDeleteTasksAction(selectedTasks)).unwrap();
+      await dispatch(bulkRestoreTasksAction({ projectId, taskIds: selectedTasks })).unwrap();
+      dispatch(clearSelection());
+      // Refresh tasks list
+      if (hasManagerAccess) {
+        await dispatch(fetchProjectTasks({ 
+          projectId,
+          params: {
+            ...filters,
+            showArchived: showArchived
+          }
+        })).unwrap();
+      }
+    } catch (error) {
+      console.error('Failed to restore tasks:', error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedTasks.length === 0) return;
+
+    
+    
+    try {
+      await dispatch(bulkDeleteTasksAction({ projectId, taskIds: selectedTasks })).unwrap();
       dispatch(clearSelection());
     } catch (error) {
       console.error('Failed to delete tasks:', error);
@@ -204,8 +258,21 @@ const Tasks = () => {
   const confirmArchive = async () => {
     if (archivingTask) {
       try {
-        await dispatch(archiveExistingTask(archivingTask._id)).unwrap();
+        await dispatch(archiveExistingTask({ projectId, taskId: archivingTask._id })).unwrap();
         setArchivingTask(null);
+        setShowArchiveConfirm(false);
+        // Refresh tasks list
+        if (hasManagerAccess) {
+          await dispatch(fetchProjectTasks({ 
+            projectId,
+            params: {
+              ...filters,
+              showArchived: showArchived
+            }
+          })).unwrap();
+        } else {
+          await dispatch(fetchUserTasks({ projectId, userId: user._id })).unwrap();
+        }
       } catch (error) {
         console.error('Failed to archive task:', error);
       }
@@ -215,8 +282,20 @@ const Tasks = () => {
   const confirmDelete = async () => {
     if (deletingTask) {
       try {
-        await dispatch(deleteExistingTask(deletingTask._id)).unwrap();
+        await dispatch(deleteExistingTask({ projectId, taskId: deletingTask._id })).unwrap();
         setDeletingTask(null);
+        // Refresh tasks list
+        if (hasManagerAccess) {
+          await dispatch(fetchProjectTasks({ 
+            projectId,
+            params: {
+              ...filters,
+              showArchived: showArchived
+            }
+          })).unwrap();
+        } else {
+          await dispatch(fetchUserTasks({ projectId, userId: user._id })).unwrap();
+        }
       } catch (error) {
         console.error('Failed to delete task:', error);
       }
@@ -235,6 +314,9 @@ const Tasks = () => {
       case 'archive':
         handleBulkArchive();
         break;
+      case 'restore':
+        handleBulkRestore();
+        break;
       case 'delete':
         handleBulkDelete();
         break;
@@ -247,7 +329,7 @@ const Tasks = () => {
     <div className="bg-white rounded-lg shadow-sm">
       {/* Table Header */}
       <div className="px-6 py-4 border-b border-gray-200">
-        <div className="grid grid-cols-10 gap-4 items-center text-sm font-medium text-gray-500 uppercase tracking-wider">
+        <div className="grid grid-cols-10 gap-1 items-center text-sm font-medium text-gray-500 uppercase tracking-wider">
           <div className="col-span-1">
             <input
               type="checkbox"
@@ -278,7 +360,8 @@ const Tasks = () => {
             onEdit={handleEditTask}
             onView={handleViewTask}
             onArchive={handleArchiveTask}
-            onDelete={handleDeleteTask}
+            projectId={projectId}
+            showArchived={showArchived}
           />
         )) : (
           <div className="text-center">
@@ -289,11 +372,15 @@ const Tasks = () => {
                       <path d="M20 4v16"></path>
                       <path d="M12 4H4v16h8"></path>
                     </svg>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">No tasks found yet</h3>
+                    <h3 className="mt-2 text-sm font-medium text-gray-900">
+                      {showArchived ? 'No archived tasks found' : 'No tasks found yet'}
+                    </h3>
                     <p className="mt-1 text-sm text-gray-500">
-                      Get started by creating your first task.
+                      {showArchived 
+                        ? 'There are no archived tasks in this project.'
+                        : 'Get started by creating your first task.'}
                     </p>
-                    <div className="mt-6">
+                    {hasManagerAccess && <div className="mt-6">
                       <button
                         onClick={() => {
                           dispatch(toggleCreateSidebar());
@@ -305,7 +392,7 @@ const Tasks = () => {
                         </svg>
                         Add Task
                       </button>
-                    </div>
+                    </div>}
                   </div>
               </div>
         )}
@@ -361,7 +448,7 @@ const Tasks = () => {
             Filters
           </button>
           
-          <button
+          {hasManagerAccess && <button
             onClick={() => dispatch(toggleCreateSidebar())}
             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
           >
@@ -369,7 +456,7 @@ const Tasks = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
             Create Task
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -378,7 +465,7 @@ const Tasks = () => {
         <nav className="-mb-px flex space-x-8">
           {[
             { id: 'list', name: 'List View' },
-            { id: 'kanban', name: 'Kanban' },
+            ...(hasManagerAccess ? [{ id: 'kanban', name: 'Kanban' }] : []),
             { id: 'stats', name: 'Statistics' }
           ].map((tab) => (
             <button
@@ -415,8 +502,24 @@ const Tasks = () => {
           </div>
         </div>
 
+        {hasManagerAccess && <div className="flex items-center space-x-2">
+            <button
+              onClick={handleToggleArchived}
+              className={`inline-flex items-center px-3 py-2 border rounded-md text-sm font-medium transition-colors ${
+                showArchived
+                  ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+              }`}
+            >
+              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+              </svg>
+              {showArchived ? 'Show Active Tasks' : 'Show Archived Tasks'}
+            </button>
+          </div>}
+
         {/* Bulk Actions */}
-        {selectedTasks.length > 0 && (
+        { hasManagerAccess && selectedTasks.length > 0 && (
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-500">
               {selectedTasks.length} selected
@@ -434,12 +537,21 @@ const Tasks = () => {
               >
                 Assign
               </button>
-              <button
-                onClick={() => handleBulkAction('archive')}
-                className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-              >
-                Archive
-              </button>
+              {!showArchived ? (
+                <button
+                  onClick={() => handleBulkAction('archive')}
+                  className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  Archive
+                </button>
+              ) : (
+                <button
+                  onClick={() => handleBulkAction('restore')}
+                  className="inline-flex items-center px-3 py-1 border border-indigo-300 shadow-sm text-xs font-medium rounded text-indigo-700 bg-white hover:bg-indigo-50"
+                >
+                  Restore
+                </button>
+              )}
               <button
                 onClick={() => handleBulkAction('delete')}
                 className="inline-flex items-center px-3 py-1 border border-red-300 shadow-sm text-xs font-medium rounded text-red-700 bg-white hover:bg-red-50"
@@ -494,7 +606,7 @@ const Tasks = () => {
           action={bulkAction}
           selectedCount={selectedTasks.length}
           onStatusUpdate={handleBulkStatusUpdate}
-          onAssign={handleBulkAssign}
+          onAssign={(userId) => handleBulkAssign(userId)}
           users={users}
         />
       )}

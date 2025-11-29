@@ -1007,6 +1007,388 @@ class ActivityService {
       }
     });
   }
+
+  // Task Activities
+  static async logTaskCreated(task, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_created',
+      description: `Task "${task.title}" was created`,
+      category: 'creation',
+      performedBy: performedBy._id || performedBy,
+      priority: 'high',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        status: task.status,
+        priority: task.priority,
+        assignedTo: task.assignedTo
+      }
+    });
+  }
+
+  static async logTaskUpdated(task, changes, performedBy) {
+    const changeDescriptions = [];
+    
+    Object.keys(changes).forEach(field => {
+      if (field === 'updatedAt' || field === 'updatedBy') return;
+      
+      const oldValue = changes[field].oldValue instanceof mongoose.Types.ObjectId ? changes[field].oldValue.toString() : changes[field].oldValue;
+      const newValue = changes[field].newValue instanceof mongoose.Types.ObjectId ? changes[field].newValue.toString() : changes[field].newValue;
+      
+      if (oldValue !== newValue) {
+        changeDescriptions.push(`${field} changed from "${oldValue}" to "${newValue}"`);
+      }
+    });
+
+    if (changeDescriptions.length === 0) return null;
+
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_updated',
+      description: `Task "${task.title}" was updated: ${changeDescriptions.join(', ')}`,
+      category: 'update',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      changes: {
+        field: Object.keys(changes).join(', '),
+        oldValue: Object.values(changes).map(c => c.oldValue),
+        newValue: Object.values(changes).map(c => c.newValue)
+      },
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        fieldsChanged: Object.keys(changes).filter(f => f !== 'updatedAt' && f !== 'updatedBy')
+      }
+    });
+  }
+
+  static async logTaskCompleted(task, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_completed',
+      description: `Task "${task.title}" was completed`,
+      category: 'status_change',
+      performedBy: performedBy._id || performedBy,
+      priority: 'high',
+      changes: {
+        field: 'status',
+        oldValue: 'in_progress',
+        newValue: 'completed'
+      },
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        completedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskAssigned(task, assignedToUser, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_assigned',
+      description: `Task "${task.title}" was assigned to "${assignedToUser?.name || assignedToUser}"`,
+      category: 'assignment',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      relatedEntity: {
+        type: 'User',
+        id: assignedToUser._id || assignedToUser
+      },
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        assignedTo: assignedToUser?.name || assignedToUser,
+        assignedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskUnassigned(task, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_unassigned',
+      description: `Task "${task.title}" was unassigned`,
+      category: 'assignment',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        unassignedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskCommentAdded(task, comment, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_comment_added',
+      description: `Comment added to task "${task.title}"`,
+      category: 'interaction',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        commentId: comment._id || comment,
+        commentContent: comment.content ? comment.content.substring(0, 100) + (comment.content.length > 100 ? '...' : '') : '',
+        addedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskCommentUpdated(task, commentId, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_comment_updated',
+      description: `Comment updated on task "${task.title}"`,
+      category: 'interaction',
+      performedBy: performedBy._id || performedBy,
+      priority: 'low',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        commentId: commentId,
+        updatedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskCommentDeleted(task, commentId, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_comment_deleted',
+      description: `Comment deleted from task "${task.title}"`,
+      category: 'interaction',
+      performedBy: performedBy._id || performedBy,
+      priority: 'low',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        commentId: commentId,
+        deletedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskSubtaskAdded(task, subtask, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_subtask_added',
+      description: `Subtask "${subtask.title}" added to task "${task.title}"`,
+      category: 'update',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        subtaskId: subtask._id || subtask,
+        subtaskTitle: subtask.title,
+        addedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskSubtaskUpdated(task, subtask, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_subtask_updated',
+      description: `Subtask "${subtask.title}" updated on task "${task.title}"`,
+      category: 'update',
+      performedBy: performedBy._id || performedBy,
+      priority: 'low',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        subtaskId: subtask._id || subtask,
+        subtaskTitle: subtask.title,
+        updatedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskSubtaskDeleted(task, subtaskId, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_subtask_deleted',
+      description: `Subtask deleted from task "${task.title}"`,
+      category: 'update',
+      performedBy: performedBy._id || performedBy,
+      priority: 'low',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        subtaskId: subtaskId,
+        deletedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskCustomFieldAdded(task, key, value, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_custom_field_added',
+      description: `Custom field "${key}" added to task "${task.title}"`,
+      category: 'update',
+      performedBy: performedBy._id || performedBy,
+      priority: 'low',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        fieldKey: key,
+        fieldValue: value,
+        addedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskCustomFieldUpdated(task, key, oldValue, newValue, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_custom_field_updated',
+      description: `Custom field "${key}" updated on task "${task.title}"`,
+      category: 'update',
+      performedBy: performedBy._id || performedBy,
+      priority: 'low',
+      changes: {
+        field: key,
+        oldValue: oldValue,
+        newValue: newValue
+      },
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        fieldKey: key,
+        updatedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskCustomFieldDeleted(task, key, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_custom_field_deleted',
+      description: `Custom field "${key}" deleted from task "${task.title}"`,
+      category: 'update',
+      performedBy: performedBy._id || performedBy,
+      priority: 'low',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        fieldKey: key,
+        deletedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskArchived(task, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_archived',
+      description: `Task "${task.title}" was archived`,
+      category: 'status_change',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        archivedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskRestored(task, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_restored',
+      description: `Task "${task.title}" was restored from archive`,
+      category: 'status_change',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        restoredBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskDeleted(task, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_deleted',
+      description: `Task "${task.title}" was deleted`,
+      category: 'deletion',
+      performedBy: performedBy._id || performedBy,
+      priority: 'critical',
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        deletedBy: performedBy.name || performedBy
+      }
+    });
+  }
+
+  static async logTaskStatusChanged(task, oldStatus, newStatus, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Task',
+      entityId: task._id,
+      project: task.project,
+      activityType: 'task_status_changed',
+      description: `Task "${task.title}" status changed from "${oldStatus}" to "${newStatus}"`,
+      category: 'status_change',
+      performedBy: performedBy._id || performedBy,
+      priority: 'medium',
+      changes: {
+        field: 'status',
+        oldValue: oldStatus,
+        newValue: newStatus
+      },
+      metadata: {
+        taskTitle: task.title,
+        taskId: task._id,
+        oldStatus,
+        newStatus,
+        changedBy: performedBy.name || performedBy
+      }
+    });
+  }
 }
 
 export default ActivityService;

@@ -5,10 +5,10 @@ const BulkActionsModal = ({ isOpen, onClose, action, selectedCount, onStatusUpda
   const [selectedUser, setSelectedUser] = useState('');
 
   const statusOptions = [
-    { value: 'todo', label: 'To Do' },
-    { value: 'in-progress', label: 'In Progress' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'in_progress', label: 'In Progress' },
     { value: 'completed', label: 'Completed' },
-    { value: 'on-hold', label: 'On Hold' },
+    { value: 'on_hold', label: 'On Hold' },
     { value: 'cancelled', label: 'Cancelled' }
   ];
 

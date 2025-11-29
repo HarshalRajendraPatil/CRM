@@ -4,7 +4,7 @@ const activitySchema = new mongoose.Schema({
   // Entity reference (Company, Lead, Customer, or Deal)
   entityType: {
     type: String,
-    enum: ['Company', 'Lead', 'Customer', 'Deal'],
+    enum: ['Company', 'Lead', 'Customer', 'Deal', 'Task'],
     required: true,
     index: true
   },
@@ -101,12 +101,25 @@ const activitySchema = new mongoose.Schema({
       'deal_attachment_added',
       'deal_attachment_removed',
       
-      // Task activities (if linked)
+      // Task activities
       'task_created',
       'task_updated',
       'task_completed',
       'task_assigned',
-      'task_unassigned'
+      'task_unassigned',
+      'task_archived',
+      'task_restored',
+      'task_deleted',
+      'task_status_changed',
+      'task_comment_added',
+      'task_comment_updated',
+      'task_comment_deleted',
+      'task_custom_field_added',
+      'task_custom_field_updated',
+      'task_custom_field_deleted',
+      'task_subtask_added',
+      'task_subtask_updated',
+      'task_subtask_deleted',
     ],
     index: true
   },
@@ -137,7 +150,7 @@ const activitySchema = new mongoose.Schema({
   relatedEntity: {
     type: {
       type: String,
-      enum: ['User', 'Company', 'Lead', 'Deal', 'Task', 'Project']
+      enum: ['User', 'Company', 'Lead', 'Customer', 'Deal', 'Task', 'Project']
     },
     id: {
       type: mongoose.Schema.Types.ObjectId

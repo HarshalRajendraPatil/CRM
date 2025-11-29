@@ -1,28 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { createTaskAction } from '../../../store/taskSlice';
+import { getProjectById } from '../../../store/projectSlice';
 import { getUsers } from '../../../store/userSlice';
 import {getProjectLeads} from '../../../store/leadSlice'
 import {fetchProjectCustomers} from '../../../store/customerSlice'
 import {fetchProjectDeals} from '../../../store/dealSlice'
 import {getProjectCompanies} from '../../../store/companySlice'
 import { useSettingsIntegration } from '../../../hooks/useSettingsIntegration';
+import { fetchProjectTasks, fetchUserTasks } from '../../../store/taskSlice';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
 
 const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.tasks);
+  const { user } = useSelector((state) => state.auth);
   const { users } = useSelector((state) => state.users);
   const { leads } = useSelector((state) => state.leads);
   const { customers } = useSelector((state) => state.customers);
   const { deals } = useSelector((state) => state.deals);
   const { companies } = useSelector((state) => state.companies);
-  const { defaultTaskPriority, defaultTaskType, timeTrackingEnabled } = useSettingsIntegration();
+  const { defaultTaskPriority } = useSettingsIntegration();
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     status: 'pending',
     priority: defaultTaskPriority,
-    type: defaultTaskType,
+    type: 'follow_up',
     dueDate: '',
     startDate: '',
     assignedTo: '',
@@ -55,10 +59,12 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
   const [reminderTrigger, setReminderTrigger] = useState('before_due');
   const [reminderOffset, setReminderOffset] = useState(0);
   const [errors, setErrors] = useState({});
+  const { hasManagerAccess } = useProjectAccess();
 
   useEffect(() => {
     if (isOpen) {
       dispatch(getUsers());
+      dispatch(getProjectById( projectId ));
       dispatch(getProjectLeads({ projectId }));
       dispatch(fetchProjectCustomers({ projectId }));
       dispatch(fetchProjectDeals({ projectId }));
@@ -251,7 +257,13 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
         reminders: formData.reminders.length > 0 ? formData.reminders : undefined
       };
 
-      await dispatch(createTaskAction(taskData)).unwrap();
+      await dispatch(createTaskAction({ projectId, taskData })).unwrap();
+      if (hasManagerAccess) {
+        await dispatch(fetchProjectTasks({ projectId })).unwrap();
+      }
+      else {
+        await dispatch(fetchUserTasks({ projectId, userId: user._id })).unwrap();
+      }
       onClose();
       
       // Reset form
@@ -260,7 +272,7 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
         description: '',
         status: 'pending',
         priority: 'medium',
-        type: 'other',
+        type: 'follow_up',
         dueDate: '',
         startDate: '',
         assignedTo: '',

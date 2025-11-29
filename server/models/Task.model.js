@@ -290,7 +290,7 @@ const taskSchema = new mongoose.Schema({
     action: {
       type: String,
       required: true,
-      enum: ['created', 'updated', 'assigned', 'status_changed', 'priority_changed', 'due_date_changed', 'completed', 'cancelled', 'commented', 'attachment_added', 'subtask_added', 'subtask_updated', 'subtask_deleted', 'subtask_completed']
+      enum: ['created', 'updated', 'assigned', 'status_changed', 'priority_changed', 'due_date_changed', 'completed', 'cancelled', 'commented', 'attachment_added', 'subtask_added', 'subtask_updated', 'subtask_deleted', 'subtask_completed', 'archived', 'restored']
     },
     description: String,
     actor: {

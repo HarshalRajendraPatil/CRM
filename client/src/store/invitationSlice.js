@@ -15,9 +15,9 @@ const initialState = {
 // Create invitation
 export const createInvitation = createAsyncThunk(
   'invitations/createInvitation',
-  async (invitationData, thunkAPI) => {
+  async ({projectId, invitationData}, thunkAPI) => {
     try {
-      return await invitationService.createInvitation(invitationData);
+      return await invitationService.createInvitation(projectId, invitationData);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to create invitation';
       return thunkAPI.rejectWithValue(message);
@@ -93,9 +93,9 @@ export const declineInvitation = createAsyncThunk(
 // Resend invitation
 export const resendInvitation = createAsyncThunk(
   'invitations/resendInvitation',
-  async (id, thunkAPI) => {
+  async ({id, projectId}, thunkAPI) => {
     try {
-      return await invitationService.resendInvitation(id);
+      return await invitationService.resendInvitation(id, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to resend invitation';
       return thunkAPI.rejectWithValue(message);
@@ -106,9 +106,9 @@ export const resendInvitation = createAsyncThunk(
 // Cancel invitation
 export const cancelInvitation = createAsyncThunk(
   'invitations/cancelInvitation',
-  async (id, thunkAPI) => {
+  async ({id, projectId}, thunkAPI) => {
     try {
-      return await invitationService.cancelInvitation(id);
+      return await invitationService.cancelInvitation(id, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to cancel invitation';
       return thunkAPI.rejectWithValue(message);
@@ -119,9 +119,9 @@ export const cancelInvitation = createAsyncThunk(
 // Delete invitation
 export const deleteInvitation = createAsyncThunk(
   'invitations/deleteInvitation',
-  async (id, thunkAPI) => {
+  async ({id, projectId}, thunkAPI) => {
     try {
-      return await invitationService.deleteInvitation(id);
+      return await invitationService.deleteInvitation(id, projectId);
     } catch (error) {
       const message = error.response?.data?.message || error.message || 'Failed to delete invitation';
       return thunkAPI.rejectWithValue(message);
@@ -266,7 +266,7 @@ const invitationSlice = createSlice({
       .addCase(cancelInvitation.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.invitations = state.invitations.filter(invitation => invitation._id !== action.meta.arg);
+        state.invitations = state.invitations.filter(invitation => invitation._id !== action.meta.arg.id);
       })
       .addCase(cancelInvitation.rejected, (state, action) => {
         state.isLoading = false;
@@ -281,7 +281,7 @@ const invitationSlice = createSlice({
       .addCase(deleteInvitation.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.invitations = state.invitations.filter(invitation => invitation._id !== action.meta.arg);
+        state.invitations = state.invitations.filter(invitation => invitation._id !== action.meta.arg.id);
       })
       .addCase(deleteInvitation.rejected, (state, action) => {
         state.isLoading = false;

@@ -19,9 +19,9 @@ router.use(authenticateToken);
 
 // Routes that require system-admin role
 router.get('/stats', requireGlobalRole('system-admin'), getUserStats);
-router.get('/', requireGlobalRole('system-admin'), getUsers);
+router.get('/', getUsers);
 router.post('/', requireGlobalRole('system-admin'), createUser);
-router.get('/:id', requireGlobalRole('system-admin'), getUserById);
+router.get('/:id', getUserById);
 router.put('/:id', requireGlobalRole('system-admin'), updateUser);
 router.delete('/:id', requireGlobalRole('system-admin'), deleteUser);
 router.put('/:id/reset-password', requireGlobalRole('system-admin'), resetUserPassword);

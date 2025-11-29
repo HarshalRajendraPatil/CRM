@@ -1,8 +1,8 @@
 import axiosInstance from '../utils/axiosConfig';
 
 // Create invitation
-const createInvitation = async (invitationData) => {
-  const response = await axiosInstance.post('/invitations', invitationData);
+const createInvitation = async (projectId, invitationData) => {
+  const response = await axiosInstance.post(`/invitations?projectId=${projectId}`, invitationData);
   return response.data;
 };
 
@@ -37,20 +37,20 @@ const declineInvitation = async (token) => {
 };
 
 // Resend invitation
-const resendInvitation = async (id) => {
-  const response = await axiosInstance.put(`/invitations/${id}/resend`);
+const resendInvitation = async (id, projectId) => {
+  const response = await axiosInstance.put(`/invitations/${id}/resend?projectId=${projectId}`);
   return response.data;
 };
 
 // Cancel invitation
-const cancelInvitation = async (id) => {
-  const response = await axiosInstance.put(`/invitations/${id}/cancel`);
+const cancelInvitation = async (id, projectId) => {
+  const response = await axiosInstance.put(`/invitations/${id}/cancel?projectId=${projectId}`);
   return response.data;
 };
 
 // Delete invitation
-const deleteInvitation = async (id) => {
-  const response = await axiosInstance.delete(`/invitations/${id}`);
+const deleteInvitation = async (id, projectId) => {
+  const response = await axiosInstance.delete(`/invitations/${id}?projectId=${projectId}`);
   return response.data;
 };
 

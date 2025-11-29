@@ -11,12 +11,18 @@ import {
   updateTaskStatus,
   assignTask,
   addTaskComment,
+  updateTaskCommentAction,
+  deleteTaskCommentAction,
   addSubtask,
   updateSubtask,
   deleteSubtask,
+  addTaskCustomFieldAction,
+  updateTaskCustomFieldAction,
+  deleteTaskCustomFieldAction,
   bulkUpdateTasks,
   bulkDeleteTasks,
   bulkArchiveTasks,
+  bulkRestoreTasks,
   getTaskStats,
   getTaskInsights,
   getOverdueTasks,
@@ -40,9 +46,9 @@ export const fetchProjectTasks = createAsyncThunk(
 
 export const fetchUserTasks = createAsyncThunk(
   'tasks/fetchUserTasks',
-  async ({ userId, params = {} }, { rejectWithValue }) => {
+  async ({ projectId, userId, params = {} }, { rejectWithValue }) => {
     try {
-      const response = await getUserTasks(userId, params);
+      const response = await getUserTasks(projectId, userId, params);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch user tasks');
@@ -52,9 +58,9 @@ export const fetchUserTasks = createAsyncThunk(
 
 export const fetchTask = createAsyncThunk(
   'tasks/fetchTask',
-  async (taskId, { rejectWithValue }) => {
+  async ({ projectId, taskId }, { rejectWithValue }) => {
     try {
-      const response = await getTask(taskId);
+      const response = await getTask(projectId, taskId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch task');
@@ -64,9 +70,9 @@ export const fetchTask = createAsyncThunk(
 
 export const createNewTask = createAsyncThunk(
   'tasks/createTask',
-  async (taskData, { rejectWithValue }) => {
+  async ({ projectId, taskData }, { rejectWithValue }) => {
     try {
-      const response = await createTask(taskData);
+      const response = await createTask(projectId, taskData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create task');
@@ -76,9 +82,9 @@ export const createNewTask = createAsyncThunk(
 
 export const updateExistingTask = createAsyncThunk(
   'tasks/updateTask',
-  async ({ taskId, taskData }, { rejectWithValue }) => {
+  async ({ projectId, taskId, taskData }, { rejectWithValue }) => {
     try {
-      const response = await updateTask(taskId, taskData);
+      const response = await updateTask(projectId, taskId, taskData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update task');
@@ -88,9 +94,9 @@ export const updateExistingTask = createAsyncThunk(
 
 export const deleteExistingTask = createAsyncThunk(
   'tasks/deleteTask',
-  async (taskId, { rejectWithValue }) => {
+  async ({ projectId, taskId }, { rejectWithValue }) => {
     try {
-      await deleteTask(taskId);
+      await deleteTask(projectId, taskId);
       return taskId;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete task');
@@ -100,9 +106,9 @@ export const deleteExistingTask = createAsyncThunk(
 
 export const archiveExistingTask = createAsyncThunk(
   'tasks/archiveTask',
-  async (taskId, { rejectWithValue }) => {
+  async ({ projectId, taskId }, { rejectWithValue }) => {
     try {
-      const response = await archiveTask(taskId);
+      const response = await archiveTask(projectId, taskId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to archive task');
@@ -112,9 +118,9 @@ export const archiveExistingTask = createAsyncThunk(
 
 export const restoreExistingTask = createAsyncThunk(
   'tasks/restoreTask',
-  async (taskId, { rejectWithValue }) => {
+  async ({ projectId, taskId }, { rejectWithValue }) => {
     try {
-      const response = await restoreTask(taskId);
+      const response = await restoreTask(projectId, taskId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to restore task');
@@ -124,9 +130,9 @@ export const restoreExistingTask = createAsyncThunk(
 
 export const updateTaskStatusAction = createAsyncThunk(
   'tasks/updateTaskStatus',
-  async ({ taskId, status, notes = '' }, { rejectWithValue }) => {
+  async ({ projectId, taskId, status, notes = '' }, { rejectWithValue }) => {
     try {
-      const response = await updateTaskStatus(taskId, status, notes);
+      const response = await updateTaskStatus(projectId, taskId, status, notes);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update task status');
@@ -136,9 +142,9 @@ export const updateTaskStatusAction = createAsyncThunk(
 
 export const assignTaskAction = createAsyncThunk(
   'tasks/assignTask',
-  async ({ taskId, assignedTo }, { rejectWithValue }) => {
+  async ({ projectId, taskId, assignedTo }, { rejectWithValue }) => {
     try {
-      const response = await assignTask(taskId, assignedTo);
+      const response = await assignTask(projectId, taskId, assignedTo);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to assign task');
@@ -148,9 +154,9 @@ export const assignTaskAction = createAsyncThunk(
 
 export const addTaskCommentAction = createAsyncThunk(
   'tasks/addTaskComment',
-  async ({ taskId, content, mentions = [] }, { rejectWithValue }) => {
+  async ({ projectId, taskId, content, mentions = [] }, { rejectWithValue }) => {
     try {
-      const response = await addTaskComment(taskId, content, mentions);
+      const response = await addTaskComment(projectId, taskId, content, mentions);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add comment');
@@ -160,9 +166,9 @@ export const addTaskCommentAction = createAsyncThunk(
 
 export const addSubtaskAction = createAsyncThunk(
   'tasks/addSubtask',
-  async ({ taskId, subtaskData }, { rejectWithValue }) => {
+  async ({ projectId, taskId, subtaskData }, { rejectWithValue }) => {
     try {
-      const response = await addSubtask(taskId, subtaskData);
+      const response = await addSubtask(projectId, taskId, subtaskData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add subtask');
@@ -172,9 +178,9 @@ export const addSubtaskAction = createAsyncThunk(
 
 export const updateSubtaskAction = createAsyncThunk(
   'tasks/updateSubtask',
-  async ({ taskId, subtaskId, subtaskData }, { rejectWithValue }) => {
+  async ({ projectId, taskId, subtaskId, subtaskData }, { rejectWithValue }) => {
     try {
-      const response = await updateSubtask(taskId, subtaskId, subtaskData);
+      const response = await updateSubtask(projectId, taskId, subtaskId, subtaskData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update subtask');
@@ -184,9 +190,9 @@ export const updateSubtaskAction = createAsyncThunk(
 
 export const completeSubtaskAction = createAsyncThunk(
   'tasks/completeSubtask',
-  async ({ taskId, subtaskId }, { rejectWithValue }) => {
+  async ({ projectId, taskId, subtaskId }, { rejectWithValue }) => {
     try {
-      const response = await completeSubtask(taskId, subtaskId);
+      const response = await completeSubtask(projectId, taskId, subtaskId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to complete subtask');
@@ -196,9 +202,9 @@ export const completeSubtaskAction = createAsyncThunk(
 
 export const deleteSubtaskAction = createAsyncThunk(
   'tasks/deleteSubtask',
-  async ({ taskId, subtaskId }, { rejectWithValue }) => {
+  async ({ projectId, taskId, subtaskId }, { rejectWithValue }) => {
     try {
-      const response = await deleteSubtask(taskId, subtaskId);
+      const response = await deleteSubtask(projectId, taskId, subtaskId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete subtask');
@@ -208,9 +214,9 @@ export const deleteSubtaskAction = createAsyncThunk(
 
 export const bulkUpdateTasksAction = createAsyncThunk(
   'tasks/bulkUpdateTasks',
-  async ({ taskIds, updates }, { rejectWithValue }) => {
+  async ({ projectId, taskIds, updates }, { rejectWithValue }) => {
     try {
-      const response = await bulkUpdateTasks(taskIds, updates);
+      const response = await bulkUpdateTasks(projectId, taskIds, updates);
       return { taskIds, updates, message: response.data.message };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk update tasks');
@@ -220,9 +226,9 @@ export const bulkUpdateTasksAction = createAsyncThunk(
 
 export const bulkDeleteTasksAction = createAsyncThunk(
   'tasks/bulkDeleteTasks',
-  async (taskIds, { rejectWithValue }) => {
+  async ({ projectId, taskIds }, { rejectWithValue }) => {
     try {
-      const response = await bulkDeleteTasks(taskIds);
+      const response = await bulkDeleteTasks(projectId, taskIds);
       return { taskIds, message: response.data.message };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk delete tasks');
@@ -232,12 +238,24 @@ export const bulkDeleteTasksAction = createAsyncThunk(
 
 export const bulkArchiveTasksAction = createAsyncThunk(
   'tasks/bulkArchiveTasks',
-  async (taskIds, { rejectWithValue }) => {
+  async ({ projectId, taskIds }, { rejectWithValue }) => {
     try {
-      const response = await bulkArchiveTasks(taskIds);
+      const response = await bulkArchiveTasks(projectId, taskIds);
       return { taskIds, message: response.data.message };
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk archive tasks');
+    }
+  }
+);
+
+export const bulkRestoreTasksAction = createAsyncThunk(
+  'tasks/bulkRestoreTasks',
+  async ({ projectId, taskIds }, { rejectWithValue }) => {
+    try {
+      const response = await bulkRestoreTasks(projectId, taskIds);
+      return { taskIds, message: response.data.message };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.message || 'Failed to bulk restore tasks');
     }
   }
 );
@@ -268,9 +286,9 @@ export const fetchOverdueTasks = createAsyncThunk(
 
 export const fetchTasksByEntity = createAsyncThunk(
   'tasks/fetchTasksByEntity',
-  async ({ entityType, entityId, params = {} }, { rejectWithValue }) => {
+  async ({ projectId, entityType, entityId, params = {} }, { rejectWithValue }) => {
     try {
-      const response = await getTasksByEntity(entityType, entityId, params);
+      const response = await getTasksByEntity(projectId, entityType, entityId, params);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch entity tasks');
@@ -293,9 +311,9 @@ export const exportTasksAction = createAsyncThunk(
 // Additional async thunks for task management
 export const createTaskAction = createAsyncThunk(
   'tasks/createTaskAction',
-  async (taskData, { rejectWithValue }) => {
+  async ({ projectId, taskData }, { rejectWithValue }) => {
     try {
-      const response = await createTask(taskData);
+      const response = await createTask(projectId, taskData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create task');
@@ -305,9 +323,9 @@ export const createTaskAction = createAsyncThunk(
 
 export const updateTaskAction = createAsyncThunk(
   'tasks/updateTaskAction',
-  async ({ id, data }, { rejectWithValue }) => {
+  async ({ projectId, taskId, data }, { rejectWithValue }) => {
     try {
-      const response = await updateTask(id, data);
+      const response = await updateTask(projectId, taskId, data);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update task');
@@ -317,10 +335,10 @@ export const updateTaskAction = createAsyncThunk(
 
 export const fetchTaskActivities = createAsyncThunk(
   'tasks/fetchTaskActivities',
-  async (taskId, { rejectWithValue }) => {
+  async ({ projectId, taskId }, { rejectWithValue }) => {
     try {
       // This would need to be implemented in the service
-      const response = await getTask(taskId);
+      const response = await getTask(projectId, taskId);
       return response.data.activities || [];
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch task activities');
@@ -342,12 +360,9 @@ export const fetchTaskActivities = createAsyncThunk(
 
 export const updateTaskComment = createAsyncThunk(
   'tasks/updateTaskComment',
-  async ({ taskId, commentId, data }, { rejectWithValue }) => {
+  async ({ projectId, taskId, commentId, content }, { rejectWithValue }) => {
     try {
-      // This would need to be implemented in the service
-      const response = await updateTask(taskId, { 
-        'comments.$[elem].content': data.content 
-      });
+      const response = await updateTaskCommentAction(projectId, taskId, commentId, content);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update comment');
@@ -357,12 +372,9 @@ export const updateTaskComment = createAsyncThunk(
 
 export const deleteTaskComment = createAsyncThunk(
   'tasks/deleteTaskComment',
-  async ({ taskId, commentId }, { rejectWithValue }) => {
+  async ({ projectId, taskId, commentId }, { rejectWithValue }) => {
     try {
-      // This would need to be implemented in the service
-      const response = await updateTask(taskId, { 
-        $pull: { comments: { _id: commentId } }
-      });
+      const response = await deleteTaskCommentAction(projectId, taskId, commentId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete comment');
@@ -372,9 +384,9 @@ export const deleteTaskComment = createAsyncThunk(
 
 export const addTaskSubtask = createAsyncThunk(
   'tasks/addTaskSubtask',
-  async ({ taskId, data }, { rejectWithValue }) => {
+  async ({ projectId, taskId, data }, { rejectWithValue }) => {
     try {
-      const response = await addSubtask(taskId, data);
+      const response = await addSubtask(projectId, taskId, data);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add subtask');
@@ -384,9 +396,9 @@ export const addTaskSubtask = createAsyncThunk(
 
 export const updateTaskSubtask = createAsyncThunk(
   'tasks/updateTaskSubtask',
-  async ({ taskId, subtaskId, data }, { rejectWithValue }) => {
+  async ({ projectId, taskId, subtaskId, data }, { rejectWithValue }) => {
     try {
-      const response = await updateSubtask(taskId, subtaskId, data);
+      const response = await updateSubtask(projectId, taskId, subtaskId, data);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update subtask');
@@ -396,9 +408,9 @@ export const updateTaskSubtask = createAsyncThunk(
 
 export const deleteTaskSubtask = createAsyncThunk(
   'tasks/deleteTaskSubtask',
-  async ({ taskId, subtaskId }, { rejectWithValue }) => {
+  async ({ projectId, taskId, subtaskId }, { rejectWithValue }) => {
     try {
-      const response = await deleteSubtask(taskId, subtaskId);
+      const response = await deleteSubtask(projectId, taskId, subtaskId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete subtask');
@@ -408,10 +420,10 @@ export const deleteTaskSubtask = createAsyncThunk(
 
 export const addTaskTag = createAsyncThunk(
   'tasks/addTaskTag',
-  async ({ taskId, data }, { rejectWithValue }) => {
+  async ({ projectId, taskId, data }, { rejectWithValue }) => {
     try {
       // This would need to be implemented in the service
-      const response = await updateTask(taskId, { 
+      const response = await updateTask(projectId, taskId, { 
         $addToSet: { tags: data.tag }
       });
       return response.data;
@@ -423,10 +435,10 @@ export const addTaskTag = createAsyncThunk(
 
 export const removeTaskTag = createAsyncThunk(
   'tasks/removeTaskTag',
-  async ({ taskId, tag }, { rejectWithValue }) => {
+  async ({ projectId, taskId, tag }, { rejectWithValue }) => {
     try {
       // This would need to be implemented in the service
-      const response = await updateTask(taskId, { 
+      const response = await updateTask(projectId, taskId, { 
         $pull: { tags: tag }
       });
       return response.data;
@@ -438,12 +450,9 @@ export const removeTaskTag = createAsyncThunk(
 
 export const addTaskCustomField = createAsyncThunk(
   'tasks/addTaskCustomField',
-  async ({ taskId, data }, { rejectWithValue }) => {
+  async ({ projectId, taskId, data }, { rejectWithValue }) => {
     try {
-      // This would need to be implemented in the service
-      const response = await updateTask(taskId, { 
-        [`customFields.${data.key}`]: data.value
-      });
+      const response = await addTaskCustomFieldAction(projectId, taskId, data.key, data.value);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to add custom field');
@@ -453,12 +462,9 @@ export const addTaskCustomField = createAsyncThunk(
 
 export const updateTaskCustomField = createAsyncThunk(
   'tasks/updateTaskCustomField',
-  async ({ taskId, key, data }, { rejectWithValue }) => {
+  async ({ projectId, taskId, key, data }, { rejectWithValue }) => {
     try {
-      // This would need to be implemented in the service
-      const response = await updateTask(taskId, { 
-        [`customFields.${key}`]: data.value
-      });
+      const response = await updateTaskCustomFieldAction(projectId, taskId, key, data.value);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update custom field');
@@ -468,12 +474,9 @@ export const updateTaskCustomField = createAsyncThunk(
 
 export const deleteTaskCustomField = createAsyncThunk(
   'tasks/deleteTaskCustomField',
-  async ({ taskId, key }, { rejectWithValue }) => {
+  async ({ projectId, taskId, key }, { rejectWithValue }) => {
     try {
-      // This would need to be implemented in the service
-      const response = await updateTask(taskId, { 
-        $unset: { [`customFields.${key}`]: 1 }
-      });
+      const response = await deleteTaskCustomFieldAction(projectId, taskId, key);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete custom field');
@@ -912,6 +915,50 @@ const taskSlice = createSlice({
         state.error = action.payload;
       })
       
+      // Update task comment
+      .addCase(updateTaskComment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateTaskComment.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedTask = action.payload.data;
+        const index = state.tasks.findIndex(task => task._id === updatedTask._id);
+        if (index !== -1) {
+          state.tasks[index] = updatedTask;
+        }
+        if (state.currentTask && state.currentTask._id === updatedTask._id) {
+          state.currentTask = updatedTask;
+        }
+        state.success = action.payload.message;
+      })
+      .addCase(updateTaskComment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Delete task comment
+      .addCase(deleteTaskComment.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteTaskComment.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedTask = action.payload.data;
+        const index = state.tasks.findIndex(task => task._id === updatedTask._id);
+        if (index !== -1) {
+          state.tasks[index] = updatedTask;
+        }
+        if (state.currentTask && state.currentTask._id === updatedTask._id) {
+          state.currentTask = updatedTask;
+        }
+        state.success = action.payload.message;
+      })
+      .addCase(deleteTaskComment.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
       // Add subtask
       .addCase(addSubtaskAction.pending, (state) => {
         state.loading = true;
@@ -1066,6 +1113,72 @@ const taskSlice = createSlice({
         state.error = action.payload;
       })
       
+      // Add task custom field
+      .addCase(addTaskCustomField.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(addTaskCustomField.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedTask = action.payload.data;
+        const index = state.tasks.findIndex(task => task._id === updatedTask._id);
+        if (index !== -1) {
+          state.tasks[index] = updatedTask;
+        }
+        if (state.currentTask && state.currentTask._id === updatedTask._id) {
+          state.currentTask = updatedTask;
+        }
+        state.success = action.payload.message;
+      })
+      .addCase(addTaskCustomField.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Update task custom field
+      .addCase(updateTaskCustomField.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateTaskCustomField.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedTask = action.payload.data;
+        const index = state.tasks.findIndex(task => task._id === updatedTask._id);
+        if (index !== -1) {
+          state.tasks[index] = updatedTask;
+        }
+        if (state.currentTask && state.currentTask._id === updatedTask._id) {
+          state.currentTask = updatedTask;
+        }
+        state.success = action.payload.message;
+      })
+      .addCase(updateTaskCustomField.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Delete task custom field
+      .addCase(deleteTaskCustomField.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteTaskCustomField.fulfilled, (state, action) => {
+        state.loading = false;
+        const updatedTask = action.payload.data;
+        const index = state.tasks.findIndex(task => task._id === updatedTask._id);
+        if (index !== -1) {
+          state.tasks[index] = updatedTask;
+        }
+        if (state.currentTask && state.currentTask._id === updatedTask._id) {
+          state.currentTask = updatedTask;
+        }
+        state.success = action.payload.message;
+      })
+      .addCase(deleteTaskCustomField.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
       // Bulk update tasks
       .addCase(bulkUpdateTasksAction.pending, (state) => {
         state.loading = true;
@@ -1118,6 +1231,24 @@ const taskSlice = createSlice({
         state.showBulkActions = false;
       })
       .addCase(bulkArchiveTasksAction.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      
+      // Bulk restore tasks
+      .addCase(bulkRestoreTasksAction.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(bulkRestoreTasksAction.fulfilled, (state, action) => {
+        state.loading = false;
+        const { taskIds } = action.payload;
+        state.tasks = state.tasks.filter(task => !taskIds.includes(task._id));
+        state.selectedTasks = [];
+        state.success = action.payload.message;
+        state.showBulkActions = false;
+      })
+      .addCase(bulkRestoreTasksAction.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

@@ -23,7 +23,7 @@ export const useSettingsIntegration = () => {
     
     // Task settings
     defaultTaskPriority: useSetting('tasks.defaultPriority', 'medium'),
-    defaultTaskType: useSetting('tasks.defaultType', 'follow-up'),
+    defaultTaskType: useSetting('tasks.defaultType', 'follow_up'),
     taskAutoReminders: useSetting('tasks.autoReminders', { enabled: true, beforeDue: 24 }),
     timeTrackingEnabled: useSetting('tasks.timeTracking.enabled', false),
     
@@ -147,7 +147,7 @@ export const useSettingsIntegration = () => {
     
     getDefaultTaskData: () => ({
       priority: useSetting('tasks.defaultPriority', 'medium'),
-      type: useSetting('tasks.defaultType', 'follow-up'),
+      type: useSetting('tasks.defaultType', 'follow_up'),
       timeTracking: useSetting('tasks.timeTracking.enabled', false)
     }),
     

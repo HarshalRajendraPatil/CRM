@@ -1,6 +1,9 @@
 import React from 'react';
 import { formatTaskPriority, formatTaskStatus, formatTaskType, getTaskPriorityColor, getTaskStatusColor, getTaskTypeIcon, calculateDaysUntilDue, isTaskOverdue, getTaskHealthScore, getTaskHealthColor } from '../../../services/taskService';
 import { formatDate, formatDateTime } from '../../../utils/dealUtils';
+import { useProjectAccess } from '../../../hooks/useProjectAccess';
+import { useDispatch } from 'react-redux';
+import { deleteExistingTask, restoreExistingTask, fetchProjectTasks } from '../../../store/taskSlice';
 
 const TaskListItem = ({
   task,
@@ -8,11 +11,15 @@ const TaskListItem = ({
   onSelect,
   onEdit,
   onView,
-  onDelete
+  projectId,
+  showArchived = false
 }) => {
+  const dispatch = useDispatch();
   const handleSelect = () => {
     onSelect(task._id);
   };
+
+  const { hasManagerAccess } = useProjectAccess();
 
   const handleEdit = (e) => {
     e.stopPropagation();
@@ -25,7 +32,22 @@ const TaskListItem = ({
   };
   const handleDelete = (e) => {
     e.stopPropagation();
-    onDelete(task);
+    dispatch(deleteExistingTask({ projectId, taskId: task._id })).unwrap().then(() => {
+      dispatch(fetchProjectTasks({ 
+        projectId,
+        params: { showArchived }
+      }));
+    });
+  };
+
+  const handleRestore = (e) => {
+    e.stopPropagation();
+    dispatch(restoreExistingTask({ projectId, taskId: task._id })).unwrap().then(() => {
+      dispatch(fetchProjectTasks({ 
+        projectId,
+        params: { showArchived }
+      }));
+    });
   };
 
   const getProgressPercentage = () => {
@@ -165,25 +187,39 @@ const TaskListItem = ({
             </svg>
           </button>
           
-          <button
-            onClick={handleEdit}
-            className="text-gray-600 hover:text-gray-900 p-1"
-            title="Edit Task"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-            </svg>
-          </button>
+          {hasManagerAccess && <>
+            {task.isArchived ? (
+              <button
+                onClick={handleRestore}
+                className="text-indigo-600 hover:text-indigo-900 p-1"
+                title="Restore Task"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            ) : (
+              <button
+                onClick={handleEdit}
+                className="text-gray-600 hover:text-gray-900 p-1"
+                title="Edit Task"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+            )}
           
-          <button
-            onClick={handleDelete}
-            className="text-red-600 hover:text-red-900 p-1"
-            title="Delete Task"
-          >
-            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-          </button>
+            <button
+              onClick={handleDelete}
+              className="text-red-600 hover:text-red-900 p-1"
+              title="Delete Task"
+            >
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </>}
         </div>
       </div>
     </div>

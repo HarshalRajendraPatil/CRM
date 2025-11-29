@@ -18,13 +18,9 @@ import notificationService from '../utils/notificationService.js';
 // @route   POST /api/invitations
 // @access  Private (project owner, admin, or manager)
 export const createInvitation = asyncHandler(async (req, res) => {
-  const { projectId, email, role, message, expirationDays } = req.body;
-
-  const user = await User.findOne({ email: email });
-
-  if(!user){
-    throw new ValidationError('User not found');
-  }
+  console.log('createInvitation', req.body);
+  const { email, role, message, expirationDays } = req.body;
+  const projectId = req.query.projectId;
 
   if(email === req.user.email){
     throw new ValidationError('You cannot invite yourself');
@@ -69,9 +65,13 @@ export const createInvitation = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You do not have permission to invite members to this project');
   }
   
-  // Check if user is already a member
+  // Check if user is already a member (need to populate members first)
+  await project.populate('members.user', 'email');
   const isMember = project.members.some(
-    member => member.user?.email?.toLowerCase() === email.toLowerCase() && member.inviteStatus === 'accepted'
+    member => {
+      const memberEmail = member.user?.email?.toLowerCase();
+      return memberEmail === email.toLowerCase() && member.inviteStatus === 'accepted';
+    }
   );
   
   if (isMember) {
@@ -430,8 +430,8 @@ export const resendInvitation = asyncHandler(async (req, res) => {
     throw new AuthorizationError('You do not have permission to resend invitations for this project');
   }
   
-  // Check if invitation is expired or already accepted/declined
-  if (invitation.status == 'accepted' || invitation.status == 'pending') {
+  // Check if invitation is already accepted/declined/revoked (can only resend pending or expired)
+  if (invitation.status !== 'pending' && invitation.status !== 'expired') {
     throw new ValidationError(`Cannot resend invitation with status: ${invitation.status}`);
   }
   

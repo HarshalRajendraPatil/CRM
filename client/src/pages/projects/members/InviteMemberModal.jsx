@@ -79,7 +79,7 @@ const InviteMemberModal = ({ projectId, onClose }) => {
       return;
     }
     
-    dispatch(createInvitation(formData));
+    dispatch(createInvitation({projectId, invitationData: formData}));
   };
   
   return (

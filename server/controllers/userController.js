@@ -16,11 +16,6 @@ import {
 // @route   GET /api/users
 // @access  Private/SystemAdmin
 export const getUsers = asyncHandler(async (req, res) => {
-  // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
-  }
-
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 10;
   const skip = (page - 1) * limit;

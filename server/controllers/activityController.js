@@ -6,12 +6,14 @@ import Customer from '../models/Customer.model.js';
 import Deal from '../models/Deal.model.js';
 import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
 import { validateObjectId } from '../utils/validation.js';
+import Task from '../models/Task.model.js';
 
 // @desc    Get activities for a specific entity (Company, Lead, Customer, or Deal)
 // @route   GET /api/activities/entity/:entityType/:entityId
 // @access  Private (project members)
 export const getEntityActivities = asyncHandler(async (req, res) => {
   const { entityType, entityId } = req.params;
+  console.log(entityType, entityId);
   const {
     limit = 50,
     skip = 0,
@@ -25,8 +27,8 @@ export const getEntityActivities = asyncHandler(async (req, res) => {
   } = req.query;
 
   // Validate entity type
-  if (!['Company', 'Lead', 'Customer', 'Deal'].includes(entityType)) {
-    throw new ValidationError('Invalid entity type. Must be Company, Lead, Customer, or Deal');
+  if (!['Company', 'Lead', 'Customer', 'Deal', 'Task'].includes(entityType)) {
+    throw new ValidationError('Invalid entity type. Must be Company, Lead, Customer, Deal, or Task');
   }
 
   // Validate entity ID
@@ -48,6 +50,8 @@ export const getEntityActivities = asyncHandler(async (req, res) => {
     if (entity) {
       entity.project = entity.projectId;
     }
+  } else if (entityType === 'Task') {
+    entity = await Task.findById(entityId).populate('project');
   }
 
   if (!entity) {
