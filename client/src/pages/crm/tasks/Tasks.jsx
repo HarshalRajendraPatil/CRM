@@ -50,16 +50,12 @@ const Tasks = () => {
     pagination,
     selectedTasks,
     viewMode,
-    groupBy,
-    sortBy,
-    sortOrder,
     showCreateSidebar,
     showEditSidebar,
-    showTaskDetail,
     showBulkActions,
     showDeleteConfirm,
     showArchiveConfirm,
-    currentTask
+    userTasks = [],
   } = useSelector((state) => state.tasks);
   
   const { users } = useSelector((state) => state.users);
@@ -76,16 +72,27 @@ const Tasks = () => {
   useEffect(() => {
     if (projectId) {
       dispatch(getProjectById(projectId));
-      dispatch(fetchProjectTasks({ 
-        projectId,
-        params: {
-          ...filters,
-          showArchived: showArchived
-        }
-      }));
+      if (hasManagerAccess) {
+        dispatch(fetchProjectTasks({ 
+          projectId,
+          params: {
+            ...filters,
+            showArchived: showArchived
+          }
+        }));
+      } else {
+        dispatch(fetchUserTasks({ 
+          projectId, 
+          userId: user._id,
+          params: {
+            ...filters,
+            showArchived: showArchived
+          }
+        }));
+      }
     }
     dispatch(getUsers());
-  }, [dispatch, projectId, showArchived]);
+  }, [dispatch, projectId, showArchived, hasManagerAccess, user?._id]);
 
   const handleSearch = (e) => {
     const value = e.target.value;
@@ -105,17 +112,28 @@ const Tasks = () => {
           page: 1
         }
       }));
+    } else {
+      dispatch(fetchUserTasks({ 
+        projectId, 
+        userId: user._id, 
+        params: { 
+          ...newFilters,
+          showArchived: showArchived, 
+          page: 1 
+        } 
+      }));
     }
   };
 
-  const handleSortChange = (field) => {
-    const newSortOrder = sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc';
-    dispatch(setSortOptions({ sortBy: field, sortOrder: newSortOrder }));
-  };
+  // const handleSortChange = (field) => {
+  //   const newSortOrder = sortBy === field && sortOrder === 'asc' ? 'desc' : 'asc';
+  //   dispatch(setSortOptions({ sortBy: field, sortOrder: newSortOrder }));
+  // };
 
   const handleLoadMore = () => {
     if (pagination.current < pagination.pages) {
-      dispatch(fetchProjectTasks({
+      if (hasManagerAccess) {
+        dispatch(fetchProjectTasks({
         projectId,
         params: {
           ...filters,
@@ -123,6 +141,17 @@ const Tasks = () => {
           showArchived: showArchived
         }
       }));
+      } else {
+        dispatch(fetchUserTasks({ 
+          projectId, 
+          userId: user._id, 
+          params: { 
+            ...filters, 
+            showArchived: showArchived, 
+            page: pagination.current + 1 
+          } 
+        }));
+      }
     }
   };
 
@@ -130,14 +159,26 @@ const Tasks = () => {
     setShowArchived(!showArchived);
     dispatch(clearSelection());
     // Reset to first page when toggling
-    dispatch(fetchProjectTasks({
-      projectId,
-      params: {
-        ...filters,
-        showArchived: !showArchived,
-        page: 1
-      }
-    }));
+    if (hasManagerAccess) {
+      dispatch(fetchProjectTasks({
+        projectId,
+        params: {
+          ...filters,
+          showArchived: !showArchived,
+          page: 1
+        }
+      }));
+    } else {
+      dispatch(fetchUserTasks({ 
+        projectId, 
+        userId: user._id, 
+        params: { 
+          ...filters, 
+          showArchived: !showArchived, 
+          page: 1 
+        }
+      }));
+    }
   };
 
   const handleTaskSelect = (taskId) => {
@@ -162,13 +203,31 @@ const Tasks = () => {
         updates: { status: newStatus }
       })).unwrap();
       dispatch(clearSelection());
+      // Refresh tasks list
+      if (hasManagerAccess) {
+        await dispatch(fetchProjectTasks({ 
+          projectId,
+          params: {
+            ...filters,
+            showArchived: showArchived
+          }
+        })).unwrap();
+      } else {
+        await dispatch(fetchUserTasks({ 
+          projectId, 
+          userId: user._id, 
+          params: { 
+            ...filters, 
+            showArchived: showArchived 
+          } 
+        })).unwrap();
+      }
     } catch (error) {
       console.error('Failed to update task status:', error);
     }
   };
 
   const handleBulkAssign = async (assignedTo) => {
-    console.log(assignedTo);
     if (selectedTasks.length === 0) return;
     
     try {
@@ -178,6 +237,25 @@ const Tasks = () => {
         updates: { assignedTo }
       })).unwrap();
       dispatch(clearSelection());
+      // Refresh tasks list
+      if (hasManagerAccess) {
+        await dispatch(fetchProjectTasks({ 
+          projectId,
+          params: {
+            ...filters,
+            showArchived: showArchived
+          }
+        })).unwrap();
+      } else {
+        await dispatch(fetchUserTasks({ 
+          projectId, 
+          userId: user._id, 
+          params: { 
+            ...filters, 
+            showArchived: showArchived 
+          } 
+        })).unwrap();
+      }
     } catch (error) {
       console.error('Failed to assign tasks:', error);
     }
@@ -198,6 +276,8 @@ const Tasks = () => {
             showArchived: showArchived
           }
         })).unwrap();
+      } else {
+        await dispatch(fetchUserTasks({ projectId, userId: user._id, params: { ...filters, showArchived: showArchived } })).unwrap();
       }
     } catch (error) {
       console.error('Failed to archive tasks:', error);
@@ -219,6 +299,8 @@ const Tasks = () => {
             showArchived: showArchived
           }
         })).unwrap();
+      } else {
+        await dispatch(fetchUserTasks({ projectId, userId: user._id, params: { ...filters, showArchived: showArchived } })).unwrap();
       }
     } catch (error) {
       console.error('Failed to restore tasks:', error);
@@ -227,12 +309,29 @@ const Tasks = () => {
 
   const handleBulkDelete = async () => {
     if (selectedTasks.length === 0) return;
-
-    
     
     try {
       await dispatch(bulkDeleteTasksAction({ projectId, taskIds: selectedTasks })).unwrap();
       dispatch(clearSelection());
+      // Refresh tasks list
+      if (hasManagerAccess) {
+        await dispatch(fetchProjectTasks({ 
+          projectId,
+          params: {
+            ...filters,
+            showArchived: showArchived
+          }
+        })).unwrap();
+      } else {
+        await dispatch(fetchUserTasks({ 
+          projectId, 
+          userId: user._id, 
+          params: { 
+            ...filters, 
+            showArchived: showArchived 
+          } 
+        })).unwrap();
+      }
     } catch (error) {
       console.error('Failed to delete tasks:', error);
     }
@@ -260,7 +359,6 @@ const Tasks = () => {
       try {
         await dispatch(archiveExistingTask({ projectId, taskId: archivingTask._id })).unwrap();
         setArchivingTask(null);
-        setShowArchiveConfirm(false);
         // Refresh tasks list
         if (hasManagerAccess) {
           await dispatch(fetchProjectTasks({ 
@@ -271,7 +369,14 @@ const Tasks = () => {
             }
           })).unwrap();
         } else {
-          await dispatch(fetchUserTasks({ projectId, userId: user._id })).unwrap();
+          await dispatch(fetchUserTasks({ 
+            projectId, 
+            userId: user._id,
+            params: {
+              ...filters,
+              showArchived: showArchived
+            }
+          })).unwrap();
         }
       } catch (error) {
         console.error('Failed to archive task:', error);
@@ -294,7 +399,14 @@ const Tasks = () => {
             }
           })).unwrap();
         } else {
-          await dispatch(fetchUserTasks({ projectId, userId: user._id })).unwrap();
+          await dispatch(fetchUserTasks({ 
+            projectId, 
+            userId: user._id,
+            params: {
+              ...filters,
+              showArchived: showArchived
+            }
+          })).unwrap();
         }
       } catch (error) {
         console.error('Failed to delete task:', error);
@@ -325,6 +437,9 @@ const Tasks = () => {
     }
   };
 
+  // Determine which tasks to display based on access level
+  const displayTasks = hasManagerAccess ? tasks : (userTasks.length > 0 ? userTasks : tasks);
+
   const renderListView = () => (
     <div className="bg-white rounded-lg shadow-sm">
       {/* Table Header */}
@@ -333,7 +448,7 @@ const Tasks = () => {
           <div className="col-span-1">
             <input
               type="checkbox"
-              checked={selectedTasks.length === tasks.length && tasks.length > 0}
+              checked={selectedTasks.length === displayTasks.length && displayTasks.length > 0}
               onChange={handleSelectAll}
               className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
             />
@@ -351,7 +466,7 @@ const Tasks = () => {
 
       {/* Task List */}
       <div className="divide-y divide-gray-200">
-        {tasks.length > 0 ? tasks.map((task) => (
+        { displayTasks.length > 0 ? displayTasks.map((task) => (
           <TaskListItem
             key={task._id}
             task={task}
@@ -502,24 +617,24 @@ const Tasks = () => {
           </div>
         </div>
 
-        {hasManagerAccess && <div className="flex items-center space-x-2">
-            <button
-              onClick={handleToggleArchived}
-              className={`inline-flex items-center px-3 py-2 border rounded-md text-sm font-medium transition-colors ${
-                showArchived
-                  ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-              }`}
-            >
-              <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-              </svg>
-              {showArchived ? 'Show Active Tasks' : 'Show Archived Tasks'}
-            </button>
-          </div>}
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={handleToggleArchived}
+            className={`inline-flex items-center px-3 py-2 border rounded-md text-sm font-medium transition-colors ${
+              showArchived
+                ? 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+            </svg>
+            {showArchived ? 'Show Active Tasks' : 'Show Archived Tasks'}
+          </button>
+        </div>
 
         {/* Bulk Actions */}
-        { hasManagerAccess && selectedTasks.length > 0 && (
+        {selectedTasks.length > 0 && (
           <div className="flex items-center space-x-2">
             <span className="text-sm text-gray-500">
               {selectedTasks.length} selected
@@ -538,12 +653,12 @@ const Tasks = () => {
                 Assign
               </button>
               {!showArchived ? (
-                <button
-                  onClick={() => handleBulkAction('archive')}
-                  className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
-                >
-                  Archive
-                </button>
+              <button
+                onClick={() => handleBulkAction('archive')}
+                className="inline-flex items-center px-3 py-1 border border-gray-300 shadow-sm text-xs font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Archive
+              </button>
               ) : (
                 <button
                   onClick={() => handleBulkAction('restore')}

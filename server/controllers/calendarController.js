@@ -15,19 +15,76 @@ export const getCalendarEvents = asyncHandler(async (req, res) => {
     endDate, 
     type, 
     search, 
+    attendee,
+    priority,
+    status,
+    visibility,
     page = 1, 
-    limit = 50,
+    limit = 100,
     sortBy = 'startDate',
     sortOrder = 'asc'
   } = req.query;
 
   const query = { project: projectId };
 
-  // Date range filter
+  // Role-based filtering: non-managers only see events they're invited to or created
+  const userRole = req.user.role;
+  const isManager = ['admin', 'manager'].includes(userRole);
+  
+  if (!isManager) {
+    query.$or = [
+      { createdBy: req.user._id },
+      { attendees: req.user._id },
+      { visibility: { $in: ['project', 'public'] } }
+    ];
+  }
+
+  // Date range filter - check if event overlaps with the requested range
   if (startDate || endDate) {
-    query.startDate = {};
-    if (startDate) query.startDate.$gte = new Date(startDate);
-    if (endDate) query.startDate.$lte = new Date(endDate);
+    // Parse dates as local dates to avoid timezone issues
+    // If date string is in YYYY-MM-DD format, append time to ensure local parsing
+    const start = startDate ? new Date(startDate.includes('T') ? startDate : startDate + 'T00:00:00') : new Date(0);
+    const end = endDate ? new Date(endDate.includes('T') ? endDate : endDate + 'T23:59:59') : new Date('2100-01-01');
+    
+    // Use $and to combine with existing $or conditions if they exist
+    const dateRangeQuery = {
+      $or: [
+        {
+          // Events that start within the range
+          startDate: { $gte: start, $lte: end }
+        },
+        {
+          // Events that end within the range
+          endDate: { $gte: start, $lte: end }
+        },
+        {
+          // Events that span the entire range (start before and end after)
+          startDate: { $lte: start },
+          endDate: { $gte: end }
+        },
+        {
+          // Events that start before range but end within range
+          startDate: { $lt: start },
+          endDate: { $gte: start, $lte: end }
+        },
+        {
+          // Events that start within range but end after range
+          startDate: { $gte: start, $lte: end },
+          endDate: { $gt: end }
+        }
+      ]
+    };
+    
+    // If there's already an $or condition (from role-based filtering), combine with $and
+    if (query.$or) {
+      query.$and = [
+        { $or: query.$or },
+        dateRangeQuery
+      ];
+      delete query.$or;
+    } else {
+      Object.assign(query, dateRangeQuery);
+    }
   }
 
   // Type filter
@@ -35,12 +92,33 @@ export const getCalendarEvents = asyncHandler(async (req, res) => {
     query.type = type;
   }
 
+  // Attendee filter
+  if (attendee) {
+    query.attendees = attendee;
+  }
+
+  // Priority filter
+  if (priority && priority !== 'all') {
+    query.priority = priority;
+  }
+
+  // Status filter
+  if (status && status !== 'all') {
+    query.status = status;
+  }
+
+  // Visibility filter
+  if (visibility && visibility !== 'all') {
+    query.visibility = visibility;
+  }
+
   // Search filter
   if (search) {
     query.$or = [
       { title: { $regex: search, $options: 'i' } },
       { description: { $regex: search, $options: 'i' } },
-      { location: { $regex: search, $options: 'i' } }
+      { location: { $regex: search, $options: 'i' } },
+      { tags: { $in: [new RegExp(search, 'i')] } }
     ];
   }
 
@@ -49,8 +127,9 @@ export const getCalendarEvents = asyncHandler(async (req, res) => {
 
   const [events, total] = await Promise.all([
     CalendarEvent.find(query)
-      .populate('createdBy', 'name email')
-      .populate('attendees', 'name email')
+      .populate('createdBy', 'name email avatar')
+      .populate('attendees', 'name email avatar')
+      .populate('relatedEntity.id')
       .sort(sortOptions)
       .skip(skip)
       .limit(parseInt(limit)),
@@ -59,7 +138,7 @@ export const getCalendarEvents = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    events,
+    data: events,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -79,12 +158,14 @@ export const getAggregatedEvents = asyncHandler(async (req, res) => {
   let queryStartDate, queryEndDate;
   
   if (startDate && endDate) {
-    queryStartDate = new Date(startDate);
-    queryEndDate = new Date(endDate);
+    // Parse dates as local dates to avoid timezone issues
+    queryStartDate = new Date(startDate + 'T00:00:00');
+    queryEndDate = new Date(endDate + 'T23:59:59');
   } else {
     // Default to current month
     queryStartDate = new Date(now.getFullYear(), now.getMonth(), 1);
     queryEndDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    queryEndDate.setHours(23, 59, 59, 999);
   }
 
   const events = [];
@@ -354,38 +435,41 @@ export const getAggregatedEvents = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get custom calendar events
-  const customEvents = await CalendarEvent.find({
-    project: projectId,
-    startDate: {
-      $gte: queryStartDate,
-      $lte: queryEndDate
-    }
-  })
-    .populate('createdBy', 'name email')
-    .populate('attendees', 'name email')
-    .lean();
+  // Get custom calendar events - but only if types includes 'custom' or is 'all'
+  // This prevents duplicate events since custom events are already fetched via getCalendarEvents
+  if (types === 'all' || types.includes('custom')) {
+    const customEvents = await CalendarEvent.find({
+      project: projectId,
+      startDate: {
+        $gte: queryStartDate,
+        $lte: queryEndDate
+      }
+    })
+      .populate('createdBy', 'name email')
+      .populate('attendees', 'name email')
+      .lean();
 
-  customEvents.forEach(event => {
-    events.push({
-      ...event,
-      type: 'custom'
+    customEvents.forEach(event => {
+      events.push({
+        ...event,
+        type: 'custom'
+      });
     });
-  });
+  }
 
   // Sort events by start date
   events.sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
 
   res.json({
     success: true,
-    events,
+    data: events,
     total: events.length
   });
 });
 
 // Create a new calendar event
 export const createCalendarEvent = asyncHandler(async (req, res) => {
-  const { projectId } = req.body;
+  const { projectId } = req.query;
   const eventData = {
     ...req.body,
     project: projectId,
@@ -398,7 +482,8 @@ export const createCalendarEvent = asyncHandler(async (req, res) => {
 
   res.status(201).json({
     success: true,
-    event
+    data: event,
+    message: 'Calendar event created successfully'
   });
 });
 
@@ -485,7 +570,7 @@ export const getEventsByType = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    events,
+    data: events,
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
@@ -517,7 +602,7 @@ export const getUpcomingEvents = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    events
+    data: events
   });
 });
 
@@ -559,7 +644,7 @@ export const getOverdueEvents = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    events
+    data: events
   });
 });
 

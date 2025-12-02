@@ -1220,7 +1220,7 @@ const TaskDetail = () => {
       {/* Modals */}
       {showAddComment && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowAddComment(false)} />
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => setShowAddComment(false)} />
           <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Add Comment</h3>
@@ -1253,7 +1253,7 @@ const TaskDetail = () => {
 
       {showAddSubtask && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowAddSubtask(false)} />
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => setShowAddSubtask(false)} />
           <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Add Subtask</h3>
@@ -1286,7 +1286,7 @@ const TaskDetail = () => {
 
       {showAddTag && (
         <div className="fixed inset-0 z-50 overflow-hidden">
-          <div className="absolute inset-0 bg-gray-500 bg-opacity-75" onClick={() => setShowAddTag(false)} />
+          <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={() => setShowAddTag(false)} />
           <div className="relative mx-auto mt-20 w-full max-w-md bg-white rounded-lg shadow-xl">
             <div className="p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Add Tag</h3>

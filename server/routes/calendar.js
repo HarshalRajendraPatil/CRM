@@ -26,10 +26,10 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Calendar events routes
-router.get('/events', requireViewerRole(), getCalendarEvents);
+router.get('/events/:projectId', requireViewerRole(), getCalendarEvents);
 router.get('/events/aggregated/:projectId', requireViewerRole(), getAggregatedEvents);
-router.post('/events',requireManagerRole(), createCalendarEvent);
-router.get('/events/:eventId', requireViewerRole(), getCalendarEvent);
+router.post('/events', requireManagerRole(), createCalendarEvent);
+router.get('/events/detail/:eventId', requireViewerRole(), getCalendarEvent);
 router.put('/events/:eventId', requireManagerRole(), updateCalendarEvent);
 router.delete('/events/:eventId', requireManagerRole(), deleteCalendarEvent);
 

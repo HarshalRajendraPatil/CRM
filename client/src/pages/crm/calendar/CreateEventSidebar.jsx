@@ -76,10 +76,28 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    setFormData(prev => {
+      const newData = {
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      };
+      
+      // When allDay is checked, clear times and set endDate to startDate if not set
+      if (name === 'allDay' && checked) {
+        newData.startTime = '';
+        newData.endTime = '';
+        if (!newData.endDate) {
+          newData.endDate = newData.startDate;
+        }
+      }
+      
+      // When allDay is unchecked and endDate is not set, set it to startDate
+      if (name === 'allDay' && !checked && !newData.endDate) {
+        newData.endDate = newData.startDate;
+      }
+      
+      return newData;
+    });
     
     // Clear error when user starts typing
     if (errors[name]) {
@@ -222,12 +240,14 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
       newErrors.startDate = 'Start date is required';
     }
     
-    if (!formData.endDate) {
-      newErrors.endDate = 'End date is required';
+    // End date is required when not all day
+    if (!formData.allDay && !formData.endDate) {
+      newErrors.endDate = 'End date is required when event is not all day';
     }
     
+    // If end date is provided, it must be after or equal to start date
     if (formData.endDate && formData.startDate && new Date(formData.endDate) < new Date(formData.startDate)) {
-      newErrors.endDate = 'End date must be after start date';
+      newErrors.endDate = 'End date must be after or equal to start date';
     }
     
     if (!formData.allDay && formData.startTime && formData.endTime) {

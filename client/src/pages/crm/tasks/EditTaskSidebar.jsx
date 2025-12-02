@@ -86,7 +86,7 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
         ...subtask,
         isCompleted: subtask.status === 'completed'
       }));
-
+      
       // Populate form with task data
       setFormData({
         title: task.title || '',
@@ -728,38 +728,38 @@ const EditTaskSidebar = ({ isOpen, onClose, task, projectId }) => {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
                         Related to
-                      </label>
-                      <select
-                        name="relatedToId"
-                        value={formData.relatedToId}
-                        onChange={handleInputChange}
-                        className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                        disabled={!formData.relatedTo}
-                      >
-                        <option value={null}>Select related to</option>
-                        {formData.relatedTo === 'deal' && deals.map(deal => (
-                          <option key={deal._id} value={deal._id}>
-                            {deal.name}
-                          </option>
-                        ))}
-                        {formData.relatedTo === 'customer' && customers.map(customer => (
-                          <option key={customer._id} value={customer._id}>
-                            {customer.fullName}
-                          </option>
-                        ))}
-                        {formData.relatedTo === 'company' && companies.map(company => (
-                          <option key={company._id} value={company._id}>
-                            {company.name}
-                          </option>
-                        ))}
-                        {formData.relatedTo === 'lead' && leads.map(lead => (
-                          <option key={lead._id} value={lead._id}>
-                            {lead.name}
-                          </option>
-                        ))}
-                      </select>
+                    </label>
+                    <select
+                      name="relatedToId"
+                      value={formData.relatedToId}
+                      onChange={handleInputChange}
+                      className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                      disabled={!formData.relatedTo}
+                    >
+                      <option value={null}>Select related to</option>
+                      {formData.relatedTo === 'deal' && deals.map(deal => (
+                        <option key={deal._id} value={deal._id}>
+                          {deal.name}
+                        </option>
+                      ))}
+                      {formData.relatedTo === 'customer' && customers.map(customer => (
+                        <option key={customer._id} value={customer._id}>
+                          {customer.fullName}
+                        </option>
+                      ))}
+                      {formData.relatedTo === 'company' && companies.map(company => (
+                        <option key={company._id} value={company._id}>
+                          {company.name}
+                        </option>
+                      ))}
+                      {formData.relatedTo === 'lead' && leads.map(lead => (
+                        <option key={lead._id} value={lead._id}>
+                          {lead.name}
+                        </option>
+                      ))}
+                    </select>
                       {errors.relatedToId && (
                         <p className="mt-1 text-sm text-red-600">{errors.relatedToId}</p>
                       )}

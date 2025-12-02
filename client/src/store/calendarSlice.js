@@ -4,9 +4,9 @@ import * as calendarService from '../services/calendarService';
 // Async thunks
 export const getCalendarEvents = createAsyncThunk(
   'calendar/getCalendarEvents',
-  async (params, { rejectWithValue }) => {
+  async ({projectId, params}, { rejectWithValue }) => {
     try {
-      const response = await calendarService.getCalendarEvents(params);
+      const response = await calendarService.getCalendarEvents(projectId, params);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch calendar events');
@@ -28,9 +28,9 @@ export const getAggregatedEvents = createAsyncThunk(
 
 export const createCalendarEvent = createAsyncThunk(
   'calendar/createCalendarEvent',
-  async (eventData, { rejectWithValue }) => {
+  async ({projectId, eventData}, { rejectWithValue }) => {
     try {
-      const response = await calendarService.createCalendarEvent(eventData);
+      const response = await calendarService.createCalendarEvent(projectId, eventData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create calendar event');
@@ -40,9 +40,9 @@ export const createCalendarEvent = createAsyncThunk(
 
 export const updateCalendarEvent = createAsyncThunk(
   'calendar/updateCalendarEvent',
-  async ({ id, ...eventData }, { rejectWithValue }) => {
+  async ({ projectId, id, ...eventData }, { rejectWithValue }) => {
     try {
-      const response = await calendarService.updateCalendarEvent(id, eventData);
+      const response = await calendarService.updateCalendarEvent(projectId, id, eventData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update calendar event');
@@ -52,9 +52,9 @@ export const updateCalendarEvent = createAsyncThunk(
 
 export const deleteCalendarEvent = createAsyncThunk(
   'calendar/deleteCalendarEvent',
-  async (eventId, { rejectWithValue }) => {
+  async ({ projectId, eventId }, { rejectWithValue }) => {
     try {
-      await calendarService.deleteCalendarEvent(eventId);
+      await calendarService.deleteCalendarEvent(projectId, eventId);
       return eventId;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete calendar event');
@@ -64,9 +64,9 @@ export const deleteCalendarEvent = createAsyncThunk(
 
 export const getCalendarEvent = createAsyncThunk(
   'calendar/getCalendarEvent',
-  async (eventId, { rejectWithValue }) => {
+  async ({ projectId, eventId }, { rejectWithValue }) => {
     try {
-      const response = await calendarService.getCalendarEvent(eventId);
+      const response = await calendarService.getCalendarEvent(projectId, eventId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch calendar event');
@@ -100,7 +100,7 @@ export const getUpcomingEvents = createAsyncThunk(
 
 export const getOverdueEvents = createAsyncThunk(
   'calendar/getOverdueEvents',
-  async (projectId, { rejectWithValue }) => {
+  async ({ projectId }, { rejectWithValue }) => {
     try {
       const response = await calendarService.getOverdueEvents(projectId);
       return response.data;
@@ -112,9 +112,9 @@ export const getOverdueEvents = createAsyncThunk(
 
 export const bulkUpdateEvents = createAsyncThunk(
   'calendar/bulkUpdateEvents',
-  async ({ eventIds, updates }, { rejectWithValue }) => {
+  async ({ projectId, eventIds, updates }, { rejectWithValue }) => {
     try {
-      const response = await calendarService.bulkUpdateEvents(eventIds, updates);
+      const response = await calendarService.bulkUpdateEvents(projectId, eventIds, updates);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk update events');
@@ -124,9 +124,9 @@ export const bulkUpdateEvents = createAsyncThunk(
 
 export const bulkDeleteEvents = createAsyncThunk(
   'calendar/bulkDeleteEvents',
-  async (eventIds, { rejectWithValue }) => {
+  async ({ projectId, eventIds }, { rejectWithValue }) => {
     try {
-      await calendarService.bulkDeleteEvents(eventIds);
+      await calendarService.bulkDeleteEvents(projectId, eventIds);
       return eventIds;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to bulk delete events');
@@ -148,9 +148,9 @@ export const getCalendarStats = createAsyncThunk(
 
 export const checkEventConflicts = createAsyncThunk(
   'calendar/checkEventConflicts',
-  async (eventData, { rejectWithValue }) => {
+  async ({ projectId, eventData }, { rejectWithValue }) => {
     try {
-      const response = await calendarService.checkEventConflicts(eventData);
+      const response = await calendarService.checkEventConflicts(projectId, eventData);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to check event conflicts');
@@ -172,9 +172,9 @@ export const getCalendarSettings = createAsyncThunk(
 
 export const respondToEvent = createAsyncThunk(
   'calendar/respondToEvent',
-  async ({ eventId, response }, { rejectWithValue }) => {
+  async ({ projectId, eventId, response }, { rejectWithValue }) => {
     try {
-      const responseData = await calendarService.respondToEvent(eventId, response);
+      const responseData = await calendarService.respondToEvent(projectId, eventId, response);
       return responseData.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to respond to event');
@@ -184,9 +184,9 @@ export const respondToEvent = createAsyncThunk(
 
 export const getEventResponses = createAsyncThunk(
   'calendar/getEventResponses',
-  async (eventId, { rejectWithValue }) => {
+  async ({ projectId, eventId }, { rejectWithValue }) => {
     try {
-      const response = await calendarService.getEventResponses(eventId);
+      const response = await calendarService.getEventResponses(projectId, eventId);
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data?.message || 'Failed to fetch event responses');
@@ -304,7 +304,7 @@ const calendarSlice = createSlice({
       })
       .addCase(getCalendarEvents.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.events = action.payload.events || [];
+        state.events = action.payload.data || action.payload.events || [];
         state.pagination = action.payload.pagination || state.pagination;
       })
       .addCase(getCalendarEvents.rejected, (state, action) => {
@@ -320,7 +320,7 @@ const calendarSlice = createSlice({
       })
       .addCase(getAggregatedEvents.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.aggregatedEvents = action.payload.events || [];
+        state.aggregatedEvents = action.payload.data || action.payload.events || [];
       })
       .addCase(getAggregatedEvents.rejected, (state, action) => {
         state.isLoading = false;
@@ -335,7 +335,8 @@ const calendarSlice = createSlice({
       })
       .addCase(createCalendarEvent.fulfilled, (state, action) => {
         state.isCreating = false;
-        state.events.unshift(action.payload);
+        const newEvent = action.payload.data || action.payload.event || action.payload;
+        state.events.unshift(newEvent);
       })
       .addCase(createCalendarEvent.rejected, (state, action) => {
         state.isCreating = false;
@@ -350,9 +351,10 @@ const calendarSlice = createSlice({
       })
       .addCase(updateCalendarEvent.fulfilled, (state, action) => {
         state.isUpdating = false;
-        const index = state.events.findIndex(event => event._id === action.payload._id);
+        const updatedEvent = action.payload.data || action.payload.event || action.payload;
+        const index = state.events.findIndex(event => event._id === updatedEvent._id);
         if (index !== -1) {
-          state.events[index] = action.payload;
+          state.events[index] = updatedEvent;
         }
       })
       .addCase(updateCalendarEvent.rejected, (state, action) => {
@@ -384,7 +386,7 @@ const calendarSlice = createSlice({
       })
       .addCase(getCalendarEvent.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.currentEvent = action.payload;
+        state.currentEvent = action.payload.data || action.payload.event || action.payload;
       })
       .addCase(getCalendarEvent.rejected, (state, action) => {
         state.isLoading = false;
@@ -399,7 +401,7 @@ const calendarSlice = createSlice({
       })
       .addCase(getEventsByType.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.events = action.payload.events || [];
+        state.events = action.payload.data || action.payload.events || [];
       })
       .addCase(getEventsByType.rejected, (state, action) => {
         state.isLoading = false;
@@ -414,7 +416,7 @@ const calendarSlice = createSlice({
       })
       .addCase(getUpcomingEvents.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.upcomingEvents = action.payload.events || [];
+        state.upcomingEvents = action.payload.data || action.payload.events || [];
       })
       .addCase(getUpcomingEvents.rejected, (state, action) => {
         state.isLoading = false;
@@ -429,7 +431,7 @@ const calendarSlice = createSlice({
       })
       .addCase(getOverdueEvents.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.overdueEvents = action.payload.events || [];
+        state.overdueEvents = action.payload.data || action.payload.events || [];
       })
       .addCase(getOverdueEvents.rejected, (state, action) => {
         state.isLoading = false;
@@ -482,7 +484,7 @@ const calendarSlice = createSlice({
       })
       .addCase(getCalendarStats.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.stats = action.payload;
+        state.stats = action.payload.stats;
       })
       .addCase(getCalendarStats.rejected, (state, action) => {
         state.isLoading = false;

@@ -713,6 +713,9 @@ const taskSlice = createSlice({
       .addCase(fetchUserTasks.fulfilled, (state, action) => {
         state.loading = false;
         state.userTasks = action.payload.data;
+        // Also update tasks array for consistent usage in components
+        state.tasks = action.payload.data;
+        state.pagination = action.payload.pagination;
       })
       .addCase(fetchUserTasks.rejected, (state, action) => {
         state.loading = false;

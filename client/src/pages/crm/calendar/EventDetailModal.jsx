@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { respondToEvent, getEventResponses } from '../../../store/calendarSlice';
 
-const EventDetailModal = ({ isOpen, onClose, event, onEdit, onDelete }) => {
+const EventDetailModal = ({hasAccess, projectId, isOpen, onClose, event, onEdit, onDelete }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useSelector((state) => state.auth);
   const [responses, setResponses] = useState([]);
   const [userResponse, setUserResponse] = useState(null);
   const [isResponding, setIsResponding] = useState(false);
 
+  console.log(event)
+
   useEffect(() => {
     if (event && event._id) {
       // Load event responses
-      dispatch(getEventResponses(event._id));
+      // dispatch(getEventResponses({ projectId, eventId: event._id }));
     }
   }, [dispatch, event]);
 
@@ -21,10 +25,10 @@ const EventDetailModal = ({ isOpen, onClose, event, onEdit, onDelete }) => {
     
     setIsResponding(true);
     try {
-      await dispatch(respondToEvent({ eventId: event._id, response }));
+      // await dispatch(respondToEvent({ projectId, eventId: event._id, response }));
       setUserResponse(response);
       // Reload responses
-      dispatch(getEventResponses(event._id));
+      // dispatch(getEventResponses({ projectId, eventId: event._id }));
     } catch (error) {
       console.error('Error responding to event:', error);
     } finally {
@@ -118,17 +122,36 @@ const EventDetailModal = ({ isOpen, onClose, event, onEdit, onDelete }) => {
               <div>
                 <h4 className="text-sm font-medium text-gray-900 mb-2">Date & Time</h4>
                 <div className="text-sm text-gray-600">
-                  {formatDateTime(event.startDate, event.startTime)}
-                  {event.endTime && !event.allDay && (
-                    <span>
-                      {' - '}
-                      {new Date(`${event.startDate}T${event.endTime}`).toLocaleTimeString('en-US', {
-                        hour: 'numeric',
-                        minute: '2-digit'
-                      })}
-                    </span>
+                  {event.allDay ? (
+                    <>
+                      {formatDateTime(event.startDate, null)}
+                      {event.endDate && event.endDate !== event.startDate && (
+                        <span>
+                          {' - '}
+                          {formatDateTime(event.endDate, null)}
+                        </span>
+                      )}
+                      <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">All Day</span>
+                    </>
+                  ) : (
+                    <>
+                      {formatDateTime(event.startDate, event.startTime)}
+                      {event.endDate && event.endDate !== event.startDate ? (
+                        <span>
+                          {' - '}
+                          {formatDateTime(event.endDate, event.endTime)}
+                        </span>
+                      ) : event.endTime ? (
+                        <span>
+                          {' - '}
+                          {new Date(`${event.startDate}T${event.endTime}`).toLocaleTimeString('en-US', {
+                            hour: 'numeric',
+                            minute: '2-digit'
+                          })}
+                        </span>
+                      ) : null}
+                    </>
                   )}
-                  {event.allDay && <span className="ml-2 text-xs bg-gray-100 px-2 py-1 rounded">All Day</span>}
                 </div>
               </div>
 
@@ -208,11 +231,47 @@ const EventDetailModal = ({ isOpen, onClose, event, onEdit, onDelete }) => {
               )}
 
               {/* Related Entity */}
-              {event.relatedEntity && event.relatedEntity.type && event.relatedEntity.id && (
+              {event.relatedEntity && event.relatedEntity.type && (event.relatedEntity.id || event.relatedEntity._id) && (
                 <div>
                   <h4 className="text-sm font-medium text-gray-900 mb-2">Related to</h4>
-                  <div className="text-sm text-gray-600">
-                    {event.relatedEntity.type.charAt(0).toUpperCase() + event.relatedEntity.type.slice(1)}: {event.relatedEntity.id}
+                  <div className="text-sm">
+                    <button
+                      onClick={() => {
+                        const entityId = event.relatedEntity.id?._id || event.relatedEntity.id || event.relatedEntity._id;
+                        const entityType = event.relatedEntity.type;
+                        const basePath = `/crm/${projectId}`;
+                        
+                        switch (entityType) {
+                          case 'task':
+                            navigate(`${basePath}/tasks/${entityId}`);
+                            break;
+                          case 'deal':
+                            navigate(`${basePath}/deals/${entityId}`);
+                            break;
+                          case 'customer':
+                            navigate(`${basePath}/customers/${entityId}`);
+                            break;
+                          case 'company':
+                            navigate(`${basePath}/companies/${entityId}`);
+                            break;
+                          case 'lead':
+                            navigate(`${basePath}/leads/${entityId}`);
+                            break;
+                          default:
+                            break;
+                        }
+                        onClose();
+                      }}
+                      className="inline-flex items-center px-3 py-1 rounded-md text-sm font-medium text-indigo-700 bg-indigo-100 hover:bg-indigo-200 transition-colors"
+                    >
+                      <svg className="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                      View {event.relatedEntity.type.charAt(0).toUpperCase() + event.relatedEntity.type.slice(1)}
+                      {event.relatedEntity.id?.name && `: ${event.relatedEntity.id.name}`}
+                      {event.relatedEntity.id?.title && `: ${event.relatedEntity.id.title}`}
+                      {event.relatedEntity.id?.firstName && `: ${event.relatedEntity.id.firstName} ${event.relatedEntity.id.lastName}`}
+                    </button>
                   </div>
                 </div>
               )}
@@ -288,18 +347,20 @@ const EventDetailModal = ({ isOpen, onClose, event, onEdit, onDelete }) => {
 
           {/* Actions */}
           <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
-            <button
-              onClick={onEdit}
-              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm"
+            {hasAccess && <><button
+              onClick={() => onEdit(event)}
+              className="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={event.type != 'custom'}
             >
               Edit Event
             </button>
             <button
-              onClick={onDelete}
-              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
+              onClick={() => onDelete(event._id)}
+              className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={event.type != 'custom'}
             >
               Delete Event
-            </button>
+            </button></>}
             <button
               onClick={onClose}
               className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:w-auto sm:text-sm"

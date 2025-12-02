@@ -100,6 +100,7 @@ export const getProjectTasks = asyncHandler(async (req, res) => {
 export const getUserTasks = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const {
+    projectId,
     status,
     project,
     overdue,
@@ -107,14 +108,31 @@ export const getUserTasks = asyncHandler(async (req, res) => {
     sortBy = 'dueDate',
     sortOrder = 'asc',
     page = 1,
-    limit = 20
+    limit = 20,
+    includeArchived = false,
+    showArchived = false
   } = req.query;
 
   // Build query
-  const query = { assignedTo: userId, isArchived: false };
+  const query = { assignedTo: userId };
+  
+  // Filter by project if projectId is provided
+  if (projectId) {
+    query.project = projectId;
+  }
+  
+  // Handle archived tasks filter
+  if (showArchived === 'true' || showArchived === true) {
+    // Show only archived tasks
+    query.isArchived = true;
+  } else if (!includeArchived || includeArchived === 'false') {
+    // Show only active tasks (default)
+    query.isArchived = false;
+  }
+  // If includeArchived is true and showArchived is false/undefined, show all tasks
   
   if (status) query.status = status;
-  if (project) query.project = project;
+  if (project && !projectId) query.project = project;
   if (overdue === 'true') {
     query.dueDate = { $lt: new Date() };
     query.status = { $nin: ['completed', 'cancelled'] };
@@ -330,7 +348,7 @@ export const updateTask = asyncHandler(async (req, res) => {
         const newMap = sanitizedData[key];
         if (oldMap.size !== newMap.size || 
             Array.from(oldMap.keys()).some(k => oldMap.get(k) !== newMap.get(k))) {
-          changes[key] = {
+      changes[key] = {
             oldValue: Object.fromEntries(oldMap),
             newValue: Object.fromEntries(newMap)
           };
@@ -339,7 +357,7 @@ export const updateTask = asyncHandler(async (req, res) => {
         changes[key] = {
           oldValue: task[key],
           newValue: sanitizedData[key]
-        };
+      };
       }
     }
   });
@@ -1242,7 +1260,7 @@ export const bulkUpdateTasks = asyncHandler(async (req, res) => {
   const validatedUpdates = validateTaskData(updates, true);
 
   console.log(validatedUpdates);
-
+  
   const result = await Task.updateMany(
     { _id: { $in: taskIds } },
     { $set: validatedUpdates }
