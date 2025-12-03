@@ -6,6 +6,7 @@ import Deal  from '../models/Deal.model.js';
 import Lead  from '../models/Lead.model.js';
 import Task  from '../models/Task.model.js';
 import CalendarEvent  from '../models/CalendarEvent.model.js';
+import Activity  from '../models/Activity.model.js';
 import User  from '../models/User.model.js';
 import { NotFoundError, ValidationError } from '../middleware/errorHandler.js';
 import ExcelJS from 'exceljs';
@@ -13,6 +14,7 @@ import PDFDocument from 'pdfkit';
 import mongoose from 'mongoose';
 import puppeteer from 'puppeteer';
 import { getReportHTML } from '../utils/reportTemplates.js';
+import { calculateUserPerformance, getTeamPerformance } from '../utils/performanceService.js';
 
 // Generate comprehensive CRM overview report
 export const generateOverviewReport = asyncHandler(async (req, res) => {
@@ -162,13 +164,11 @@ export const generateCompaniesReport = asyncHandler(async (req, res) => {
       name: company.name,
       industry: company.industry,
       status: company.status,
-      size: company.size,
       website: company.website,
       email: company.email,
       phone: company.phone,
       address: company.address,
       createdAt: company.createdAt,
-      tags: company.tags
     })),
     summary: {
       total: companies.length,
@@ -209,7 +209,7 @@ export const generateDealsReport = asyncHandler(async (req, res) => {
     throw new NotFoundError('Project not found');
   }
 
-  let query = { project:  new mongoose.Types.ObjectId(projectId) };
+  let query = { projectId: new mongoose.Types.ObjectId(projectId), isArchived: { $ne: true } };
   
   // Apply date filters
   if (dateRange.startDate && dateRange.endDate) {
@@ -228,14 +228,17 @@ export const generateDealsReport = asyncHandler(async (req, res) => {
   }
 
   const deals = await Deal.find(query)
-    .populate('customer', 'name email')
+    .populate('customer', 'firstName lastName email phone')
     .populate('assignedTo', 'name email')
-    .populate('stage', 'name')
+    .populate('createdBy', 'name email')
+    .populate('company', 'name industry')
     .sort({ createdAt: -1 });
 
   const totalValue = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
   const wonDeals = deals.filter(deal => deal.status === 'won');
   const wonValue = wonDeals.reduce((sum, deal) => sum + (deal.value || 0), 0);
+  const lostDeals = deals.filter(deal => deal.status === 'lost');
+  const openDeals = deals.filter(deal => deal.status === 'open');
 
   const reportData = {
     project: {
@@ -244,15 +247,30 @@ export const generateDealsReport = asyncHandler(async (req, res) => {
     },
     deals: deals.map(deal => ({
       name: deal.name,
-      value: deal.value,
-      currency: deal.currency,
+      dealNumber: deal.dealNumber || 'N/A',
+      description: deal.description || 'No description',
+      value: deal.value || 0,
+      currency: deal.currency || 'USD',
       status: deal.status,
+      priority: deal.priority || 'medium',
       stage: deal.stage?.name || 'No Stage',
-      customer: deal.customer?.name || 'No Customer',
+      customer: deal.customer ? `${deal.customer.firstName || ''} ${deal.customer.lastName || ''}`.trim() || deal.customer.email || 'No Customer' : 'No Customer',
+      customerEmail: deal.customer?.email || 'N/A',
+      customerPhone: deal.customer?.phone || 'N/A',
+      company: deal.company?.name || 'No Company',
+      companyIndustry: deal.company?.industry || 'N/A',
       assignedTo: deal.assignedTo?.name || 'Unassigned',
-      probability: deal.probability,
+      assignedToEmail: deal.assignedTo?.email || 'N/A',
+      createdBy: deal.createdBy?.name || 'Unknown',
+      probability: deal.probability || 0,
       expectedCloseDate: deal.expectedCloseDate,
-      createdAt: deal.createdAt
+      actualCloseDate: deal.actualCloseDate || null,
+      source: deal.source || 'N/A',
+      tags: deal.tags || [],
+      notes: deal.notes?.length || 0,
+      activities: deal.activities?.length || 0,
+      createdAt: deal.createdAt,
+      updatedAt: deal.updatedAt
     })),
     summary: {
       total: deals.length,
@@ -334,7 +352,6 @@ export const generateLeadsReport = asyncHandler(async (req, res) => {
       score: lead.score,
       assignedTo: lead.assignedTo?.name || 'Unassigned',
       createdAt: lead.createdAt,
-      tags: lead.tags
     })),
     summary: {
       total: leads.length,
@@ -457,73 +474,189 @@ export const generateTasksReport = asyncHandler(async (req, res) => {
 // Generate performance report
 export const generatePerformanceReport = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const { format = 'pdf', dateRange = {} } = req.body;
+  const { format = 'pdf', dateRange = {}, filters = {} } = req.body;
+  const userId = filters.userId || req.body.userId; // Support both locations
 
   const project = await Project.findById(projectId);
   if (!project) {
     throw new NotFoundError('Project not found');
   }
 
-  // Get project members
-  const members = await User.find({ 
-    'projects.project': projectId 
-  }).select('name email role');
+  const projectObjectId = new mongoose.Types.ObjectId(projectId);
+  const requestingUser = req.user;
 
-  // Get performance metrics
-  const [
-    userTasks,
-    userDeals,
-    userLeads,
-    userCustomers
-  ] = await Promise.all([
-    Task.aggregate([
-      { $match: { project:  new mongoose.Types.ObjectId(projectId) } },
-      { $group: { _id: '$assignedTo', count: { $sum: 1 }, completed: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } } }}
-    ]),
-    Deal.aggregate([
-      { $match: { project:  new mongoose.Types.ObjectId(projectId) } },
-      { $group: { _id: '$assignedTo', count: { $sum: 1 }, won: { $sum: { $cond: [{ $eq: ['$status', 'won'] }, 1, 0] } }, totalValue: { $sum: '$value' } }}
-    ]),
-    Lead.aggregate([
-      { $match: { project:  new mongoose.Types.ObjectId(projectId) } },
-      { $group: { _id: '$assignedTo', count: { $sum: 1 } } }
-    ]),
-    Customer.aggregate([
-      { $match: { project:  new mongoose.Types.ObjectId(projectId) } },
-      { $group: { _id: '$assignedTo', count: { $sum: 1 } } }
-    ])
-  ]);
+  // Get requesting user's role in this project
+  const userRole = requestingUser.getProjectRole?.(projectId) || 
+    (requestingUser.ownedProjects?.includes(projectId) ? 'owner' : 
+    requestingUser.projectMembers?.find(m => m.project.toString() === projectId.toString())?.role);
+
+  // Build query to get project members
+  let membersQuery = {
+    $or: [
+      { ownedProjects: projectObjectId },
+      { 'projectMembers.project': projectObjectId }
+    ],
+    isActive: { $ne: false } // Only active users
+  };
+  
+  // If specific userId is provided, only get that user's performance
+  if (userId) {
+    membersQuery._id = new mongoose.Types.ObjectId(userId);
+  } else {
+    // Filter based on requesting user's role
+    if (userRole === 'owner' || userRole === 'admin') {
+      // Owner and admin can see all members - no additional filter
+    } else if (userRole === 'manager') {
+      // Manager can see sales_executive, support_executive, and themselves
+      // We'll filter after fetching based on project role
+    } else {
+      // Others can only see themselves
+      membersQuery._id = requestingUser._id;
+    }
+  }
+
+  // Get all matching users
+  let members = await User.find(membersQuery)
+    .select('name email profileImage ownedProjects projectMembers')
+    .lean();
+
+  // Filter members based on their project role and requesting user's permissions
+  members = members
+    .map(member => {
+      const memberRole = member.ownedProjects?.some(p => p.toString() === projectId) ? 'owner' : 
+        member.projectMembers?.find(m => m.project.toString() === projectId)?.role;
+      
+      // If requesting user is owner/admin, include all
+      if (userRole === 'owner' || userRole === 'admin') {
+        return { ...member, role: memberRole };
+      }
+      // If requesting user is manager, include sales_executive, support_executive, and themselves
+      else if (userRole === 'manager') {
+        if (memberRole === 'sales_executive' || 
+            memberRole === 'support_executive' || 
+            memberRole === 'manager' ||
+            member._id.toString() === requestingUser._id.toString()) {
+          return { ...member, role: memberRole };
+        }
+      }
+      // Others can only see themselves
+      else if (member._id.toString() === requestingUser._id.toString()) {
+        return { ...member, role: memberRole };
+      }
+      return null;
+    })
+    .filter(member => member !== null);
+
+  // Get comprehensive performance data for each member using performanceService
+  const membersPerformance = await Promise.all(
+    members.map(async (member) => {
+      try {
+        const performance = await calculateUserPerformance(member._id.toString(), projectId, dateRange);
+
+      return {
+          userId: member._id.toString(),
+        name: member.name,
+        email: member.email,
+          role: member.role || 'viewer',
+          performanceScore: performance.performanceScore || 0,
+          deals: {
+            total: performance.deals?.total || 0,
+            open: performance.deals?.open || 0,
+            won: performance.deals?.won || 0,
+            lost: performance.deals?.lost || 0,
+            winRate: performance.deals?.winRate || '0',
+            totalValue: performance.deals?.totalValue || 0,
+            wonValue: performance.deals?.wonValue || 0,
+            lostValue: performance.deals?.lostValue || 0,
+            averageValue: performance.deals?.averageValue || 0
+          },
+        tasks: {
+            total: performance.tasks?.total || 0,
+            completed: performance.tasks?.completed || 0,
+            pending: performance.tasks?.pending || 0,
+            inProgress: performance.tasks?.inProgress || 0,
+            overdue: performance.tasks?.overdue || 0,
+            onTime: performance.tasks?.onTime || 0,
+            completionRate: performance.tasks?.completionRate || '0',
+            onTimeRate: performance.tasks?.onTimeRate || '0'
+          },
+          customers: {
+            total: performance.customers?.total || 0,
+            active: performance.customers?.active || 0,
+            new: performance.customers?.new || 0
+          },
+          leads: {
+            total: performance.leads?.total || 0,
+            new: performance.leads?.new || 0,
+            contacted: performance.leads?.contacted || 0,
+            qualified: performance.leads?.qualified || 0,
+            converted: performance.leads?.converted || 0,
+            conversionRate: performance.leads?.conversionRate || '0'
+          },
+          companies: {
+            total: performance.companies?.total || 0,
+            active: performance.companies?.active || 0
+          },
+          activities: {
+            total: performance.activities?.total || 0,
+            byCategory: performance.activities?.byCategory || {}
+          },
+          events: {
+            total: performance.events?.total || 0,
+            upcoming: performance.events?.upcoming || 0,
+            completed: performance.events?.completed || 0
+          },
+          summary: performance.summary || {}
+        };
+      } catch (error) {
+        console.error(`Error calculating performance for user ${member._id}:`, error);
+        // Return empty performance data if calculation fails
+        return {
+          userId: member._id.toString(),
+          name: member.name,
+          email: member.email,
+          role: member.role || 'viewer',
+          performanceScore: 0,
+          deals: { total: 0, open: 0, won: 0, lost: 0, winRate: '0', totalValue: 0, wonValue: 0, lostValue: 0, averageValue: 0 },
+          tasks: { total: 0, completed: 0, pending: 0, inProgress: 0, overdue: 0, onTime: 0, completionRate: '0', onTimeRate: '0' },
+          customers: { total: 0, active: 0, new: 0 },
+          leads: { total: 0, new: 0, contacted: 0, qualified: 0, converted: 0, conversionRate: '0' },
+          companies: { total: 0, active: 0 },
+          activities: { total: 0, byCategory: {} },
+          events: { total: 0, upcoming: 0, completed: 0 },
+          summary: {}
+        };
+      }
+    })
+  );
+
+  // Calculate team averages
+  const teamAverages = membersPerformance.length > 0 ? {
+    averagePerformanceScore: (
+      membersPerformance.reduce((sum, m) => sum + (m.performanceScore || 0), 0) / membersPerformance.length
+    ).toFixed(2),
+    averageCompletionRate: (
+      membersPerformance.reduce((sum, m) => sum + parseFloat(m.tasks.completionRate || 0), 0) / membersPerformance.length
+    ).toFixed(2),
+    averageWinRate: (
+      membersPerformance.reduce((sum, m) => sum + parseFloat(m.deals.winRate || 0), 0) / membersPerformance.length
+    ).toFixed(2),
+    totalRevenue: membersPerformance.reduce((sum, m) => sum + (m.deals.wonValue || 0), 0),
+    totalDeals: membersPerformance.reduce((sum, m) => sum + (m.deals.total || 0), 0),
+    totalTasks: membersPerformance.reduce((sum, m) => sum + (m.tasks.total || 0), 0)
+  } : {};
+
+  // Log for debugging
+  console.log(`Performance Report: Found ${members.length} members, ${membersPerformance.length} performance records`);
 
   const reportData = {
     project: {
       name: project.name,
       description: project.description
     },
-    members: members.map(member => {
-      const tasks = userTasks.find(t => t._id?.toString() === member._id.toString()) || { count: 0, completed: 0 };
-      const deals = userDeals.find(d => d._id?.toString() === member._id.toString()) || { count: 0, won: 0, totalValue: 0 };
-      const leads = userLeads.find(l => l._id?.toString() === member._id.toString()) || { count: 0 };
-      const customers = userCustomers.find(c => c._id?.toString() === member._id.toString()) || { count: 0 };
-
-      return {
-        name: member.name,
-        email: member.email,
-        role: member.role,
-        tasks: {
-          total: tasks.count,
-          completed: tasks.completed,
-          completionRate: tasks.count > 0 ? (tasks.completed / tasks.count * 100).toFixed(2) : 0
-        },
-        deals: {
-          total: deals.count,
-          won: deals.won,
-          winRate: deals.count > 0 ? (deals.won / deals.count * 100).toFixed(2) : 0,
-          totalValue: deals.totalValue
-        },
-        leads: leads.count,
-        customers: customers.count
-      };
-    }),
+    dateRange: dateRange,
+    members: membersPerformance,
+    teamAverages: teamAverages,
     generatedAt: new Date(),
     generatedBy: req.user.name
   };
@@ -581,9 +714,9 @@ export const generateCustomersReport = asyncHandler(async (req, res) => {
       description: project.description
     },
     customers: customers.map(customer => ({
-      name: customer.name,
-      email: customer.email,
-      phone: customer.phone,
+      name: customer.firstName + ' ' + customer.lastName,
+      email: customer.email || 'No Email',
+      phone: customer.phone || 'No Phone',
       company: customer.company?.name || 'No Company',
       industry: customer.company?.industry || 'Unknown',
       status: customer.status,
@@ -592,7 +725,6 @@ export const generateCustomersReport = asyncHandler(async (req, res) => {
       score: customer.score,
       assignedTo: customer.assignedTo?.name || 'Unassigned',
       createdAt: customer.createdAt,
-      tags: customer.tags
     })),
     summary: {
       total: customers.length,
@@ -635,7 +767,8 @@ export const generateActivitiesReport = asyncHandler(async (req, res) => {
     throw new NotFoundError('Project not found');
   }
 
-  let query = { project: new mongoose.Types.ObjectId(projectId) };
+  // Build query for Activity model
+  const query = { project: new mongoose.Types.ObjectId(projectId) };
   
   // Apply date filters
   if (dateRange.startDate && dateRange.endDate) {
@@ -643,88 +776,67 @@ export const generateActivitiesReport = asyncHandler(async (req, res) => {
       $gte: new Date(dateRange.startDate),
       $lte: new Date(dateRange.endDate)
     };
+  } else if (dateRange.startDate) {
+    query.createdAt = { $gte: new Date(dateRange.startDate) };
+  } else if (dateRange.endDate) {
+    query.createdAt = { $lte: new Date(dateRange.endDate) };
   }
 
-  // Get activities from all entities
-  const [dealActivities, taskActivities, customerActivities, leadActivities] = await Promise.all([
-    Deal.find(query).populate('assignedTo', 'name').select('name activities createdAt'),
-    Task.find(query).populate('assignedTo', 'name').select('title activities createdAt'),
-    Customer.find(query).populate('assignedTo', 'name').select('name activities createdAt'),
-    Lead.find(query).populate('assignedTo', 'name').select('name activities createdAt')
-  ]);
+  // Apply entity type filter if provided
+  if (filters.entityType) {
+    query.entityType = filters.entityType;
+  }
 
-  const allActivities = [];
+  // Get activities from Activity model
+  const activities = await Activity.find(query)
+    .populate('performedBy', 'name email')
+    .populate('entityId')
+    .sort({ createdAt: -1 })
+    .lean();
 
-  // Process deal activities
-  dealActivities.forEach(deal => {
-    if (deal.activities && deal.activities.length > 0) {
-      deal.activities.forEach(activity => {
-        allActivities.push({
-          entityType: 'Deal',
-          entityName: deal.name,
-          type: activity.type,
-          description: activity.description,
-          user: activity.user,
-          createdAt: activity.createdAt,
-          assignedTo: deal.assignedTo?.name || 'Unassigned'
-        });
-      });
+  // Get entity names for each activity
+  const allActivities = await Promise.all(activities.map(async (activity) => {
+    let entityName = 'Unknown';
+    
+    // Get entity name based on entity type
+    if (activity.entityId) {
+      switch (activity.entityType) {
+        case 'Deal':
+          const deal = await Deal.findById(activity.entityId).select('name assignedTo').lean();
+          entityName = deal?.name || 'Unknown Deal';
+          break;
+        case 'Task':
+          const task = await Task.findById(activity.entityId).select('title assignedTo').lean();
+          entityName = task?.title || 'Unknown Task';
+          break;
+        case 'Customer':
+          const customer = await Customer.findById(activity.entityId).select('name assignedTo').lean();
+          entityName = customer?.name || 'Unknown Customer';
+          break;
+        case 'Lead':
+          const lead = await Lead.findById(activity.entityId).select('name assignedTo').lean();
+          entityName = lead?.name || 'Unknown Lead';
+          break;
+        case 'Company':
+          const company = await Company.findById(activity.entityId).select('name').lean();
+          entityName = company?.name || 'Unknown Company';
+          break;
+      }
     }
-  });
 
-  // Process task activities
-  taskActivities.forEach(task => {
-    if (task.activities && task.activities.length > 0) {
-      task.activities.forEach(activity => {
-        allActivities.push({
-          entityType: 'Task',
-          entityName: task.title,
-          type: activity.type,
+    return {
+      entityType: activity.entityType,
+      entityName: entityName,
+      type: activity.activityType,
           description: activity.description,
-          user: activity.user,
-          createdAt: activity.createdAt,
-          assignedTo: task.assignedTo?.name || 'Unassigned'
-        });
-      });
-    }
-  });
-
-  // Process customer activities
-  customerActivities.forEach(customer => {
-    if (customer.activities && customer.activities.length > 0) {
-      customer.activities.forEach(activity => {
-        allActivities.push({
-          entityType: 'Customer',
-          entityName: customer.name,
-          type: activity.type,
-          description: activity.description,
-          user: activity.user,
-          createdAt: activity.createdAt,
-          assignedTo: customer.assignedTo?.name || 'Unassigned'
-        });
-      });
-    }
-  });
-
-  // Process lead activities
-  leadActivities.forEach(lead => {
-    if (lead.activities && lead.activities.length > 0) {
-      lead.activities.forEach(activity => {
-        allActivities.push({
-          entityType: 'Lead',
-          entityName: lead.name,
-          type: activity.type,
-          description: activity.description,
-          user: activity.user,
-          createdAt: activity.createdAt,
-          assignedTo: lead.assignedTo?.name || 'Unassigned'
-        });
-      });
-    }
-  });
-
-  // Sort by date
-  allActivities.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      user: activity.performedBy?.name || 'System',
+      userEmail: activity.performedBy?.email || '',
+      category: activity.category,
+      priority: activity.priority,
+      changes: activity.changes,
+      createdAt: activity.createdAt
+    };
+  }));
 
   const reportData = {
     project: {
@@ -744,6 +856,10 @@ export const generateActivitiesReport = asyncHandler(async (req, res) => {
       }, {}),
       byUser: allActivities.reduce((acc, activity) => {
         acc[activity.user] = (acc[activity.user] || 0) + 1;
+        return acc;
+      }, {}),
+      byCategory: allActivities.reduce((acc, activity) => {
+        acc[activity.category] = (acc[activity.category] || 0) + 1;
         return acc;
       }, {})
     },
@@ -775,7 +891,7 @@ export const generateFinancialReport = asyncHandler(async (req, res) => {
     throw new NotFoundError('Project not found');
   }
 
-  let query = { project: new mongoose.Types.ObjectId(projectId) };
+  let query = { projectId: new mongoose.Types.ObjectId(projectId), isArchived: { $ne: true } };
   
   // Apply date filters
   if (dateRange.startDate && dateRange.endDate) {
@@ -786,7 +902,7 @@ export const generateFinancialReport = asyncHandler(async (req, res) => {
   }
 
   const deals = await Deal.find(query)
-    .populate('customer', 'name email')
+    .populate('customer', 'firstName lastName email')
     .populate('assignedTo', 'name email')
     .sort({ createdAt: -1 });
 
@@ -826,13 +942,18 @@ export const generateFinancialReport = asyncHandler(async (req, res) => {
     },
     deals: deals.map(deal => ({
       name: deal.name,
-      value: deal.value,
-      currency: deal.currency,
+      dealNumber: deal.dealNumber || 'N/A',
+      value: deal.value || 0,
+      currency: deal.currency || 'USD',
       status: deal.status,
-      customer: deal.customer?.name || 'No Customer',
+      priority: deal.priority || 'medium',
+      customer: deal.customer ? `${deal.customer.firstName || ''} ${deal.customer.lastName || ''}`.trim() || deal.customer.email || 'No Customer' : 'No Customer',
+      customerEmail: deal.customer?.email || 'N/A',
       assignedTo: deal.assignedTo?.name || 'Unassigned',
-      probability: deal.probability,
+      assignedToEmail: deal.assignedTo?.email || 'N/A',
+      probability: deal.probability || 0,
       expectedCloseDate: deal.expectedCloseDate,
+      actualCloseDate: deal.actualCloseDate || null,
       createdAt: deal.createdAt,
       updatedAt: deal.updatedAt
     })),
@@ -909,21 +1030,36 @@ const generateExcelReport = async (res, data, reportName) => {
         customer.createdAt
       ]);
     });
-  } else if (data.deals) {
-    // Deals report
-    worksheet.addRow(['Name', 'Value', 'Currency', 'Status', 'Stage', 'Customer', 'Assigned To', 'Probability', 'Expected Close Date', 'Created At']);
+  } else if (data.deals && !data.financial) {
+    // Deals report - Enhanced with all fields
+    worksheet.addRow(['Deal Number', 'Name', 'Description', 'Value', 'Currency', 'Status', 'Priority', 'Stage', 'Probability', 'Customer', 'Customer Email', 'Customer Phone', 'Company', 'Industry', 'Assigned To', 'Assigned Email', 'Created By', 'Source', 'Expected Close Date', 'Actual Close Date', 'Tags', 'Notes Count', 'Activities Count', 'Created At', 'Updated At']);
     data.deals.forEach(deal => {
       worksheet.addRow([
+        deal.dealNumber || 'N/A',
         deal.name,
-        deal.value,
-        deal.currency,
+        deal.description || 'No description',
+        deal.value || 0,
+        deal.currency || 'USD',
         deal.status,
+        deal.priority || 'medium',
         deal.stage,
+        deal.probability || 0,
         deal.customer,
+        deal.customerEmail || 'N/A',
+        deal.customerPhone || 'N/A',
+        deal.company,
+        deal.companyIndustry || 'N/A',
         deal.assignedTo,
-        deal.probability,
-        deal.expectedCloseDate,
-        deal.createdAt
+        deal.assignedToEmail || 'N/A',
+        deal.createdBy,
+        deal.source || 'N/A',
+        deal.expectedCloseDate || 'N/A',
+        deal.actualCloseDate || 'N/A',
+        deal.tags ? deal.tags.join(', ') : 'None',
+        deal.notes || 0,
+        deal.activities || 0,
+        deal.createdAt,
+        deal.updatedAt
       ]);
     });
   } else if (data.leads) {
@@ -959,7 +1095,7 @@ const generateExcelReport = async (res, data, reportName) => {
     });
   } else if (data.activities) {
     // Activities report
-    worksheet.addRow(['Entity Type', 'Entity Name', 'Activity Type', 'Description', 'User', 'Assigned To', 'Created At']);
+    worksheet.addRow(['Entity Type', 'Entity Name', 'Activity Type', 'Description', 'User', 'User Email', 'Category', 'Priority', 'Created At']);
     data.activities.forEach(activity => {
       worksheet.addRow([
         activity.entityType,
@@ -967,27 +1103,46 @@ const generateExcelReport = async (res, data, reportName) => {
         activity.type,
         activity.description,
         activity.user,
-        activity.assignedTo,
+        activity.userEmail || '',
+        activity.category || '',
+        activity.priority || '',
         activity.createdAt
       ]);
     });
   } else if (data.members) {
-    // Performance report
-    worksheet.addRow(['Name', 'Email', 'Role', 'Tasks Total', 'Tasks Completed', 'Task Completion Rate', 'Deals Total', 'Deals Won', 'Deal Win Rate', 'Total Deal Value', 'Leads', 'Customers']);
+    // Performance report - Enhanced version
+    worksheet.addRow(['Performance Report Summary']);
+    if (data.teamAverages) {
+      worksheet.addRow(['Team Average Performance Score:', data.teamAverages.averagePerformanceScore]);
+      worksheet.addRow(['Team Average Completion Rate:', data.teamAverages.averageCompletionRate + '%']);
+      worksheet.addRow(['Team Average Win Rate:', data.teamAverages.averageWinRate + '%']);
+      worksheet.addRow(['Total Revenue:', data.teamAverages.totalRevenue]);
+      worksheet.addRow(['Total Deals:', data.teamAverages.totalDeals]);
+      worksheet.addRow(['Total Tasks:', data.teamAverages.totalTasks]);
+      worksheet.addRow([]);
+    }
+    worksheet.addRow(['Individual Performance']);
+    worksheet.addRow(['Name', 'Email', 'Role', 'Performance Score', 'Tasks Total', 'Tasks Completed', 'Task Completion Rate', 'On-Time Rate', 'Deals Total', 'Deals Won', 'Deal Win Rate', 'Total Deal Value', 'Won Value', 'Leads Total', 'Leads Converted', 'Lead Conversion Rate', 'Customers Total', 'Activities Total']);
     data.members.forEach(member => {
       worksheet.addRow([
         member.name,
         member.email,
         member.role,
-        member.tasks.total,
-        member.tasks.completed,
-        member.tasks.completionRate + '%',
-        member.deals.total,
-        member.deals.won,
-        member.deals.winRate + '%',
-        member.deals.totalValue,
-        member.leads,
-        member.customers
+        member.performanceScore || 0,
+        member.tasks.total || 0,
+        member.tasks.completed || 0,
+        (member.tasks.completionRate || 0) + '%',
+        (member.tasks.onTimeRate || 0) + '%',
+        member.deals.total || 0,
+        member.deals.won || 0,
+        (member.deals.winRate || 0) + '%',
+        member.deals.totalValue || 0,
+        member.deals.wonValue || 0,
+        member.leads.total || 0,
+        member.leads.converted || 0,
+        (member.leads.conversionRate || 0) + '%',
+        member.customers.total || 0,
+        member.activities.total || 0
       ]);
     });
   } else if (data.financial) {
@@ -1056,23 +1211,24 @@ const generatePDFReport = async (res, data, reportName) => {
     // Set content and wait for it to load
     await page.setContent(html, { waitUntil: 'networkidle0' });
     
-    // Generate PDF
+    // Generate PDF with better page handling
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
       margin: {
-        top: '20px',
-        right: '20px',
-        bottom: '20px',
-        left: '20px'
-      }
+        top: '15px',
+        right: '15px',
+        bottom: '15px',
+        left: '15px'
+      },
+      preferCSSPageSize: true
     });
     
     await browser.close();
     
     // Set headers and send PDF
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="${reportName.replace(/\s+/g, '_')}.pdf"`);
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', `attachment; filename="${reportName.replace(/\s+/g, '_')}.pdf"`);
     res.send(pdfBuffer);
     
   } catch (error) {
@@ -1081,13 +1237,13 @@ const generatePDFReport = async (res, data, reportName) => {
     const doc = new PDFDocument();
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${reportName.replace(/\s+/g, '_')}.pdf"`);
-    doc.pipe(res);
-    doc.fontSize(20).text(reportName, { align: 'center' });
-    doc.moveDown();
-    doc.fontSize(12).text(`Generated At: ${data.generatedAt}`, { align: 'left' });
-    doc.text(`Generated By: ${data.generatedBy}`, { align: 'left' });
+  doc.pipe(res);
+  doc.fontSize(20).text(reportName, { align: 'center' });
+  doc.moveDown();
+  doc.fontSize(12).text(`Generated At: ${data.generatedAt}`, { align: 'left' });
+  doc.text(`Generated By: ${data.generatedBy}`, { align: 'left' });
     doc.text('Error generating styled report. Please try again.', { align: 'left' });
-    doc.end();
+  doc.end();
   }
 };
 
@@ -1121,10 +1277,10 @@ const generateCSVReport = async (res, data, reportName) => {
       csvContent += `"${customer.name}","${customer.email}","${customer.phone}","${customer.company}","${customer.industry}","${customer.status}","${customer.stage}","${customer.priority}","${customer.score}","${customer.assignedTo}","${customer.createdAt}"\n`;
     });
   } else if (data.deals) {
-    // Deals report
-    csvContent += 'Name,Value,Currency,Status,Stage,Customer,Assigned To,Probability,Expected Close Date,Created At\n';
+    // Deals report - Enhanced with all fields
+    csvContent += 'Deal Number,Name,Description,Value,Currency,Status,Priority,Stage,Probability,Customer,Customer Email,Customer Phone,Company,Industry,Assigned To,Assigned Email,Created By,Source,Expected Close Date,Actual Close Date,Tags,Notes Count,Activities Count,Created At,Updated At\n';
     data.deals.forEach(deal => {
-      csvContent += `"${deal.name}","${deal.value}","${deal.currency}","${deal.status}","${deal.stage}","${deal.customer}","${deal.assignedTo}","${deal.probability}","${deal.expectedCloseDate}","${deal.createdAt}"\n`;
+      csvContent += `"${deal.dealNumber || 'N/A'}","${deal.name}","${(deal.description || 'No description').replace(/"/g, '""')}","${deal.value || 0}","${deal.currency || 'USD'}","${deal.status}","${deal.priority || 'medium'}","${deal.stage}","${deal.probability || 0}","${deal.customer}","${deal.customerEmail || 'N/A'}","${deal.customerPhone || 'N/A'}","${deal.company}","${deal.companyIndustry || 'N/A'}","${deal.assignedTo}","${deal.assignedToEmail || 'N/A'}","${deal.createdBy}","${deal.source || 'N/A'}","${deal.expectedCloseDate || 'N/A'}","${deal.actualCloseDate || 'N/A'}","${deal.tags ? deal.tags.join('; ') : 'None'}","${deal.notes || 0}","${deal.activities || 0}","${deal.createdAt}","${deal.updatedAt}"\n`;
     });
   } else if (data.leads) {
     // Leads report
@@ -1140,15 +1296,26 @@ const generateCSVReport = async (res, data, reportName) => {
     });
   } else if (data.activities) {
     // Activities report
-    csvContent += 'Entity Type,Entity Name,Activity Type,Description,User,Assigned To,Created At\n';
+    csvContent += 'Entity Type,Entity Name,Activity Type,Description,User,User Email,Category,Priority,Created At\n';
     data.activities.forEach(activity => {
-      csvContent += `"${activity.entityType}","${activity.entityName}","${activity.type}","${activity.description}","${activity.user}","${activity.assignedTo}","${activity.createdAt}"\n`;
+      csvContent += `"${activity.entityType}","${activity.entityName}","${activity.type}","${activity.description}","${activity.user}","${activity.userEmail || ''}","${activity.category || ''}","${activity.priority || ''}","${activity.createdAt}"\n`;
     });
   } else if (data.members) {
-    // Performance report
-    csvContent += 'Name,Email,Role,Tasks Total,Tasks Completed,Task Completion Rate,Deals Total,Deals Won,Deal Win Rate,Total Deal Value,Leads,Customers\n';
+    // Performance report - Enhanced version
+    csvContent += 'Performance Report Summary\n';
+    if (data.teamAverages) {
+      csvContent += `Team Average Performance Score,${data.teamAverages.averagePerformanceScore}\n`;
+      csvContent += `Team Average Completion Rate,${data.teamAverages.averageCompletionRate}%\n`;
+      csvContent += `Team Average Win Rate,${data.teamAverages.averageWinRate}%\n`;
+      csvContent += `Total Revenue,${data.teamAverages.totalRevenue}\n`;
+      csvContent += `Total Deals,${data.teamAverages.totalDeals}\n`;
+      csvContent += `Total Tasks,${data.teamAverages.totalTasks}\n`;
+      csvContent += '\n';
+    }
+    csvContent += 'Individual Performance\n';
+    csvContent += 'Name,Email,Role,Performance Score,Tasks Total,Tasks Completed,Task Completion Rate,On-Time Rate,Deals Total,Deals Won,Deal Win Rate,Total Deal Value,Won Value,Leads Total,Leads Converted,Lead Conversion Rate,Customers Total,Activities Total\n';
     data.members.forEach(member => {
-      csvContent += `"${member.name}","${member.email}","${member.role}","${member.tasks.total}","${member.tasks.completed}","${member.tasks.completionRate}%","${member.deals.total}","${member.deals.won}","${member.deals.winRate}%","${member.deals.totalValue}","${member.leads}","${member.customers}"\n`;
+      csvContent += `"${member.name}","${member.email}","${member.role}","${member.performanceScore || 0}","${member.tasks.total || 0}","${member.tasks.completed || 0}","${member.tasks.completionRate || 0}%","${member.tasks.onTimeRate || 0}%","${member.deals.total || 0}","${member.deals.won || 0}","${member.deals.winRate || 0}%","${member.deals.totalValue || 0}","${member.deals.wonValue || 0}","${member.leads.total || 0}","${member.leads.converted || 0}","${member.leads.conversionRate || 0}%","${member.customers.total || 0}","${member.activities.total || 0}"\n`;
     });
   } else if (data.financial) {
     // Financial report
@@ -1182,6 +1349,11 @@ export const generateReport = asyncHandler(async (req, res) => {
 
   if (!reportType) {
     throw new ValidationError('Report type is required');
+  }
+
+  // For performance report, merge filters into req.body so generatePerformanceReport can access them
+  if (reportType === 'performance') {
+    req.body.userId = filters.userId || req.body.userId;
   }
 
   switch (reportType) {

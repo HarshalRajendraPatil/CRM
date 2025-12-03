@@ -1,5 +1,5 @@
 import User from '../models/User.model.js';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { 
   validateName, 
   validateEmail, 
@@ -76,7 +76,7 @@ export const getUsers = asyncHandler(async (req, res) => {
 export const getUserById = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   const { id } = req.params;
@@ -107,7 +107,7 @@ export const getUserById = asyncHandler(async (req, res) => {
 export const createUser = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   const { name, email, password, phone, profileImage, roleGlobal, isActive, isEmailVerified } = req.body;
@@ -197,7 +197,7 @@ export const createUser = asyncHandler(async (req, res) => {
 export const updateUser = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   const { id } = req.params;
@@ -330,7 +330,7 @@ export const updateUser = asyncHandler(async (req, res) => {
 export const deleteUser = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   const { id } = req.params;
@@ -375,7 +375,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
 export const resetUserPassword = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   const { id } = req.params;
@@ -415,7 +415,7 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
 export const toggleUserStatus = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   const { id } = req.params;
@@ -466,7 +466,7 @@ export const toggleUserStatus = asyncHandler(async (req, res) => {
 export const getUserStats = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   // Get total users count
@@ -510,7 +510,7 @@ export const getUserStats = asyncHandler(async (req, res) => {
 export const getUserActivity = asyncHandler(async (req, res) => {
   // Check if user is system-admin
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Not authorized to access this resource');
+    throw new ForbiddenError('Not authorized to access this resource');
   }
 
   const { id } = req.params;

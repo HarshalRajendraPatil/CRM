@@ -149,6 +149,11 @@ export const getReportHTML = (data, reportName, reportType) => {
     .table-container {
       overflow-x: auto;
       margin-top: 20px;
+      page-break-inside: avoid;
+    }
+    
+    tbody tr {
+      page-break-inside: avoid;
     }
     
     table {
@@ -164,17 +169,21 @@ export const getReportHTML = (data, reportName, reportType) => {
     }
     
     th {
-      padding: 15px;
+      padding: 8px;
       text-align: left;
       font-weight: 600;
       text-transform: uppercase;
-      font-size: 12px;
+      font-size: 10px;
       letter-spacing: 0.5px;
+      white-space: nowrap;
     }
     
     td {
-      padding: 12px 15px;
+      padding: 8px;
       border-bottom: 1px solid #e9ecef;
+      font-size: 10px;
+      word-wrap: break-word;
+      max-width: 200px;
     }
     
     tbody tr:hover {
@@ -750,50 +759,125 @@ const getDealsContent = (data) => {
         </div>
       </div>
       ` : ''}
+      
+      ${Object.keys(summary.byStage || {}).length > 0 ? `
+      <div class="summary-box">
+        <h3>Deals by Stage</h3>
+        <div class="summary-grid">
+          ${Object.entries(summary.byStage).map(([stage, count]) => `
+            <div class="summary-item">
+              <span class="summary-label">${stage}</span>
+              <span class="summary-value">${count}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
     </div>
     
     <div class="section">
       <h2 class="section-title">💰 Deal Details</h2>
-      ${deals.length > 0 ? `
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Value</th>
-              <th>Status</th>
-              <th>Stage</th>
-              <th>Customer</th>
-              <th>Assigned To</th>
-              <th>Probability</th>
-              <th>Expected Close</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${deals.map(deal => `
-              <tr>
-                <td><strong>${escapeHtml(deal.name || 'N/A')}</strong></td>
-                <td><strong>${formatCurrency(deal.value || 0)} ${deal.currency || 'USD'}</strong></td>
-                <td>${getDealStatusBadge(deal.status)}</td>
-                <td>${escapeHtml(deal.stage || 'N/A')}</td>
-                <td>${escapeHtml(deal.customer || 'N/A')}</td>
-                <td>${escapeHtml(deal.assignedTo || 'Unassigned')}</td>
-                <td>
-                  <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${deal.probability || 0}%">
-                      ${deal.probability || 0}%
-                    </div>
-                  </div>
-                </td>
-                <td>${deal.expectedCloseDate ? formatDate(deal.expectedCloseDate) : 'N/A'}</td>
-                <td>${formatDate(deal.createdAt)}</td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      </div>
-      ` : '<p>No deals found.</p>'}
+      ${deals.length > 0 ? deals.map(deal => `
+        <div class="item-card">
+          <h4>${escapeHtml(deal.name || 'N/A')} ${deal.dealNumber ? `<span style="font-size: 12px; color: #6c757d;">(${deal.dealNumber})</span>` : ''}</h4>
+          <div class="item-details">
+            <div class="detail-item">
+              <span class="detail-label">Deal Value</span>
+              <span class="detail-value"><strong>${formatCurrency(deal.value || 0)} ${deal.currency || 'USD'}</strong></span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Status</span>
+              <span class="detail-value">${getDealStatusBadge(deal.status)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Stage</span>
+              <span class="detail-value">${escapeHtml(deal.stage || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Priority</span>
+              <span class="detail-value">${getPriorityBadge(deal.priority || 'medium')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Probability</span>
+              <span class="detail-value">
+                <div class="progress-bar" style="width: 100px; display: inline-block;">
+                  <div class="progress-fill" style="width: ${deal.probability || 0}%">${deal.probability || 0}%</div>
+                </div>
+              </span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Customer</span>
+              <span class="detail-value">${escapeHtml(deal.customer || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Customer Email</span>
+              <span class="detail-value">${escapeHtml(deal.customerEmail || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Customer Phone</span>
+              <span class="detail-value">${escapeHtml(deal.customerPhone || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Company</span>
+              <span class="detail-value">${escapeHtml(deal.company || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Industry</span>
+              <span class="detail-value">${escapeHtml(deal.companyIndustry || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Assigned To</span>
+              <span class="detail-value">${escapeHtml(deal.assignedTo || 'Unassigned')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Assigned Email</span>
+              <span class="detail-value">${escapeHtml(deal.assignedToEmail || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Created By</span>
+              <span class="detail-value">${escapeHtml(deal.createdBy || 'Unknown')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Source</span>
+              <span class="detail-value">${escapeHtml(deal.source || 'N/A')}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Expected Close Date</span>
+              <span class="detail-value">${deal.expectedCloseDate ? formatDate(deal.expectedCloseDate) : 'N/A'}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Actual Close Date</span>
+              <span class="detail-value">${deal.actualCloseDate ? formatDate(deal.actualCloseDate) : 'N/A'}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Tags</span>
+              <span class="detail-value">${deal.tags && deal.tags.length > 0 ? deal.tags.map(tag => `<span class="badge badge-info">${escapeHtml(tag)}</span>`).join(' ') : 'None'}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Notes Count</span>
+              <span class="detail-value">${deal.notes || 0}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Activities Count</span>
+              <span class="detail-value">${deal.activities || 0}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Created</span>
+              <span class="detail-value">${formatDate(deal.createdAt)}</span>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">Last Updated</span>
+              <span class="detail-value">${formatDate(deal.updatedAt)}</span>
+            </div>
+            ${deal.description ? `
+            <div class="detail-item" style="grid-column: 1 / -1;">
+              <span class="detail-label">Description</span>
+              <span class="detail-value">${escapeHtml(deal.description)}</span>
+            </div>
+            ` : ''}
+          </div>
+        </div>
+      `).join('') : '<p>No deals found.</p>'}
     </div>
   `;
 };
@@ -995,6 +1079,34 @@ const getActivitiesContent = (data) => {
         </div>
       </div>
       ` : ''}
+      
+      ${Object.keys(summary.byEntity || {}).length > 0 ? `
+      <div class="summary-box">
+        <h3>Activities by Entity</h3>
+        <div class="summary-grid">
+          ${Object.entries(summary.byEntity).map(([entity, count]) => `
+            <div class="summary-item">
+              <span class="summary-label">${entity}</span>
+              <span class="summary-value">${count}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
+      
+      ${Object.keys(summary.byCategory || {}).length > 0 ? `
+      <div class="summary-box">
+        <h3>Activities by Category</h3>
+        <div class="summary-grid">
+          ${Object.entries(summary.byCategory).map(([category, count]) => `
+            <div class="summary-item">
+              <span class="summary-label">${category}</span>
+              <span class="summary-value">${count}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      ` : ''}
     </div>
     
     <div class="section">
@@ -1009,7 +1121,8 @@ const getActivitiesContent = (data) => {
               <th>Activity Type</th>
               <th>Description</th>
               <th>User</th>
-              <th>Assigned To</th>
+              <th>Category</th>
+              <th>Priority</th>
               <th>Date</th>
             </tr>
           </thead>
@@ -1021,7 +1134,8 @@ const getActivitiesContent = (data) => {
                 <td>${getStatusBadge(activity.type, 'info')}</td>
                 <td>${escapeHtml(activity.description || 'N/A')}</td>
                 <td>${escapeHtml(activity.user || 'N/A')}</td>
-                <td>${escapeHtml(activity.assignedTo || 'Unassigned')}</td>
+                <td>${escapeHtml(activity.category || 'N/A')}</td>
+                <td>${getPriorityBadge(activity.priority || 'medium')}</td>
                 <td>${formatDate(activity.createdAt)}</td>
               </tr>
             `).join('')}
@@ -1035,10 +1149,43 @@ const getActivitiesContent = (data) => {
 
 const getPerformanceContent = (data) => {
   const members = data.members || [];
+  const teamAverages = data.teamAverages || {};
   
   return `
+    ${Object.keys(teamAverages).length > 0 ? `
     <div class="section">
-      <h2 class="section-title">📈 Team Performance</h2>
+      <h2 class="section-title">📊 Team Overview</h2>
+      <div class="stats-grid">
+        <div class="stat-card primary">
+          <div class="stat-value">${teamAverages.averagePerformanceScore || 0}</div>
+          <div class="stat-label">Avg Performance Score</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-value">${formatCurrency(teamAverages.totalRevenue || 0)}</div>
+          <div class="stat-label">Total Revenue</div>
+        </div>
+        <div class="stat-card info">
+          <div class="stat-value">${teamAverages.averageCompletionRate || 0}%</div>
+          <div class="stat-label">Avg Completion Rate</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-value">${teamAverages.averageWinRate || 0}%</div>
+          <div class="stat-label">Avg Win Rate</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${teamAverages.totalDeals || 0}</div>
+          <div class="stat-label">Total Deals</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-value">${teamAverages.totalTasks || 0}</div>
+          <div class="stat-label">Total Tasks</div>
+        </div>
+      </div>
+    </div>
+    ` : ''}
+    
+    <div class="section">
+      <h2 class="section-title">👥 Individual Performance</h2>
       ${members.length > 0 ? `
       <div class="table-container">
         <table>
@@ -1047,12 +1194,15 @@ const getPerformanceContent = (data) => {
               <th>Name</th>
               <th>Email</th>
               <th>Role</th>
+              <th>Score</th>
               <th>Tasks</th>
-              <th>Task Completion</th>
+              <th>Completion</th>
+              <th>On-Time</th>
               <th>Deals</th>
-              <th>Deal Win Rate</th>
-              <th>Deal Value</th>
+              <th>Win Rate</th>
+              <th>Revenue</th>
               <th>Leads</th>
+              <th>Conv. Rate</th>
               <th>Customers</th>
             </tr>
           </thead>
@@ -1062,25 +1212,28 @@ const getPerformanceContent = (data) => {
                 <td><strong>${escapeHtml(member.name || 'N/A')}</strong></td>
                 <td>${escapeHtml(member.email || 'N/A')}</td>
                 <td>${escapeHtml(member.role || 'N/A')}</td>
+                <td><strong>${member.performanceScore || 0}</strong></td>
                 <td>${member.tasks?.total || 0}</td>
                 <td>
                   <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${member.tasks?.completionRate || 0}%">
+                    <div class="progress-fill" style="width: ${Math.min(member.tasks?.completionRate || 0, 100)}%">
                       ${member.tasks?.completed || 0}/${member.tasks?.total || 0} (${member.tasks?.completionRate || 0}%)
                     </div>
                   </div>
                 </td>
+                <td>${member.tasks?.onTimeRate || 0}%</td>
                 <td>${member.deals?.total || 0}</td>
                 <td>
                   <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${member.deals?.winRate || 0}%">
+                    <div class="progress-fill" style="width: ${Math.min(member.deals?.winRate || 0, 100)}%">
                       ${member.deals?.won || 0}/${member.deals?.total || 0} (${member.deals?.winRate || 0}%)
                     </div>
                   </div>
                 </td>
-                <td><strong>${formatCurrency(member.deals?.totalValue || 0)}</strong></td>
-                <td>${member.leads || 0}</td>
-                <td>${member.customers || 0}</td>
+                <td><strong>${formatCurrency(member.deals?.wonValue || 0)}</strong></td>
+                <td>${member.leads?.total || 0}</td>
+                <td>${member.leads?.conversionRate || 0}%</td>
+                <td>${member.customers?.total || 0}</td>
               </tr>
             `).join('')}
           </tbody>

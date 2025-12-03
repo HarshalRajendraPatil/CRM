@@ -2,7 +2,7 @@ import Task from '../models/Task.model.js';
 import mongoose from 'mongoose';
 import { validateTaskData, sanitizeTaskData } from '../utils/taskValidation.js';
 import { createTaskNotification } from '../utils/notificationService.js';
-import { AppError, asyncHandler } from '../middleware/errorHandler.js';
+import { AppError, asyncHandler, ForbiddenError } from '../middleware/errorHandler.js';
 import ActivityService from '../utils/activityService.js';
 
 // Helper function to format currency
@@ -735,7 +735,7 @@ export const updateTaskComment = asyncHandler(async (req, res) => {
 
   // Check if the user is the author of the comment
   if (comment.author.toString() !== req.user.id.toString()) {
-    throw new AppError('You can only edit your own comments', 403);
+    throw new ForbiddenError('You can only edit your own comments');
   }
 
   // Update comment
@@ -791,7 +791,7 @@ export const deleteTaskComment = asyncHandler(async (req, res) => {
 
   // Check if the user is the author of the comment
   if (comment.author.toString() !== req.user.id.toString()) {
-    throw new AppError('You can only delete your own comments', 403);
+    throw new ForbiddenError('You can only delete your own comments');
   }
 
   // Remove comment

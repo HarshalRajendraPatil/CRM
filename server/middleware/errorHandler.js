@@ -139,9 +139,16 @@ export class AuthenticationError extends AppError {
   }
 }
 
-// Authorization error class
+// Authorization error class (for authentication issues - 401)
 export class AuthorizationError extends AppError {
-  constructor(message = 'Access denied') {
+  constructor(message = 'Authentication failed') {
+    super(message, 401);
+  }
+}
+
+// Forbidden error class (for permission issues - 403)
+export class ForbiddenError extends AppError {
+  constructor(message = 'Access forbidden') {
     super(message, 403);
   }
 }
@@ -161,5 +168,6 @@ export default {
   ValidationError,
   AuthenticationError,
   AuthorizationError,
+  ForbiddenError,
   NotFoundError
 }; 

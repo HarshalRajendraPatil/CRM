@@ -1,7 +1,7 @@
 import Notification from '../models/Notification.model.js';
 import User from '../models/User.model.js';
 import Project from '../models/Project.model.js';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { validateObjectId } from '../utils/validation.js';
 import { emitNotification } from '../utils/socketService.js';
 
@@ -94,7 +94,7 @@ export const getNotificationById = asyncHandler(async (req, res) => {
 
   // Check if user is the recipient
   if (notification.recipient.toString() !== req.user._id.toString()) {
-    throw new AuthorizationError('You do not have permission to view this notification');
+    throw new ForbiddenError('You do not have permission to view this notification');
   }
 
   res.json({
@@ -124,7 +124,7 @@ export const markAsRead = asyncHandler(async (req, res) => {
 
   // Check if user is the recipient
   if (notification.recipient.toString() !== req.user._id.toString()) {
-    throw new AuthorizationError('You do not have permission to update this notification');
+    throw new ForbiddenError('You do not have permission to update this notification');
   }
 
   // Mark as read
@@ -193,7 +193,7 @@ export const deleteNotification = asyncHandler(async (req, res) => {
 
   // Check if user is the recipient
   if (notification.recipient.toString() !== req.user._id.toString()) {
-    throw new AuthorizationError('You do not have permission to delete this notification');
+    throw new ForbiddenError('You do not have permission to delete this notification');
   }
 
   // Delete notification
@@ -261,7 +261,7 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
 export const createNotification = asyncHandler(async (req, res) => {
   // Only system admins can create notifications directly
   if (req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('Only system administrators can create notifications directly');
+    throw new ForbiddenError('Only system administrators can create notifications directly');
   }
 
   const { 

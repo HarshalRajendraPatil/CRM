@@ -37,6 +37,7 @@ import Tasks from './pages/crm/tasks/Tasks';
 import TaskDetail from './pages/crm/tasks/TaskDetail';
 import Calendar from './pages/crm/Calendar';
 import Reports from './pages/crm/Reports';
+import Performance from './pages/crm/Performance';
 import Settings from './pages/crm/Settings';
 
 // Protected route component
@@ -242,6 +243,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Reports />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="performance" 
+            element={
+              <ProtectedRoute>
+                <Performance />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="performance/:userId" 
+            element={
+              <ProtectedRoute>
+                <Performance />
               </ProtectedRoute>
             } 
           />

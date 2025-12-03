@@ -1,7 +1,7 @@
 import Company from '../models/Company.model.js';
 import Project from '../models/Project.model.js';
 import mongoose from 'mongoose';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { validateCompanyData, sanitizeCompanyData } from '../utils/companyValidation.js';
 import { validateObjectId } from '../utils/validation.js';
 import notificationService from '../utils/notificationService.js';
@@ -35,7 +35,7 @@ export const createCompany = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to create companies in this project');
+    throw new ForbiddenError('You do not have permission to create companies in this project');
   }
   
   // Add project ID to the company data
@@ -128,7 +128,7 @@ export const getProjectCompanies = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view companies in this project');
+    throw new ForbiddenError('You do not have permission to view companies in this project');
   }
   
   // Get companies
@@ -193,7 +193,7 @@ export const getCompanyById = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view this company');
+    throw new ForbiddenError('You do not have permission to view this company');
   }
   
   res.json({
@@ -229,7 +229,7 @@ export const updateCompany = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to update this company');
+    throw new ForbiddenError('You do not have permission to update this company');
   }
   
   // Prepare update data
@@ -340,7 +340,7 @@ export const deleteCompany = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete this company');
+    throw new ForbiddenError('You do not have permission to delete this company');
   }
   
   // Store company name and project ID for notification
@@ -414,7 +414,7 @@ export const addCompanyNote = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to add notes to this company');
+    throw new ForbiddenError('You do not have permission to add notes to this company');
   }
   
   // Add note
@@ -494,7 +494,7 @@ export const getCompanyNotes = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view notes for this company');
+    throw new ForbiddenError('You do not have permission to view notes for this company');
   }
   
   // Sort notes by creation date (newest first)
@@ -549,7 +549,7 @@ export const updateCompanyNote = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to update notes for this company');
+    throw new ForbiddenError('You do not have permission to update notes for this company');
   }
   
   // Find the note
@@ -564,7 +564,7 @@ export const updateCompanyNote = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You can only edit your own notes');
+    throw new ForbiddenError('You can only edit your own notes');
   }
   
   // Update note
@@ -626,7 +626,7 @@ export const deleteCompanyNote = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete notes for this company');
+    throw new ForbiddenError('You do not have permission to delete notes for this company');
   }
   
   // Find the note
@@ -641,7 +641,7 @@ export const deleteCompanyNote = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You can only delete your own notes');
+    throw new ForbiddenError('You can only delete your own notes');
   }
   
   // Log activity before removing note
@@ -701,7 +701,7 @@ export const addCompanyTag = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to add tags to this company');
+    throw new ForbiddenError('You do not have permission to add tags to this company');
   }
   
   // Check if tag already exists
@@ -763,7 +763,7 @@ export const removeCompanyTag = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to remove tags from this company');
+    throw new ForbiddenError('You do not have permission to remove tags from this company');
   }
   
   // Remove tag
@@ -830,7 +830,7 @@ export const addCustomField = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to add custom fields to this company');
+    throw new ForbiddenError('You do not have permission to add custom fields to this company');
   }
   
   // Add or update custom field
@@ -887,7 +887,7 @@ export const removeCustomField = asyncHandler(async (req, res) => {
     company.owner.toString() !== req.user._id.toString() &&
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to remove custom fields from this company');
+    throw new ForbiddenError('You do not have permission to remove custom fields from this company');
   }
   
   // Check if custom field exists
@@ -941,7 +941,7 @@ export const getCompanyStats = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view company statistics in this project');
+    throw new ForbiddenError('You do not have permission to view company statistics in this project');
   }
   
   // Get total count
@@ -1145,7 +1145,7 @@ export const getCompanyInsights = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view company insights in this project');
+    throw new ForbiddenError('You do not have permission to view company insights in this project');
   }
   
   // Get total companies
@@ -1302,7 +1302,7 @@ export const bulkUpdateCompanies = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to update companies in this project');
+    throw new ForbiddenError('You do not have permission to update companies in this project');
   }
   
   // Validate that all companies belong to the same project
@@ -1387,7 +1387,7 @@ export const bulkDeleteCompanies = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete companies in this project');
+    throw new ForbiddenError('You do not have permission to delete companies in this project');
   }
   
   // Validate that all companies belong to the same project
@@ -1527,7 +1527,7 @@ export const getCompanyForecast = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view company forecast in this project');
+    throw new ForbiddenError('You do not have permission to view company forecast in this project');
   }
   
   const months = parseInt(period);

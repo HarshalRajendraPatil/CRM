@@ -1,7 +1,7 @@
 import Invitation from '../models/Invitation.model.js';
 import Project from '../models/Project.model.js';
 import User from '../models/User.model.js';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { 
   validateObjectId,
   validateMemberRole
@@ -62,7 +62,7 @@ export const createInvitation = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to invite members to this project');
+    throw new ForbiddenError('You do not have permission to invite members to this project');
   }
   
   // Check if user is already a member (need to populate members first)
@@ -266,7 +266,7 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
   
   // Check if the invitation email matches the authenticated user's email
   if (invitation.invitee.email.toLowerCase() !== req.user.email.toLowerCase()) {
-    throw new AuthorizationError('This invitation was sent to a different email address');
+    throw new ForbiddenError('This invitation was sent to a different email address');
   }
   
   // Update invitation status
@@ -371,7 +371,7 @@ export const declineInvitation = asyncHandler(async (req, res) => {
   
   // Check if the invitation email matches the authenticated user's email
   if (invitation.invitee.email.toLowerCase() !== req.user.email.toLowerCase()) {
-    throw new AuthorizationError('This invitation was sent to a different email address');
+    throw new ForbiddenError('This invitation was sent to a different email address');
   }
   
   // Update invitation status
@@ -427,7 +427,7 @@ export const resendInvitation = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to resend invitations for this project');
+    throw new ForbiddenError('You do not have permission to resend invitations for this project');
   }
   
   // Check if invitation is already accepted/declined/revoked (can only resend pending or expired)
@@ -492,7 +492,7 @@ export const cancelInvitation = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to cancel invitations for this project');
+    throw new ForbiddenError('You do not have permission to cancel invitations for this project');
   }
   
   // Check if invitation is already accepted/declined/cancelled
@@ -550,7 +550,7 @@ export const deleteInvitation = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete invitations for this project');
+    throw new ForbiddenError('You do not have permission to delete invitations for this project');
   }
   
   // Delete invitation

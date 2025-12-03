@@ -1,23 +1,35 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import CrmLayout from '../../layouts/CrmLayout';
 import { generateReport } from '../../services/reportService';
 
 const Reports = () => {
   const { projectId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   
-  const [selectedReport, setSelectedReport] = useState('');
+  // Initialize from location state if available (from Performance page)
+  const locationState = location.state || {};
+  
+  const [selectedReport, setSelectedReport] = useState(locationState.selectedReport || '');
   const [reportFormat, setReportFormat] = useState('pdf');
-  const [dateRange, setDateRange] = useState({
+  const [dateRange, setDateRange] = useState(locationState.dateRange || {
     startDate: '',
     endDate: ''
   });
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState(locationState.userId ? { userId: locationState.userId } : {});
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedReports, setGeneratedReports] = useState([]);
+  
+  // Clear location state after using it
+  useEffect(() => {
+    if (locationState.selectedReport) {
+      window.history.replaceState({}, document.title);
+    }
+  }, [locationState]);
 
   const reportTypes = [
     {
@@ -553,6 +565,21 @@ const Reports = () => {
                     <div>
                       <p className="font-medium text-gray-900">Performance</p>
                       <p className="text-sm text-gray-500">Team performance PDF</p>
+                    </div>
+                  </div>
+                </button>
+                
+                <button
+                  onClick={() => {
+                    navigate(`/crm/${projectId}/performance`);
+                  }}
+                  className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center space-x-3">
+                    <span className="text-lg">👥</span>
+                    <div>
+                      <p className="font-medium text-gray-900">View Performance</p>
+                      <p className="text-sm text-gray-500">Go to Performance page</p>
                     </div>
                   </div>
                 </button>

@@ -3,6 +3,7 @@ import Lead from '../models/Lead.model.js';
 import User from '../models/User.model.js';
 import notificationService from '../utils/notificationService.js';
 import ActivityService from '../utils/activityService.js';
+import { ForbiddenError } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';
 
 // Get all customers for a project with advanced filtering
@@ -510,10 +511,7 @@ export const updateCustomerNote = async (req, res) => {
 
     // Check if user can edit this note (only the creator can edit)
     if (note.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only edit your own notes'
-      });
+      throw new ForbiddenError('You can only edit your own notes');
     }
 
     note.content = content.trim();
@@ -544,9 +542,10 @@ export const updateCustomerNote = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating note:', error);
-    res.status(400).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to update note',
+      message: error.message || 'Failed to update note',
       error: error.message
     });
   }
@@ -575,10 +574,7 @@ export const deleteCustomerNote = async (req, res) => {
 
     // Check if user can delete this note (only the creator can delete)
     if (note.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only delete your own notes'
-      });
+      throw new ForbiddenError('You can only delete your own notes');
     }
 
     // Log activity before removing note
@@ -607,9 +603,10 @@ export const deleteCustomerNote = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting note:', error);
-    res.status(400).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to delete note',
+      message: error.message || 'Failed to delete note',
       error: error.message
     });
   }
@@ -639,10 +636,7 @@ export const updateCustomerInteraction = async (req, res) => {
 
     // Check if user can edit this interaction (only the creator can edit)
     if (interaction.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only edit your own interactions'
-      });
+      throw new ForbiddenError('You can only edit your own interactions');
     }
 
     // Update interaction fields
@@ -678,9 +672,10 @@ export const updateCustomerInteraction = async (req, res) => {
     });
   } catch (error) {
     console.error('Error updating interaction:', error);
-    res.status(400).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to update interaction',
+      message: error.message || 'Failed to update interaction',
       error: error.message
     });
   }
@@ -709,10 +704,7 @@ export const deleteCustomerInteraction = async (req, res) => {
 
     // Check if user can delete this interaction (only the creator can delete)
     if (interaction.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'You can only delete your own interactions'
-      });
+      throw new ForbiddenError('You can only delete your own interactions');
     }
 
     // Log activity before removing interaction
@@ -741,9 +733,10 @@ export const deleteCustomerInteraction = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting interaction:', error);
-    res.status(400).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to delete interaction',
+      message: error.message || 'Failed to delete interaction',
       error: error.message
     });
   }
@@ -1200,10 +1193,7 @@ export const deleteCustomer = async (req, res) => {
 
     // Check if user has permission to delete this customer
     if (customer.owner.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to delete this customer'
-      });
+      throw new ForbiddenError('You do not have permission to delete this customer');
     }
 
     // Log activity before deletion
@@ -1222,9 +1212,10 @@ export const deleteCustomer = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting customer:', error);
-    res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to delete customer',
+      message: error.message || 'Failed to delete customer',
       error: error.message
     });
   }
@@ -1251,10 +1242,7 @@ export const bulkDeleteCustomers = async (req, res) => {
     });
 
     if (customers.length !== customerIds.length) {
-      return res.status(403).json({
-        success: false,
-        message: 'You do not have permission to delete some of the selected customers'
-      });
+      throw new ForbiddenError('You do not have permission to delete some of the selected customers');
     }
 
     // Permanently delete the customers
@@ -1271,9 +1259,10 @@ export const bulkDeleteCustomers = async (req, res) => {
     });
   } catch (error) {
     console.error('Bulk delete customers error:', error);
-    res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to bulk delete customers',
+      message: error.message || 'Failed to bulk delete customers',
       error: error.message
     });
   }

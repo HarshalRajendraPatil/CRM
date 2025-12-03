@@ -4,8 +4,7 @@ import Deal from '../models/Deal.model.js';
 import Customer from '../models/Customer.model.js';
 import Company from '../models/Company.model.js';
 import Lead from '../models/Lead.model.js';
-import { asyncHandler } from '../middleware/errorHandler.js';
-import { AppError } from '../middleware/errorHandler.js';
+import { asyncHandler, AppError, ForbiddenError } from '../middleware/errorHandler.js';
 
 // Get calendar events for a project
 export const getCalendarEvents = asyncHandler(async (req, res) => {
@@ -835,10 +834,7 @@ export const respondToEvent = asyncHandler(async (req, res) => {
 
   // Check if user is an attendee
   if (!event.attendees.includes(userId)) {
-    return res.status(403).json({
-      success: false,
-      message: 'You are not an attendee of this event'
-    });
+    throw new ForbiddenError('You are not an attendee of this event');
   }
 
   // Update or add response

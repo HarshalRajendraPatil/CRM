@@ -2,6 +2,7 @@ import User  from '../models/User.model.js';
 import Project  from '../models/Project.model.js';
 import Invitation  from '../models/Invitation.model.js';
 import Notification  from '../models/Notification.model.js';
+import { ForbiddenError } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';
 
 // Get system overview statistics
@@ -464,10 +465,7 @@ export const deleteUser = async (req, res) => {
 
     // Prevent deletion of other system admins
     if (user.roleGlobal === 'system-admin' && user._id.toString() !== req.user.id) {
-      return res.status(403).json({
-        success: false,
-        message: 'Cannot delete other system administrators'
-      });
+      throw new ForbiddenError('Cannot delete other system administrators');
     }
 
     // Delete user and related data
@@ -484,9 +482,10 @@ export const deleteUser = async (req, res) => {
     });
   } catch (error) {
     console.error('Error deleting user:', error);
-    res.status(500).json({
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json({
       success: false,
-      message: 'Failed to delete user',
+      message: error.message || 'Failed to delete user',
       error: error.message
     });
   }

@@ -1,5 +1,5 @@
 import CrmSettings from '../models/CrmSettings.model.js';
-import { AppError, ValidationError } from '../middleware/errorHandler.js';
+import { AppError, ValidationError, ForbiddenError } from '../middleware/errorHandler.js';
 
 // Get CRM settings
 export const getCrmSettings = async (req, res) => {
@@ -10,7 +10,7 @@ export const getCrmSettings = async (req, res) => {
     // Check if user has access to this project
     const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
-      throw new AppError('Access denied to this project', 403);
+      throw new ForbiddenError('Access denied to this project');
     }
 
     let settings = await CrmSettings.findOne({ projectId });
@@ -111,12 +111,12 @@ export const updateCrmSettings = async (req, res) => {
     // Check if user has access to this project
     const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
-      throw new AppError('Access denied to this project', 403);
+      throw new ForbiddenError('Access denied to this project');
     }
 
     // Check if user has manager or admin role
     if (!['manager', 'admin', 'owner'].includes(project.role)) {
-      throw new AppError('Insufficient permissions to update settings', 403);
+      throw new ForbiddenError('Insufficient permissions to update settings');
     }
 
     // Validate settings data
@@ -161,12 +161,12 @@ export const updateSettingSection = async (req, res) => {
     // Check if user has access to this project
     const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
-      throw new AppError('Access denied to this project', 403);
+      throw new ForbiddenError('Access denied to this project');
     }
 
     // Check if user has manager or admin role
     if (!['manager', 'admin', 'owner'].includes(project.role)) {
-      throw new AppError('Insufficient permissions to update settings', 403);
+      throw new ForbiddenError('Insufficient permissions to update settings');
     }
 
     // Validate section exists
@@ -208,12 +208,12 @@ export const resetSettings = async (req, res) => {
     // Check if user has access to this project
     const project = user.allProjects.find(p => p.toString() === projectId);
     if (!project) {
-      throw new AppError('Access denied to this project', 403);
+      throw new ForbiddenError('Access denied to this project');
     }
 
     // Check if user has admin or owner role
     if (!['admin', 'owner'].includes(project.role)) {
-      throw new AppError('Insufficient permissions to reset settings', 403);
+      throw new ForbiddenError('Insufficient permissions to reset settings');
     }
 
     // Delete existing settings

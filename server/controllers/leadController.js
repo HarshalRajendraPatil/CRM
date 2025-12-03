@@ -3,7 +3,7 @@ import Customer from '../models/Customer.model.js';
 import Company from '../models/Company.model.js';
 import Project from '../models/Project.model.js';
 import mongoose from 'mongoose';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { validateLeadData, sanitizeLeadData } from '../utils/leadValidation.js';
 import { validateObjectId } from '../utils/validation.js';
 import notificationService from '../utils/notificationService.js';
@@ -19,7 +19,7 @@ export const createLead = asyncHandler(async (req, res) => {
     throw new NotFoundError('Project not found');
   }
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to create leads in this project');
+    throw new ForbiddenError('You do not have permission to create leads in this project');
   }
 
   // Validate lead data
@@ -104,7 +104,7 @@ export const getProjectLeads = asyncHandler(async (req, res) => {
   }
 
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to view leads in this project');
+    throw new ForbiddenError('You do not have permission to view leads in this project');
   }
 
   const leads = await Lead.findByProject(projectId, { limit, skip, sort, order, stage: stage || status, source, search, tags: tags ? tags.split(',') : undefined, owner, includeArchived });
@@ -129,7 +129,7 @@ export const getArchivedLeads = asyncHandler(async (req, res) => {
   }
 
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to view archived leads in this project');
+    throw new ForbiddenError('You do not have permission to view archived leads in this project');
   }
 
   const leads = await Lead.findArchivedByProject(projectId, { limit, skip, sort, order });
@@ -149,7 +149,7 @@ export const unarchiveLead = asyncHandler(async (req, res) => {
 
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'manager') && lead.owner.toString() !== req.user._id.toString() && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to unarchive this lead');
+    throw new ForbiddenError('You do not have permission to unarchive this lead');
   }
 
   lead.isArchived = false;
@@ -231,7 +231,7 @@ export const getLeadById = asyncHandler(async (req, res) => {
 
   const project = await Project.findById(lead.project);
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to view this lead');
+    throw new ForbiddenError('You do not have permission to view this lead');
   }
 
   res.json({ success: true, data: { lead } });
@@ -258,7 +258,7 @@ export const updateLead = asyncHandler(async (req, res) => {
     throw new NotFoundError('Project not found');
   }
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to update this lead');
+    throw new ForbiddenError('You do not have permission to update this lead');
   }
 
   // Validate update data
@@ -344,7 +344,7 @@ export const archiveLead = asyncHandler(async (req, res) => {
 
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'manager') && lead.owner.toString() !== req.user._id.toString() && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to archive this lead');
+    throw new ForbiddenError('You do not have permission to archive this lead');
   }
 
   lead.isArchived = true;
@@ -406,7 +406,7 @@ export const deleteLead = asyncHandler(async (req, res) => {
     lead.owner.toString() !== req.user._id.toString() && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete this lead');
+    throw new ForbiddenError('You do not have permission to delete this lead');
   }
 
   // Prevent deletion if lead is converted (optional - you may want to allow this)
@@ -522,7 +522,7 @@ export const addLeadNote = asyncHandler(async (req, res) => {
   if (!lead) throw new NotFoundError('Lead not found');
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to add notes to this lead');
+    throw new ForbiddenError('You do not have permission to add notes to this lead');
   }
 
   const newNote = { content: content.trim(), createdBy: req.user._id, createdAt: new Date(), updatedAt: new Date() };
@@ -579,7 +579,7 @@ export const updateLeadNote = asyncHandler(async (req, res) => {
   
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to update notes on this lead');
+    throw new ForbiddenError('You do not have permission to update notes on this lead');
   }
 
   const note = lead.notes.id(noteId);
@@ -587,7 +587,7 @@ export const updateLeadNote = asyncHandler(async (req, res) => {
   
   // Check if user can edit this note (only the creator can edit)
   if (note.createdBy.toString() !== req.user._id.toString() && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You can only edit your own notes');
+    throw new ForbiddenError('You can only edit your own notes');
   }
 
   note.content = content.trim();
@@ -621,7 +621,7 @@ export const deleteLeadNote = asyncHandler(async (req, res) => {
   
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to delete notes on this lead');
+    throw new ForbiddenError('You do not have permission to delete notes on this lead');
   }
 
   const note = lead.notes.id(noteId);
@@ -629,7 +629,7 @@ export const deleteLeadNote = asyncHandler(async (req, res) => {
   
   // Check if user can delete this note (only the creator can delete)
   if (note.createdBy.toString() !== req.user._id.toString() && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You can only delete your own notes');
+    throw new ForbiddenError('You can only delete your own notes');
   }
 
   // Log activity before removing note
@@ -663,7 +663,7 @@ export const convertLead = asyncHandler(async (req, res) => {
 
   // Permissions: manager or lead owner or system-admin
   if (!project.hasPermission(req.user._id, 'manager') && lead.owner.toString() !== req.user._id.toString() && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to convert this lead');
+    throw new ForbiddenError('You do not have permission to convert this lead');
   }
 
   if ((lead.stage || lead.status) !== 'qualified') {
@@ -763,7 +763,7 @@ export const updateLeadStatus = asyncHandler(async (req, res) => {
 
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to update this lead');
+    throw new ForbiddenError('You do not have permission to update this lead');
   }
 
   // Allowed transitions based on provided workflow
@@ -826,7 +826,7 @@ export const assignLeadToUser = asyncHandler(async (req, res) => {
 
   const project = lead.project;
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to assign this lead');
+    throw new ForbiddenError('You do not have permission to assign this lead');
   }
 
   // If assignedTo is provided, validate that the user exists and is a project member
@@ -903,7 +903,7 @@ export const getLeadStats = asyncHandler(async (req, res) => {
   const project = await Project.findById(projectId);
   if (!project) throw new NotFoundError('Project not found');
   if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new AuthorizationError('You do not have permission to view lead stats');
+    throw new ForbiddenError('You do not have permission to view lead stats');
   }
 
   const total = await Lead.countDocuments({ project: projectId, isArchived: false });
@@ -1189,7 +1189,7 @@ export const getLeadForecast = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view lead forecast in this project');
+    throw new ForbiddenError('You do not have permission to view lead forecast in this project');
   }
   
   const months = parseInt(period);

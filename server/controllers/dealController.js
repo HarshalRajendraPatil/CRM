@@ -5,7 +5,7 @@ import User from '../models/User.model.js';
 import { validateDealData, sanitizeDealData } from '../utils/dealValidation.js';
 import { createDealNotification } from '../utils/notificationService.js';
 import ActivityService from '../utils/activityService.js';
-import { asyncHandler, AppError, ValidationError } from '../middleware/errorHandler.js';
+import { asyncHandler, AppError, ValidationError, ForbiddenError } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';
 
 // Helper function to format currency
@@ -787,7 +787,7 @@ export const updateDealNote = asyncHandler(async (req, res) => {
 
   // Check if user can edit this note
   if (note.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
-    throw new AppError('Not authorized to edit this note', 403);
+    throw new ForbiddenError('Not authorized to edit this note');
   }
 
   note.content = content.trim();
@@ -828,7 +828,7 @@ export const deleteDealNote = asyncHandler(async (req, res) => {
 
   // Check if user can delete this note
   if (note.createdBy.toString() !== req.user.id && req.user.roleGlobal !== 'system-admin') {
-    throw new AppError('Not authorized to delete this note', 403);
+    throw new ForbiddenError('Not authorized to delete this note');
   }
 
   await note.deleteOne();

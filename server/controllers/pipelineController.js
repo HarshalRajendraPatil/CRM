@@ -1,5 +1,5 @@
 import Project from '../models/Project.model.js';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { 
   validatePipelineData, 
   validateStageData,
@@ -39,7 +39,7 @@ export const createPipeline = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to create pipelines in this project');
+    throw new ForbiddenError('You do not have permission to create pipelines in this project');
   }
   
   // Create new pipeline
@@ -121,7 +121,7 @@ export const getProjectPipelines = asyncHandler(async (req, res) => {
     !project.isMember(req.user._id) && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have access to this project');
+    throw new ForbiddenError('You do not have access to this project');
   }
   
   // Filter out archived pipelines if requested
@@ -165,7 +165,7 @@ export const getPipelineById = asyncHandler(async (req, res) => {
     !project.isMember(req.user._id) && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have access to this project');
+    throw new ForbiddenError('You do not have access to this project');
   }
   
   // Find pipeline in project
@@ -222,7 +222,7 @@ export const updatePipeline = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to update pipelines in this project');
+    throw new ForbiddenError('You do not have permission to update pipelines in this project');
   }
   
   // Find pipeline in project
@@ -317,7 +317,7 @@ export const deletePipeline = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete pipelines in this project');
+    throw new ForbiddenError('You do not have permission to delete pipelines in this project');
   }
   
   // Find pipeline in project
@@ -408,7 +408,7 @@ export const createStage = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to create stages in this project');
+    throw new ForbiddenError('You do not have permission to create stages in this project');
   }
   
   // Find pipeline in project
@@ -508,7 +508,7 @@ export const updateStage = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to update stages in this project');
+    throw new ForbiddenError('You do not have permission to update stages in this project');
   }
   
   // Find pipeline in project
@@ -642,7 +642,7 @@ export const deleteStage = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete stages in this project');
+    throw new ForbiddenError('You do not have permission to delete stages in this project');
   }
   
   // Find pipeline in project
@@ -750,7 +750,7 @@ export const reorderStages = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'manager') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to reorder stages in this project');
+    throw new ForbiddenError('You do not have permission to reorder stages in this project');
   }
   
   // Find pipeline in project

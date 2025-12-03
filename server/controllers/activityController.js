@@ -4,7 +4,7 @@ import Company from '../models/Company.model.js';
 import Lead from '../models/Lead.model.js';
 import Customer from '../models/Customer.model.js';
 import Deal from '../models/Deal.model.js';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { validateObjectId } from '../utils/validation.js';
 import Task from '../models/Task.model.js';
 
@@ -64,7 +64,7 @@ export const getEntityActivities = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view activities for this entity');
+    throw new ForbiddenError('You do not have permission to view activities for this entity');
   }
 
   // Get activities
@@ -135,7 +135,7 @@ export const getProjectActivities = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view project activities');
+    throw new ForbiddenError('You do not have permission to view project activities');
   }
 
   // Get activities
@@ -198,7 +198,7 @@ export const getActivityStats = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view activity statistics');
+    throw new ForbiddenError('You do not have permission to view activity statistics');
   }
 
   // Get activity statistics
@@ -314,7 +314,7 @@ export const getActivityById = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'viewer') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to view this activity');
+    throw new ForbiddenError('You do not have permission to view this activity');
   }
 
   res.json({
@@ -347,7 +347,7 @@ export const deleteActivity = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete this activity');
+    throw new ForbiddenError('You do not have permission to delete this activity');
   }
 
   // Delete activity
@@ -390,7 +390,7 @@ export const bulkDeleteActivities = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete activities');
+    throw new ForbiddenError('You do not have permission to delete activities');
   }
 
   // Validate activity IDs

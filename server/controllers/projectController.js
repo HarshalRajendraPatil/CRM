@@ -1,6 +1,6 @@
 import Project from '../models/Project.model.js';
 import User from '../models/User.model.js';
-import { asyncHandler, ValidationError, NotFoundError, AuthorizationError } from '../middleware/errorHandler.js';
+import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
 import { 
   validateProjectData, 
   validatePipelineData, 
@@ -155,7 +155,7 @@ export const getProjectById = asyncHandler(async (req, res) => {
   // Check if user is a member of this project
   if(project.owner._id.toString() !== req.user._id.toString()){
     if (!project.isMember(req.user._id) && req.user.roleGlobal !== 'system-admin') {
-      throw new AuthorizationError('You do not have access to this project');
+      throw new ForbiddenError('You do not have access to this project');
     }
   }
   
@@ -191,7 +191,7 @@ export const updateProject = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to update this project');
+    throw new ForbiddenError('You do not have permission to update this project');
   }
   
   // Validate input data
@@ -265,7 +265,7 @@ export const deleteProject = asyncHandler(async (req, res) => {
     project.owner.toString() !== req.user._id.toString() && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to delete this project');
+    throw new ForbiddenError('You do not have permission to delete this project');
   }
   
   // Remove project from owner's ownedProjects array
@@ -330,7 +330,7 @@ export const updateProjectMember = asyncHandler(async (req, res) => {
     !project.hasPermission(req.user._id, 'admin') && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('You do not have permission to update members in this project');
+    throw new ForbiddenError('You do not have permission to update members in this project');
   }
   
   // Find member in project
@@ -414,7 +414,7 @@ export const removeProjectMember = asyncHandler(async (req, res) => {
     req.user.roleGlobal === 'system-admin';
   
   if (!isSelfRemoval && !hasPermission) {
-    throw new AuthorizationError('You do not have permission to remove members from this project');
+    throw new ForbiddenError('You do not have permission to remove members from this project');
   }
 
   // Find member in project
@@ -493,7 +493,7 @@ export const transferProjectOwnership = asyncHandler(async (req, res) => {
     project.owner.toString() !== req.user._id.toString() && 
     req.user.roleGlobal !== 'system-admin'
   ) {
-    throw new AuthorizationError('Only the project owner can transfer ownership');
+    throw new ForbiddenError('Only the project owner can transfer ownership');
   }
   
   // Check if target user exists

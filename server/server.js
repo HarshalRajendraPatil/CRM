@@ -19,6 +19,7 @@ import dashboardRoutes from './routes/dashboard.js';
 import settingsRoutes from './routes/settings.js';
 import systemAdminRoutes from './routes/systemAdmin.js';
 import activityRoutes from './routes/activities.js';
+import performanceRoutes from './routes/performance.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
@@ -93,6 +94,7 @@ app.use('/api/dashboard', injectSettings, dashboardRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/system-admin', systemAdminRoutes);
 app.use('/api/activities', injectSettings, activityRoutes);
+app.use('/api/performance', injectSettings, performanceRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

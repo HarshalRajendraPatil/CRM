@@ -11,7 +11,7 @@ import {
   generatePerformanceReport,
   generateFinancialReport
 } from '../controllers/reportController.js';
-import { authenticateToken, requireManagerRole, requireSalesExecutiveRole, requireSupportExecutiveRole } from '../middleware/auth.js';
+import { authenticateToken, requireViewerRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -19,17 +19,17 @@ const router = express.Router();
 router.use(authenticateToken);
 
 // Main report generation endpoint
-router.post('/:projectId/generate', requireManagerRole(), generateReport);
+router.post('/:projectId/generate', requireViewerRole(), generateReport);
 
 // Specific report endpoints
-router.post('/:projectId/overview', requireManagerRole(), generateOverviewReport);
-router.post('/:projectId/companies', requireSalesExecutiveRole(), generateCompaniesReport);
-router.post('/:projectId/customers', requireSupportExecutiveRole(), generateCustomersReport);
-router.post('/:projectId/deals', requireSupportExecutiveRole(), generateDealsReport);
-router.post('/:projectId/leads', requireSalesExecutiveRole(), generateLeadsReport);
-router.post('/:projectId/tasks', requireManagerRole(), generateTasksReport);
-router.post('/:projectId/activities', requireManagerRole(), generateActivitiesReport);
-router.post('/:projectId/performance', requireManagerRole(), generatePerformanceReport);
-router.post('/:projectId/financial', requireManagerRole(), generateFinancialReport);
+router.post('/:projectId/overview', requireViewerRole(), generateOverviewReport);
+router.post('/:projectId/companies', requireViewerRole(), generateCompaniesReport);
+router.post('/:projectId/customers', requireViewerRole(), generateCustomersReport);
+router.post('/:projectId/deals', requireViewerRole(), generateDealsReport);
+router.post('/:projectId/leads', requireViewerRole(), generateLeadsReport);
+router.post('/:projectId/tasks', requireViewerRole(), generateTasksReport);
+router.post('/:projectId/activities', requireViewerRole(), generateActivitiesReport);
+router.post('/:projectId/performance', requireViewerRole(), generatePerformanceReport);
+router.post('/:projectId/financial', requireViewerRole(), generateFinancialReport);
 
 export default router;
