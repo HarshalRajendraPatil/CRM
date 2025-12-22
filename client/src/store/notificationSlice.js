@@ -121,10 +121,31 @@ const notificationSlice = createSlice({
       state.message = '';
     },
     addNotification: (state, action) => {
+      // Check if notification already exists to prevent duplicates
+      const existingIndex = state.notifications.findIndex(
+        n => n._id === action.payload._id
+      );
+      
+      if (existingIndex === -1) {
       // Add a new notification from socket to the beginning of the array
       state.notifications.unshift(action.payload);
       state.pagination.total += 1;
+        // Only increment unread count if notification is unread
+        if (!action.payload.isRead) {
+          state.pagination.unreadCount += 1;
+        }
+      } else {
+        // Update existing notification instead of adding duplicate
+        state.notifications[existingIndex] = action.payload;
+        // Update unread count if status changed
+        const wasRead = state.notifications[existingIndex].isRead;
+        const isRead = action.payload.isRead;
+        if (!wasRead && isRead) {
+          state.pagination.unreadCount = Math.max(0, state.pagination.unreadCount - 1);
+        } else if (wasRead && !isRead) {
       state.pagination.unreadCount += 1;
+        }
+      }
     },
     updateNotificationReadStatus: (state, action) => {
       // Update a notification's read status

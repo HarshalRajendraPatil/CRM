@@ -1,15 +1,19 @@
-import Task from '../models/Task.model.js';
-import mongoose from 'mongoose';
-import { validateTaskData, sanitizeTaskData } from '../utils/taskValidation.js';
-import { createTaskNotification } from '../utils/notificationService.js';
-import { AppError, asyncHandler, ForbiddenError } from '../middleware/errorHandler.js';
-import ActivityService from '../utils/activityService.js';
+import Task from "../models/Task.model.js";
+import mongoose from "mongoose";
+import { validateTaskData, sanitizeTaskData } from "../utils/taskValidation.js";
+import { createTaskNotification } from "../utils/notificationService.js";
+import {
+  AppError,
+  asyncHandler,
+  ForbiddenError,
+} from "../middleware/errorHandler.js";
+import ActivityService from "../utils/activityService.js";
 
 // Helper function to format currency
-const formatCurrency = (amount, currency = 'USD') => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: currency
+const formatCurrency = (amount, currency = "USD") => {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: currency,
   }).format(amount);
 };
 
@@ -23,60 +27,60 @@ export const getProjectTasks = asyncHandler(async (req, res) => {
     type,
     overdue,
     search,
-    sortBy = 'dueDate',
-    sortOrder = 'asc',
+    sortBy = "dueDate",
+    sortOrder = "asc",
     page = 1,
     limit = 20,
     includeArchived = false,
-    showArchived = false
+    showArchived = false,
   } = req.query;
 
   // Build query
   const query = { project: projectId };
-  
+
   // Handle archived tasks filter
-  if (showArchived === 'true' || showArchived === true) {
+  if (showArchived === "true" || showArchived === true) {
     // Show only archived tasks
     query.isArchived = true;
-  } else if (!includeArchived || includeArchived === 'false') {
+  } else if (!includeArchived || includeArchived === "false") {
     // Show only active tasks (default)
     query.isArchived = false;
   }
   // If includeArchived is true and showArchived is false/undefined, show all tasks
-  
+
   if (status) query.status = status;
   if (assignedTo) query.assignedTo = assignedTo;
   if (priority) query.priority = priority;
   if (type) query.type = type;
-  if (overdue === 'true') {
+  if (overdue === "true") {
     query.dueDate = { $lt: new Date() };
-    query.status = { $nin: ['completed', 'cancelled'] };
+    query.status = { $nin: ["completed", "cancelled"] };
   }
-  
+
   if (search) {
     query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } },
-      { tags: { $in: [new RegExp(search, 'i')] } }
+      { title: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
+      { tags: { $in: [new RegExp(search, "i")] } },
     ];
   }
 
   // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
-  
+
   // Build sort object
   const sort = {};
-  sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-  if (sortBy !== 'priority') {
+  sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+  if (sortBy !== "priority") {
     sort.priority = -1; // Always sort by priority as secondary sort
   }
 
   // Execute query
   const tasks = await Task.find(query)
-    .populate('assignedTo', 'name email profileImage')
-    .populate('createdBy', 'name email profileImage')
-    .populate('project', 'name')
-    .populate('relatedEntity.entityId')
+    .populate("assignedTo", "name email profileImage")
+    .populate("createdBy", "name email profileImage")
+    .populate("project", "name")
+    .populate("relatedEntity.entityId")
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit));
@@ -91,8 +95,8 @@ export const getProjectTasks = asyncHandler(async (req, res) => {
       current: parseInt(page),
       pages: Math.ceil(total / parseInt(limit)),
       total,
-      limit: parseInt(limit)
-    }
+      limit: parseInt(limit),
+    },
   });
 });
 
@@ -105,60 +109,60 @@ export const getUserTasks = asyncHandler(async (req, res) => {
     project,
     overdue,
     search,
-    sortBy = 'dueDate',
-    sortOrder = 'asc',
+    sortBy = "dueDate",
+    sortOrder = "asc",
     page = 1,
     limit = 20,
     includeArchived = false,
-    showArchived = false
+    showArchived = false,
   } = req.query;
 
   // Build query
   const query = { assignedTo: userId };
-  
+
   // Filter by project if projectId is provided
   if (projectId) {
     query.project = projectId;
   }
-  
+
   // Handle archived tasks filter
-  if (showArchived === 'true' || showArchived === true) {
+  if (showArchived === "true" || showArchived === true) {
     // Show only archived tasks
     query.isArchived = true;
-  } else if (!includeArchived || includeArchived === 'false') {
+  } else if (!includeArchived || includeArchived === "false") {
     // Show only active tasks (default)
     query.isArchived = false;
   }
   // If includeArchived is true and showArchived is false/undefined, show all tasks
-  
+
   if (status) query.status = status;
   if (project && !projectId) query.project = project;
-  if (overdue === 'true') {
+  if (overdue === "true") {
     query.dueDate = { $lt: new Date() };
-    query.status = { $nin: ['completed', 'cancelled'] };
+    query.status = { $nin: ["completed", "cancelled"] };
   }
-  
+
   if (search) {
     query.$or = [
-      { title: { $regex: search, $options: 'i' } },
-      { description: { $regex: search, $options: 'i' } }
+      { title: { $regex: search, $options: "i" } },
+      { description: { $regex: search, $options: "i" } },
     ];
   }
 
   // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
-  
+
   // Build sort object
   const sort = {};
-  sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
-  if (sortBy !== 'priority') {
+  sort[sortBy] = sortOrder === "desc" ? -1 : 1;
+  if (sortBy !== "priority") {
     sort.priority = -1;
   }
 
   const tasks = await Task.find(query)
-    .populate('project', 'name')
-    .populate('createdBy', 'name email')
-    .populate('relatedEntity.entityId')
+    .populate("project", "name")
+    .populate("createdBy", "name email")
+    .populate("relatedEntity.entityId")
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit));
@@ -172,8 +176,8 @@ export const getUserTasks = asyncHandler(async (req, res) => {
       current: parseInt(page),
       pages: Math.ceil(total / parseInt(limit)),
       total,
-      limit: parseInt(limit)
-    }
+      limit: parseInt(limit),
+    },
   });
 });
 
@@ -182,23 +186,23 @@ export const getTask = asyncHandler(async (req, res) => {
   const { id } = req.params;
 
   const task = await Task.findById(id)
-    .populate('assignedTo', 'name email profileImage')
-    .populate('createdBy', 'name email profileImage')
-    .populate('project', 'name')
-    .populate('relatedEntity.entityId')
-    .populate('dependencies.task', 'title status dueDate')
-    .populate('comments.author', 'name email profileImage')
-    .populate('comments.mentions', 'name email')
-    .populate('subtasks.assignedTo', 'name email')
-    .populate('activityLog.actor', 'name email');
+    .populate("assignedTo", "name email profileImage")
+    .populate("createdBy", "name email profileImage")
+    .populate("project", "name")
+    .populate("relatedEntity.entityId")
+    .populate("dependencies.task", "title status dueDate")
+    .populate("comments.author", "name email profileImage")
+    .populate("comments.mentions", "name email")
+    .populate("subtasks.assignedTo", "name email")
+    .populate("activityLog.actor", "name email");
 
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   res.json({
     success: true,
-    data: task
+    data: task,
   });
 });
 
@@ -207,63 +211,71 @@ export const createTask = asyncHandler(async (req, res) => {
   const sanitizedData = sanitizeTaskData(req.body);
   sanitizedData.project = req.body.projectId;
   sanitizedData.createdBy = req.user.id;
-  
+
   // Handle related entity mapping from client format to model format
   if (req.body.relatedTo && req.body.relatedToId) {
     sanitizedData.relatedEntity = {
       type: req.body.relatedTo,
-      entityId: req.body.relatedToId
+      entityId: req.body.relatedToId,
     };
   }
-  
+
   const validatedData = validateTaskData(sanitizedData, false);
-  
+
   // Ensure createdBy is set to current user
   validatedData.createdBy = req.user.id;
 
   const task = await Task.create(sanitizedData);
 
   // Link task to related entity if specified
-  if (task.relatedEntity && task.relatedEntity.type && task.relatedEntity.entityId) {
+  if (
+    task.relatedEntity &&
+    task.relatedEntity.type &&
+    task.relatedEntity.entityId
+  ) {
     let relatedModel;
     switch (task.relatedEntity.type) {
-      case 'deal':
-        relatedModel = await import('../models/Deal.model.js');
+      case "deal":
+        relatedModel = await import("../models/Deal.model.js");
         break;
-      case 'customer':
-        relatedModel = await import('../models/Customer.model.js');
+      case "customer":
+        relatedModel = await import("../models/Customer.model.js");
         break;
-      case 'company':
-        relatedModel = await import('../models/Company.model.js');
+      case "company":
+        relatedModel = await import("../models/Company.model.js");
         break;
-      case 'lead':
-        relatedModel = await import('../models/Lead.model.js');
+      case "lead":
+        relatedModel = await import("../models/Lead.model.js");
         break;
-      case 'project':
-        relatedModel = await import('../models/Project.model.js');
+      case "project":
+        relatedModel = await import("../models/Project.model.js");
         break;
     }
-    
+
     if (relatedModel) {
       const Model = relatedModel.default;
-      await Model.findByIdAndUpdate(
-        task.relatedEntity.entityId,
-        { $addToSet: { tasks: task._id } }
-      );
+      await Model.findByIdAndUpdate(task.relatedEntity.entityId, {
+        $addToSet: { tasks: task._id },
+      });
     }
   }
 
   // Populate the created task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'relatedEntity.entityId' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "relatedEntity.entityId" },
   ]);
 
   // Create notification for assigned user
   if (task.assignedTo && task.assignedTo.toString() !== req.user.id) {
-    await createTaskNotification('task_assigned', task, task.project, req.user.id);
+    await createTaskNotification(
+      "task_assigned",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   // Log activity
@@ -273,13 +285,13 @@ export const createTask = asyncHandler(async (req, res) => {
       await ActivityService.logTaskAssigned(task, task.assignedTo, req.user);
     }
   } catch (error) {
-    console.error('Failed to log task creation activity:', error);
+    console.error("Failed to log task creation activity:", error);
   }
 
   res.status(201).json({
     success: true,
     data: task,
-    message: 'Task created successfully'
+    message: "Task created successfully",
   });
 });
 
@@ -291,7 +303,7 @@ export const updateTask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   // Handle related entity mapping from client format to model format
@@ -299,7 +311,7 @@ export const updateTask = asyncHandler(async (req, res) => {
     if (req.body.relatedTo && req.body.relatedToId) {
       sanitizedData.relatedEntity = {
         type: req.body.relatedTo,
-        entityId: req.body.relatedToId
+        entityId: req.body.relatedToId,
       };
     } else {
       // Clear related entity if either is empty
@@ -308,7 +320,11 @@ export const updateTask = asyncHandler(async (req, res) => {
   }
 
   // Handle customFields conversion from object to Map
-  if (sanitizedData.customFields && typeof sanitizedData.customFields === 'object' && !(sanitizedData.customFields instanceof Map)) {
+  if (
+    sanitizedData.customFields &&
+    typeof sanitizedData.customFields === "object" &&
+    !(sanitizedData.customFields instanceof Map)
+  ) {
     const customFieldsMap = new Map();
     Object.entries(sanitizedData.customFields).forEach(([key, value]) => {
       if (key && value !== undefined && value !== null) {
@@ -320,13 +336,13 @@ export const updateTask = asyncHandler(async (req, res) => {
 
   // Handle subtasks conversion (isCompleted -> status)
   if (sanitizedData.subtasks && Array.isArray(sanitizedData.subtasks)) {
-    sanitizedData.subtasks = sanitizedData.subtasks.map(subtask => {
+    sanitizedData.subtasks = sanitizedData.subtasks.map((subtask) => {
       const formattedSubtask = {
         title: subtask.title,
-        description: subtask.description || '',
-        status: subtask.isCompleted ? 'completed' : (subtask.status || 'pending'),
+        description: subtask.description || "",
+        status: subtask.isCompleted ? "completed" : subtask.status || "pending",
         assignedTo: subtask.assignedTo || null,
-        dueDate: subtask.dueDate || null
+        dueDate: subtask.dueDate || null,
       };
       if (subtask.isCompleted && !subtask.completedAt) {
         formattedSubtask.completedAt = new Date();
@@ -339,39 +355,43 @@ export const updateTask = asyncHandler(async (req, res) => {
   const changes = {};
   const oldStatus = task.status;
   const oldAssignedTo = task.assignedTo;
-  
-  Object.keys(sanitizedData).forEach(key => {
-    if (key !== 'updatedAt' && key !== 'updatedBy') {
+
+  Object.keys(sanitizedData).forEach((key) => {
+    if (key !== "updatedAt" && key !== "updatedBy") {
       // Special handling for Maps and nested objects
-      if (key === 'customFields' && sanitizedData[key] instanceof Map) {
+      if (key === "customFields" && sanitizedData[key] instanceof Map) {
         const oldMap = task[key] || new Map();
         const newMap = sanitizedData[key];
-        if (oldMap.size !== newMap.size || 
-            Array.from(oldMap.keys()).some(k => oldMap.get(k) !== newMap.get(k))) {
-      changes[key] = {
+        if (
+          oldMap.size !== newMap.size ||
+          Array.from(oldMap.keys()).some((k) => oldMap.get(k) !== newMap.get(k))
+        ) {
+          changes[key] = {
             oldValue: Object.fromEntries(oldMap),
-            newValue: Object.fromEntries(newMap)
+            newValue: Object.fromEntries(newMap),
           };
         }
-      } else if (JSON.stringify(task[key]) !== JSON.stringify(sanitizedData[key])) {
+      } else if (
+        JSON.stringify(task[key]) !== JSON.stringify(sanitizedData[key])
+      ) {
         changes[key] = {
           oldValue: task[key],
-          newValue: sanitizedData[key]
-      };
+          newValue: sanitizedData[key],
+        };
       }
     }
   });
 
   // Update the task
   Object.assign(task, sanitizedData);
-  
+
   // Add activity log entry
   if (Object.keys(changes).length > 0) {
     task.activityLog.push({
-      action: 'updated',
-      description: `Task updated: ${Object.keys(changes).join(', ')}`,
+      action: "updated",
+      description: `Task updated: ${Object.keys(changes).join(", ")}`,
       actor: req.user.id,
-      metadata: { changes }
+      metadata: { changes },
     });
   }
 
@@ -379,23 +399,28 @@ export const updateTask = asyncHandler(async (req, res) => {
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'relatedEntity.entityId' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "relatedEntity.entityId" },
   ]);
 
   // Log activities
   try {
     // Log status changes
     if (changes.status) {
-      if (task.status === 'completed') {
+      if (task.status === "completed") {
         await ActivityService.logTaskCompleted(task, req.user);
       } else {
-        await ActivityService.logTaskStatusChanged(task, oldStatus, task.status, req.user);
+        await ActivityService.logTaskStatusChanged(
+          task,
+          oldStatus,
+          task.status,
+          req.user
+        );
       }
     }
-    
+
     // Log assignment changes
     if (changes.assignedTo) {
       if (task.assignedTo) {
@@ -404,33 +429,65 @@ export const updateTask = asyncHandler(async (req, res) => {
         await ActivityService.logTaskUnassigned(task, req.user);
       }
     }
-    
+
     // Log general updates (if no specific activity was logged)
-    if (Object.keys(changes).length > 0 && !changes.status && !changes.assignedTo) {
+    if (
+      Object.keys(changes).length > 0 &&
+      !changes.status &&
+      !changes.assignedTo
+    ) {
       await ActivityService.logTaskUpdated(task, changes, req.user);
     }
   } catch (error) {
-    console.error('Failed to log task update activity:', error);
+    console.error("Failed to log task update activity:", error);
   }
 
   // Create notifications for significant changes
-  if (changes.assignedTo && task.assignedTo && task.assignedTo.toString() !== req.user.id) {
-    await createTaskNotification('task_reassigned', task, task.project, req.user.id);
+  if (
+    changes.assignedTo &&
+    task.assignedTo &&
+    task.assignedTo.toString() !== req.user.id
+  ) {
+    await createTaskNotification(
+      "task_reassigned",
+      task,
+      task.project,
+      req.user.id
+    );
   }
-  
-  if (changes.status && task.status === 'completed') {
-    await createTaskNotification('task_completed', task, task.project, req.user.id);
-  } else if (changes.status && oldStatus === 'completed' && task.status !== 'completed') {
-    await createTaskNotification('task_reopened', task, task.project, req.user.id);
+
+  if (changes.status && task.status === "completed") {
+    await createTaskNotification(
+      "task_completed",
+      task,
+      task.project,
+      req.user.id
+    );
+  } else if (
+    changes.status &&
+    oldStatus === "completed" &&
+    task.status !== "completed"
+  ) {
+    await createTaskNotification(
+      "task_reopened",
+      task,
+      task.project,
+      req.user.id
+    );
   } else if (Object.keys(changes).length > 0) {
     // General task update notification
-    await createTaskNotification('task_updated', task, task.project, req.user.id);
+    await createTaskNotification(
+      "task_updated",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Task updated successfully'
+    message: "Task updated successfully",
   });
 });
 
@@ -440,54 +497,57 @@ export const deleteTask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   // Log activity before deletion
   try {
     await ActivityService.logTaskDeleted(task, req.user);
   } catch (error) {
-    console.error('Failed to log task deletion activity:', error);
+    console.error("Failed to log task deletion activity:", error);
   }
 
   // Unlink task from related entity if specified
-  if (task.relatedEntity && task.relatedEntity.type && task.relatedEntity.entityId) {
+  if (
+    task.relatedEntity &&
+    task.relatedEntity.type &&
+    task.relatedEntity.entityId
+  ) {
     let relatedModel;
     switch (task.relatedEntity.type) {
-      case 'deal':
-        relatedModel = await import('../models/Deal.model.js');
+      case "deal":
+        relatedModel = await import("../models/Deal.model.js");
         break;
-      case 'customer':
-        relatedModel = await import('../models/Customer.model.js');
+      case "customer":
+        relatedModel = await import("../models/Customer.model.js");
         break;
-      case 'company':
-        relatedModel = await import('../models/Company.model.js');
+      case "company":
+        relatedModel = await import("../models/Company.model.js");
         break;
-      case 'lead':
-        relatedModel = await import('../models/Lead.model.js');
+      case "lead":
+        relatedModel = await import("../models/Lead.model.js");
         break;
-      case 'project':
-        relatedModel = await import('../models/Project.model.js');
+      case "project":
+        relatedModel = await import("../models/Project.model.js");
         break;
     }
-    
+
     if (relatedModel) {
       const Model = relatedModel.default;
-      await Model.findByIdAndUpdate(
-        task.relatedEntity.entityId,
-        { $pull: { tasks: task._id } }
-      );
+      await Model.findByIdAndUpdate(task.relatedEntity.entityId, {
+        $pull: { tasks: task._id },
+      });
     }
   }
 
   // Create notification before deletion
-  await createTaskNotification('task_deleted', task, task.project, req.user.id);
+  await createTaskNotification("task_deleted", task, task.project, req.user.id);
 
   await Task.findByIdAndDelete(id);
 
   res.json({
     success: true,
-    message: 'Task deleted successfully'
+    message: "Task deleted successfully",
   });
 });
 
@@ -497,42 +557,47 @@ export const archiveTask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   task.isArchived = true;
   task.archivedAt = new Date();
   task.archivedBy = req.user.id;
-  
+
   task.activityLog.push({
-    action: 'archived',
-    description: 'Task archived',
-    actor: req.user.id
+    action: "archived",
+    description: "Task archived",
+    actor: req.user.id,
   });
 
   await task.save();
 
   // Populate task for activity logging
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskArchived(task, req.user);
   } catch (error) {
-    console.error('Failed to log task archive activity:', error);
+    console.error("Failed to log task archive activity:", error);
   }
 
   // Create notification for task archive
-  await createTaskNotification('task_archived', task, task.project, req.user.id);
+  await createTaskNotification(
+    "task_archived",
+    task,
+    task.project,
+    req.user.id
+  );
 
   res.json({
     success: true,
     data: task,
-    message: 'Task archived successfully'
+    message: "Task archived successfully",
   });
 });
 
@@ -542,42 +607,47 @@ export const restoreTask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   task.isArchived = false;
   task.archivedAt = undefined;
   task.archivedBy = undefined;
-  
+
   task.activityLog.push({
-    action: 'restored',
-    description: 'Task restored from archive',
-    actor: req.user.id
+    action: "restored",
+    description: "Task restored from archive",
+    actor: req.user.id,
   });
 
   await task.save();
 
   // Populate task for activity logging
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskRestored(task, req.user);
   } catch (error) {
-    console.error('Failed to log task restore activity:', error);
+    console.error("Failed to log task restore activity:", error);
   }
 
   // Create notification for task restore
-  await createTaskNotification('task_restored', task, task.project, req.user.id);
+  await createTaskNotification(
+    "task_restored",
+    task,
+    task.project,
+    req.user.id
+  );
 
   res.json({
     success: true,
     data: task,
-    message: 'Task restored successfully'
+    message: "Task restored successfully",
   });
 });
 
@@ -588,7 +658,7 @@ export const updateTaskStatus = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   const oldStatus = task.status;
@@ -596,33 +666,48 @@ export const updateTaskStatus = asyncHandler(async (req, res) => {
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
   ]);
 
   // Log activity
   try {
-    if (status === 'completed') {
+    if (status === "completed") {
       await ActivityService.logTaskCompleted(task, req.user);
     } else {
-      await ActivityService.logTaskStatusChanged(task, oldStatus, status, req.user);
+      await ActivityService.logTaskStatusChanged(
+        task,
+        oldStatus,
+        status,
+        req.user
+      );
     }
   } catch (error) {
-    console.error('Failed to log task status change activity:', error);
+    console.error("Failed to log task status change activity:", error);
   }
 
   // Create notification for status change
-  if (status === 'completed') {
-    await createTaskNotification('task_completed', task, task.project, req.user.id);
-  } else if (oldStatus === 'completed' && status !== 'completed') {
-    await createTaskNotification('task_reopened', task, task.project, req.user.id);
+  if (status === "completed") {
+    await createTaskNotification(
+      "task_completed",
+      task,
+      task.project,
+      req.user.id
+    );
+  } else if (oldStatus === "completed" && status !== "completed") {
+    await createTaskNotification(
+      "task_reopened",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Task status updated successfully'
+    message: "Task status updated successfully",
   });
 });
 
@@ -633,7 +718,7 @@ export const assignTask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   const oldAssignee = task.assignedTo;
@@ -641,9 +726,9 @@ export const assignTask = asyncHandler(async (req, res) => {
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
   ]);
 
   // Log activity
@@ -654,18 +739,23 @@ export const assignTask = asyncHandler(async (req, res) => {
       await ActivityService.logTaskUnassigned(task, req.user);
     }
   } catch (error) {
-    console.error('Failed to log task assignment activity:', error);
+    console.error("Failed to log task assignment activity:", error);
   }
 
   // Create notification for new assignee
   if (assignedTo && assignedTo !== req.user.id) {
-    await createTaskNotification('task_assigned', task, task.project, req.user.id);
+    await createTaskNotification(
+      "task_assigned",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Task assigned successfully'
+    message: "Task assigned successfully",
   });
 });
 
@@ -675,23 +765,23 @@ export const addTaskComment = asyncHandler(async (req, res) => {
   const { content, mentions = [] } = req.body;
 
   if (!content || content.trim().length === 0) {
-    throw new AppError('Comment content is required', 400);
+    throw new AppError("Comment content is required", 400);
   }
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   await task.addComment(content, req.user.id, mentions);
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'comments.author', select: 'name email profileImage' },
-    { path: 'comments.mentions', select: 'name email' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "comments.author", select: "name email profileImage" },
+    { path: "comments.mentions", select: "name email" },
   ]);
 
   // Log activity
@@ -699,18 +789,24 @@ export const addTaskComment = asyncHandler(async (req, res) => {
     const newComment = task.comments[task.comments.length - 1];
     await ActivityService.logTaskCommentAdded(task, newComment, req.user);
   } catch (error) {
-    console.error('Failed to log task comment activity:', error);
+    console.error("Failed to log task comment activity:", error);
   }
 
   // Create notifications for mentions
   if (mentions.length > 0) {
-    await createTaskNotification('task_mentioned', task, task.project, req.user.id, mentions);
+    await createTaskNotification(
+      "task_mentioned",
+      task,
+      task.project,
+      req.user.id,
+      mentions
+    );
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Comment added successfully'
+    message: "Comment added successfully",
   });
 });
 
@@ -720,22 +816,22 @@ export const updateTaskComment = asyncHandler(async (req, res) => {
   const { content } = req.body;
 
   if (!content || content.trim().length === 0) {
-    throw new AppError('Comment content is required', 400);
+    throw new AppError("Comment content is required", 400);
   }
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   const comment = task.comments.id(commentId);
   if (!comment) {
-    throw new AppError('Comment not found', 404);
+    throw new AppError("Comment not found", 404);
   }
 
   // Check if the user is the author of the comment
   if (comment.author.toString() !== req.user.id.toString()) {
-    throw new ForbiddenError('You can only edit your own comments');
+    throw new ForbiddenError("You can only edit your own comments");
   }
 
   // Update comment
@@ -744,34 +840,34 @@ export const updateTaskComment = asyncHandler(async (req, res) => {
 
   // Add activity log
   task.activityLog.push({
-    action: 'commented',
-    description: 'Comment updated',
+    action: "commented",
+    description: "Comment updated",
     actor: req.user.id,
-    metadata: { commentId: comment._id }
+    metadata: { commentId: comment._id },
   });
 
   await task.save();
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'comments.author', select: 'name email profileImage' },
-    { path: 'comments.mentions', select: 'name email' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "comments.author", select: "name email profileImage" },
+    { path: "comments.mentions", select: "name email" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskCommentUpdated(task, commentId, req.user);
   } catch (error) {
-    console.error('Failed to log task comment update activity:', error);
+    console.error("Failed to log task comment update activity:", error);
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Comment updated successfully'
+    message: "Comment updated successfully",
   });
 });
 
@@ -781,17 +877,17 @@ export const deleteTaskComment = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   const comment = task.comments.id(commentId);
   if (!comment) {
-    throw new AppError('Comment not found', 404);
+    throw new AppError("Comment not found", 404);
   }
 
   // Check if the user is the author of the comment
   if (comment.author.toString() !== req.user.id.toString()) {
-    throw new ForbiddenError('You can only delete your own comments');
+    throw new ForbiddenError("You can only delete your own comments");
   }
 
   // Remove comment
@@ -799,34 +895,34 @@ export const deleteTaskComment = asyncHandler(async (req, res) => {
 
   // Add activity log
   task.activityLog.push({
-    action: 'commented',
-    description: 'Comment deleted',
+    action: "commented",
+    description: "Comment deleted",
     actor: req.user.id,
-    metadata: { commentId: commentId }
+    metadata: { commentId: commentId },
   });
 
   await task.save();
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'comments.author', select: 'name email profileImage' },
-    { path: 'comments.mentions', select: 'name email' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "comments.author", select: "name email profileImage" },
+    { path: "comments.mentions", select: "name email" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskCommentDeleted(task, commentId, req.user);
   } catch (error) {
-    console.error('Failed to log task comment deletion activity:', error);
+    console.error("Failed to log task comment deletion activity:", error);
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Comment deleted successfully'
+    message: "Comment deleted successfully",
   });
 });
 
@@ -837,17 +933,17 @@ export const addSubtask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   await task.addSubtask(subtaskData);
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'subtasks.assignedTo', select: 'name email' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "subtasks.assignedTo", select: "name email" },
   ]);
 
   // Log activity
@@ -855,16 +951,21 @@ export const addSubtask = asyncHandler(async (req, res) => {
     const newSubtask = task.subtasks[task.subtasks.length - 1];
     await ActivityService.logTaskSubtaskAdded(task, newSubtask, req.user);
   } catch (error) {
-    console.error('Failed to log task subtask addition activity:', error);
+    console.error("Failed to log task subtask addition activity:", error);
   }
 
   // Create notification for subtask addition
-  await createTaskNotification('subtask_added', task, task.project, req.user.id);
+  await createTaskNotification(
+    "subtask_added",
+    task,
+    task.project,
+    req.user.id
+  );
 
   res.json({
     success: true,
     data: task,
-    message: 'Subtask added successfully'
+    message: "Subtask added successfully",
   });
 });
 
@@ -875,79 +976,93 @@ export const updateSubtask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   const subtask = task.subtasks.id(subtaskId);
   if (!subtask) {
-    throw new AppError('Subtask not found', 404);
+    throw new AppError("Subtask not found", 404);
   }
 
   // Track if subtask was completed
-  const wasCompleted = subtask.status === 'completed';
-  
+  const wasCompleted = subtask.status === "completed";
+
   // Update subtask
   Object.assign(subtask, subtaskData);
   subtask.updatedAt = new Date();
 
   // Add activity log
   task.activityLog.push({
-    action: 'subtask_updated',
+    action: "subtask_updated",
     description: `Subtask "${subtask.title}" updated`,
     actor: req.user.id,
-    metadata: { subtaskId: subtask._id }
+    metadata: { subtaskId: subtask._id },
   });
 
   await task.save();
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'subtasks.assignedTo', select: 'name email' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "subtasks.assignedTo", select: "name email" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskSubtaskUpdated(task, subtask, req.user);
   } catch (error) {
-    console.error('Failed to log task subtask update activity:', error);
+    console.error("Failed to log task subtask update activity:", error);
   }
 
   // Create notification for subtask completion
-  if (!wasCompleted && subtask.status === 'completed') {
-    await createTaskNotification('subtask_completed', task, task.project, req.user.id);
+  if (!wasCompleted && subtask.status === "completed") {
+    await createTaskNotification(
+      "subtask_completed",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   // Update task progress based on subtask completion
   if (task.subtasks && task.subtasks.length > 0) {
-    const completedSubtasks = task.subtasks.filter(s => s.status === 'completed').length;
-    task.progress = Math.round((completedSubtasks / task.subtasks.length) * 100);
-    
+    const completedSubtasks = task.subtasks.filter(
+      (s) => s.status === "completed"
+    ).length;
+    task.progress = Math.round(
+      (completedSubtasks / task.subtasks.length) * 100
+    );
+
     // Auto-complete task if progress reaches 100%
-    if (task.progress === 100 && task.status !== 'completed') {
-      task.status = 'completed';
+    if (task.progress === 100 && task.status !== "completed") {
+      task.status = "completed";
       task.completedAt = new Date();
       task.completedBy = req.user.id;
-      
+
       // Add activity log
       task.activityLog.push({
-        action: 'completed',
-        description: 'Task automatically completed due to 100% progress',
+        action: "completed",
+        description: "Task automatically completed due to 100% progress",
         actor: req.user.id,
-        metadata: { reason: 'progress_complete' }
+        metadata: { reason: "progress_complete" },
       });
-      
+
       // Create notification for auto-completion
-      await createTaskNotification('task_completed', task, task.project, req.user.id);
+      await createTaskNotification(
+        "task_completed",
+        task,
+        task.project,
+        req.user.id
+      );
     }
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Subtask updated successfully'
+    message: "Subtask updated successfully",
   });
 });
 
@@ -957,48 +1072,57 @@ export const completeSubtask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   const subtask = task.subtasks.id(subtaskId);
   if (!subtask) {
-    throw new AppError('Subtask not found', 404);
+    throw new AppError("Subtask not found", 404);
   }
 
   // Update subtask status
-  subtask.status = 'completed';
+  subtask.status = "completed";
   subtask.completedAt = new Date();
   subtask.updatedAt = new Date();
 
   // Add activity log
   task.activityLog.push({
-    action: 'subtask_completed',
+    action: "subtask_completed",
     description: `Subtask "${subtask.title}" completed`,
     actor: req.user.id,
-    metadata: { subtaskId: subtask._id }
+    metadata: { subtaskId: subtask._id },
   });
 
   // Update task progress based on subtask completion
   if (task.subtasks && task.subtasks.length > 0) {
-    const completedSubtasks = task.subtasks.filter(s => s.status === 'completed').length;
-    task.progress = Math.round((completedSubtasks / task.subtasks.length) * 100);
-    
+    const completedSubtasks = task.subtasks.filter(
+      (s) => s.status === "completed"
+    ).length;
+    task.progress = Math.round(
+      (completedSubtasks / task.subtasks.length) * 100
+    );
+
     // Auto-complete task if progress reaches 100%
-    if (task.progress === 100 && task.status !== 'completed') {
-      task.status = 'completed';
+    if (task.progress === 100 && task.status !== "completed") {
+      task.status = "completed";
       task.completedAt = new Date();
       task.completedBy = req.user.id;
-      
+
       // Add activity log
       task.activityLog.push({
-        action: 'completed',
-        description: 'Task automatically completed due to 100% progress',
+        action: "completed",
+        description: "Task automatically completed due to 100% progress",
         actor: req.user.id,
-        metadata: { reason: 'progress_complete' }
+        metadata: { reason: "progress_complete" },
       });
-      
+
       // Create notification for auto-completion
-      await createTaskNotification('task_completed', task, task.project, req.user.id);
+      await createTaskNotification(
+        "task_completed",
+        task,
+        task.project,
+        req.user.id
+      );
     }
   }
 
@@ -1006,29 +1130,34 @@ export const completeSubtask = asyncHandler(async (req, res) => {
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'subtasks.assignedTo', select: 'name email' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "subtasks.assignedTo", select: "name email" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskSubtaskUpdated(task, subtask, req.user);
-    if (task.status === 'completed') {
+    if (task.status === "completed") {
       await ActivityService.logTaskCompleted(task, req.user);
     }
   } catch (error) {
-    console.error('Failed to log task subtask completion activity:', error);
+    console.error("Failed to log task subtask completion activity:", error);
   }
 
   // Create notification for subtask completion
-  await createTaskNotification('subtask_completed', task, task.project, req.user.id);
+  await createTaskNotification(
+    "subtask_completed",
+    task,
+    task.project,
+    req.user.id
+  );
 
   res.json({
     success: true,
     data: task,
-    message: 'Subtask completed successfully'
+    message: "Subtask completed successfully",
   });
 });
 
@@ -1038,12 +1167,12 @@ export const deleteSubtask = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   const subtask = task.subtasks.id(subtaskId);
   if (!subtask) {
-    throw new AppError('Subtask not found', 404);
+    throw new AppError("Subtask not found", 404);
   }
 
   const subtaskTitle = subtask.title;
@@ -1051,16 +1180,20 @@ export const deleteSubtask = asyncHandler(async (req, res) => {
 
   // Add activity log
   task.activityLog.push({
-    action: 'subtask_deleted',
+    action: "subtask_deleted",
     description: `Subtask "${subtaskTitle}" deleted`,
     actor: req.user.id,
-    metadata: { subtaskId }
+    metadata: { subtaskId },
   });
 
   // Update task progress based on remaining subtasks
   if (task.subtasks && task.subtasks.length > 0) {
-    const completedSubtasks = task.subtasks.filter(s => s.status === 'completed').length;
-    task.progress = Math.round((completedSubtasks / task.subtasks.length) * 100);
+    const completedSubtasks = task.subtasks.filter(
+      (s) => s.status === "completed"
+    ).length;
+    task.progress = Math.round(
+      (completedSubtasks / task.subtasks.length) * 100
+    );
   } else {
     task.progress = 0;
   }
@@ -1069,23 +1202,23 @@ export const deleteSubtask = asyncHandler(async (req, res) => {
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' },
-    { path: 'subtasks.assignedTo', select: 'name email' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
+    { path: "subtasks.assignedTo", select: "name email" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskSubtaskDeleted(task, subtaskId, req.user);
   } catch (error) {
-    console.error('Failed to log task subtask deletion activity:', error);
+    console.error("Failed to log task subtask deletion activity:", error);
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Subtask deleted successfully'
+    message: "Subtask deleted successfully",
   });
 });
 
@@ -1095,16 +1228,16 @@ export const addTaskCustomField = asyncHandler(async (req, res) => {
   const { key, value } = req.body;
 
   if (!key || !key.trim()) {
-    throw new AppError('Custom field key is required', 400);
+    throw new AppError("Custom field key is required", 400);
   }
 
   if (value === undefined || value === null) {
-    throw new AppError('Custom field value is required', 400);
+    throw new AppError("Custom field value is required", 400);
   }
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   // Initialize customFields if it doesn't exist
@@ -1117,36 +1250,49 @@ export const addTaskCustomField = asyncHandler(async (req, res) => {
 
   // Add activity log
   task.activityLog.push({
-    action: 'updated',
-    description: `Custom field "${key.trim()}" ${oldValue ? 'updated' : 'added'}`,
+    action: "updated",
+    description: `Custom field "${key.trim()}" ${
+      oldValue ? "updated" : "added"
+    }`,
     actor: req.user.id,
-    metadata: { fieldKey: key.trim(), oldValue, newValue: value }
+    metadata: { fieldKey: key.trim(), oldValue, newValue: value },
   });
 
   await task.save();
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
   ]);
 
   // Log activity
   try {
     if (oldValue !== undefined) {
-      await ActivityService.logTaskCustomFieldUpdated(task, key.trim(), oldValue, value, req.user);
+      await ActivityService.logTaskCustomFieldUpdated(
+        task,
+        key.trim(),
+        oldValue,
+        value,
+        req.user
+      );
     } else {
-      await ActivityService.logTaskCustomFieldAdded(task, key.trim(), value, req.user);
+      await ActivityService.logTaskCustomFieldAdded(
+        task,
+        key.trim(),
+        value,
+        req.user
+      );
     }
   } catch (error) {
-    console.error('Failed to log task custom field activity:', error);
+    console.error("Failed to log task custom field activity:", error);
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Custom field added successfully'
+    message: "Custom field added successfully",
   });
 });
 
@@ -1156,16 +1302,16 @@ export const updateTaskCustomField = asyncHandler(async (req, res) => {
   const { value } = req.body;
 
   if (value === undefined || value === null) {
-    throw new AppError('Custom field value is required', 400);
+    throw new AppError("Custom field value is required", 400);
   }
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   if (!task.customFields || !task.customFields.has(key)) {
-    throw new AppError('Custom field not found', 404);
+    throw new AppError("Custom field not found", 404);
   }
 
   const oldValue = task.customFields.get(key);
@@ -1173,32 +1319,38 @@ export const updateTaskCustomField = asyncHandler(async (req, res) => {
 
   // Add activity log
   task.activityLog.push({
-    action: 'updated',
+    action: "updated",
     description: `Custom field "${key}" updated`,
     actor: req.user.id,
-    metadata: { fieldKey: key, oldValue, newValue: value }
+    metadata: { fieldKey: key, oldValue, newValue: value },
   });
 
   await task.save();
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
   ]);
 
   // Log activity
   try {
-    await ActivityService.logTaskCustomFieldUpdated(task, key, oldValue, value, req.user);
+    await ActivityService.logTaskCustomFieldUpdated(
+      task,
+      key,
+      oldValue,
+      value,
+      req.user
+    );
   } catch (error) {
-    console.error('Failed to log task custom field update activity:', error);
+    console.error("Failed to log task custom field update activity:", error);
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Custom field updated successfully'
+    message: "Custom field updated successfully",
   });
 });
 
@@ -1208,11 +1360,11 @@ export const deleteTaskCustomField = asyncHandler(async (req, res) => {
 
   const task = await Task.findById(id);
   if (!task) {
-    throw new AppError('Task not found', 404);
+    throw new AppError("Task not found", 404);
   }
 
   if (!task.customFields || !task.customFields.has(key)) {
-    throw new AppError('Custom field not found', 404);
+    throw new AppError("Custom field not found", 404);
   }
 
   const oldValue = task.customFields.get(key);
@@ -1220,32 +1372,32 @@ export const deleteTaskCustomField = asyncHandler(async (req, res) => {
 
   // Add activity log
   task.activityLog.push({
-    action: 'updated',
+    action: "updated",
     description: `Custom field "${key}" deleted`,
     actor: req.user.id,
-    metadata: { fieldKey: key }
+    metadata: { fieldKey: key },
   });
 
   await task.save();
 
   // Populate the updated task
   await task.populate([
-    { path: 'assignedTo', select: 'name email profileImage' },
-    { path: 'createdBy', select: 'name email profileImage' },
-    { path: 'project', select: 'name' }
+    { path: "assignedTo", select: "name email profileImage" },
+    { path: "createdBy", select: "name email profileImage" },
+    { path: "project", select: "name" },
   ]);
 
   // Log activity
   try {
     await ActivityService.logTaskCustomFieldDeleted(task, key, req.user);
   } catch (error) {
-    console.error('Failed to log task custom field deletion activity:', error);
+    console.error("Failed to log task custom field deletion activity:", error);
   }
 
   res.json({
     success: true,
     data: task,
-    message: 'Custom field deleted successfully'
+    message: "Custom field deleted successfully",
   });
 });
 
@@ -1254,13 +1406,13 @@ export const bulkUpdateTasks = asyncHandler(async (req, res) => {
   const { taskIds, updates } = req.body;
 
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
-    throw new AppError('Task IDs are required', 400);
+    throw new AppError("Task IDs are required", 400);
   }
 
   const validatedUpdates = validateTaskData(updates, true);
 
   console.log(validatedUpdates);
-  
+
   const result = await Task.updateMany(
     { _id: { $in: taskIds } },
     { $set: validatedUpdates }
@@ -1268,15 +1420,20 @@ export const bulkUpdateTasks = asyncHandler(async (req, res) => {
 
   // Get updated tasks for notifications
   const updatedTasks = await Task.find({ _id: { $in: taskIds } });
-  
+
   // Create notifications for each updated task
   for (const task of updatedTasks) {
-    await createTaskNotification('task_updated', task, task.project, req.user.id);
+    await createTaskNotification(
+      "task_updated",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   res.json({
     success: true,
-    message: `${result.modifiedCount} tasks updated successfully`
+    message: `${result.modifiedCount} tasks updated successfully`,
   });
 });
 
@@ -1284,22 +1441,27 @@ export const bulkDeleteTasks = asyncHandler(async (req, res) => {
   const { taskIds } = req.body;
 
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
-    throw new AppError('Task IDs are required', 400);
+    throw new AppError("Task IDs are required", 400);
   }
 
   // Get tasks before deletion for notifications
   const tasks = await Task.find({ _id: { $in: taskIds } });
-  
+
   // Create notifications for each deleted task
   for (const task of tasks) {
-    await createTaskNotification('task_deleted', task, task.project, req.user.id);
+    await createTaskNotification(
+      "task_deleted",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   const result = await Task.deleteMany({ _id: { $in: taskIds } });
 
   res.json({
     success: true,
-    message: `${result.deletedCount} tasks deleted successfully`
+    message: `${result.deletedCount} tasks deleted successfully`,
   });
 });
 
@@ -1307,31 +1469,36 @@ export const bulkArchiveTasks = asyncHandler(async (req, res) => {
   const { taskIds } = req.body;
 
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
-    throw new AppError('Task IDs are required', 400);
+    throw new AppError("Task IDs are required", 400);
   }
 
   const result = await Task.updateMany(
     { _id: { $in: taskIds } },
-    { 
-      $set: { 
-        isArchived: true, 
-        archivedAt: new Date(), 
-        archivedBy: req.user.id 
-      } 
+    {
+      $set: {
+        isArchived: true,
+        archivedAt: new Date(),
+        archivedBy: req.user.id,
+      },
     }
   );
 
   // Get archived tasks for notifications
   const archivedTasks = await Task.find({ _id: { $in: taskIds } });
-  
+
   // Create notifications for each archived task
   for (const task of archivedTasks) {
-    await createTaskNotification('task_archived', task, task.project, req.user.id);
+    await createTaskNotification(
+      "task_archived",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   res.json({
     success: true,
-    message: `${result.modifiedCount} tasks archived successfully`
+    message: `${result.modifiedCount} tasks archived successfully`,
   });
 });
 
@@ -1339,85 +1506,93 @@ export const bulkRestoreTasks = asyncHandler(async (req, res) => {
   const { taskIds } = req.body;
 
   if (!Array.isArray(taskIds) || taskIds.length === 0) {
-    throw new AppError('Task IDs are required', 400);
+    throw new AppError("Task IDs are required", 400);
   }
 
   const result = await Task.updateMany(
     { _id: { $in: taskIds } },
-    { 
-      $set: { 
-        isArchived: false
+    {
+      $set: {
+        isArchived: false,
       },
       $unset: {
-        archivedAt: '',
-        archivedBy: ''
-      }
+        archivedAt: "",
+        archivedBy: "",
+      },
     }
   );
 
   // Get restored tasks for notifications and activity logging
   const restoredTasks = await Task.find({ _id: { $in: taskIds } });
-  
+
   // Add activity log and create notifications for each restored task
   for (const task of restoredTasks) {
     task.activityLog.push({
-      action: 'restored',
-      description: 'Task restored from archive',
-      actor: req.user.id
+      action: "restored",
+      description: "Task restored from archive",
+      actor: req.user.id,
     });
     await task.save();
-    
+
     // Populate task for activity logging
     await task.populate([
-      { path: 'assignedTo', select: 'name email profileImage' },
-      { path: 'createdBy', select: 'name email profileImage' },
-      { path: 'project', select: 'name' }
+      { path: "assignedTo", select: "name email profileImage" },
+      { path: "createdBy", select: "name email profileImage" },
+      { path: "project", select: "name" },
     ]);
 
     // Log activity
     try {
       await ActivityService.logTaskRestored(task, req.user);
     } catch (error) {
-      console.error('Failed to log task restore activity:', error);
+      console.error("Failed to log task restore activity:", error);
     }
 
     // Create notification
-    await createTaskNotification('task_restored', task, task.project, req.user.id);
+    await createTaskNotification(
+      "task_restored",
+      task,
+      task.project,
+      req.user.id
+    );
   }
 
   res.json({
     success: true,
-    message: `${result.modifiedCount} tasks restored successfully`
+    message: `${result.modifiedCount} tasks restored successfully`,
   });
 });
 
 // Get task statistics
 export const getTaskStats = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const { period = '30d' } = req.query;
+  const { period = "30d" } = req.query;
 
   // Calculate date range
   const now = new Date();
   let startDate;
-  
+
   switch (period) {
-    case '7d':
+    case "7d":
       startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       break;
-    case '30d':
+    case "30d":
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       break;
-    case '90d':
+    case "90d":
       startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       break;
-    case '1y':
+    case "1y":
       startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
       break;
     default:
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
 
-  const baseQuery = {  project: new mongoose.Types.ObjectId(projectId), isArchived: false };
+  const baseQuery = {
+    project: new mongoose.Types.ObjectId(projectId),
+    isArchived: false,
+  };
   const periodQuery = { ...baseQuery, createdAt: { $gte: startDate } };
 
   // Get basic statistics
@@ -1431,86 +1606,107 @@ export const getTaskStats = asyncHandler(async (req, res) => {
     tasksByType,
     tasksByAssignee,
     completionRate,
-    averageCompletionTime
+    averageCompletionTime,
   ] = await Promise.all([
     // Total tasks
     Task.countDocuments(baseQuery),
-    
+
     // Completed tasks
-    Task.countDocuments({ ...baseQuery, status: 'completed' }),
-    
+    Task.countDocuments({ ...baseQuery, status: "completed" }),
+
     // Pending tasks
-    Task.countDocuments({ ...baseQuery, status: 'pending' }),
-    
+    Task.countDocuments({ ...baseQuery, status: "pending" }),
+
     // In progress tasks
-    Task.countDocuments({ ...baseQuery, status: 'in_progress' }),
-    
+    Task.countDocuments({ ...baseQuery, status: "in_progress" }),
+
     // Overdue tasks
-    Task.countDocuments({ 
-      ...baseQuery, 
+    Task.countDocuments({
+      ...baseQuery,
       dueDate: { $lt: now },
-      status: { $nin: ['completed', 'cancelled'] }
+      status: { $nin: ["completed", "cancelled"] },
     }),
-    
+
     // Tasks by priority
     Task.aggregate([
       { $match: baseQuery },
-      { $group: { _id: '$priority', count: { $sum: 1 } } }
+      { $group: { _id: "$priority", count: { $sum: 1 } } },
     ]),
-    
+
     // Tasks by type
     Task.aggregate([
       { $match: baseQuery },
-      { $group: { _id: '$type', count: { $sum: 1 } } }
+      { $group: { _id: "$type", count: { $sum: 1 } } },
     ]),
-    
+
     // Tasks by assignee
     Task.aggregate([
       { $match: baseQuery },
-      { $group: { _id: '$assignedTo', count: { $sum: 1 } } },
-      { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'user' } },
-      { $unwind: '$user' },
-      { $project: { _id: 1, count: 1, name: '$user.name', email: '$user.email' } },
+      { $group: { _id: "$assignedTo", count: { $sum: 1 } } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      {
+        $project: {
+          _id: 1,
+          count: 1,
+          name: "$user.name",
+          email: "$user.email",
+        },
+      },
       { $sort: { count: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]),
-    
+
     // Completion rate
     Task.aggregate([
       { $match: periodQuery },
-      { 
-        $group: { 
-          _id: null, 
+      {
+        $group: {
+          _id: null,
           total: { $sum: 1 },
-          completed: { 
-            $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] }
-          }
-        }
-      }
+          completed: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
+        },
+      },
     ]),
-    
+
     // Average completion time
     Task.aggregate([
-      { $match: { ...baseQuery, status: 'completed', completedAt: { $exists: true } } },
+      {
+        $match: {
+          ...baseQuery,
+          status: "completed",
+          completedAt: { $exists: true },
+        },
+      },
       {
         $project: {
           completionTime: {
             $divide: [
-              { $subtract: ['$completedAt', '$createdAt'] },
-              1000 * 60 * 60 * 24 // Convert to days
-            ]
-          }
-        }
+              { $subtract: ["$completedAt", "$createdAt"] },
+              1000 * 60 * 60 * 24, // Convert to days
+            ],
+          },
+        },
       },
-      { $group: { _id: null, avgTime: { $avg: '$completionTime' } } }
-    ])
+      { $group: { _id: null, avgTime: { $avg: "$completionTime" } } },
+    ]),
   ]);
 
   // Process completion rate
   const completionRateData = completionRate[0] || { total: 0, completed: 0 };
-  const completionRatePercent = completionRateData.total > 0 
-    ? (completionRateData.completed / completionRateData.total) * 100 
-    : 0;
+  const completionRatePercent =
+    completionRateData.total > 0
+      ? (completionRateData.completed / completionRateData.total) * 100
+      : 0;
 
   // Process average completion time
   const avgCompletionTime = averageCompletionTime[0]?.avgTime || 0;
@@ -1525,53 +1721,56 @@ export const getTaskStats = asyncHandler(async (req, res) => {
         inProgressTasks,
         overdueTasks,
         completionRate: Math.round(completionRatePercent * 100) / 100,
-        averageCompletionTime: Math.round(avgCompletionTime * 100) / 100
+        averageCompletionTime: Math.round(avgCompletionTime * 100) / 100,
       },
       distributions: {
         byPriority: tasksByPriority,
         byType: tasksByType,
-        byAssignee: tasksByAssignee
+        byAssignee: tasksByAssignee,
       },
       // Add the data structure expected by frontend
       tasksByStatus: [
-        { _id: 'completed', count: completedTasks },
-        { _id: 'pending', count: pendingTasks },
-        { _id: 'in_progress', count: inProgressTasks }
+        { _id: "completed", count: completedTasks },
+        { _id: "pending", count: pendingTasks },
+        { _id: "in_progress", count: inProgressTasks },
       ],
       tasksByPriority: tasksByPriority,
       tasksByAssignedTo: tasksByAssignee,
-      tasksByRelatedTo: tasksByType
-    }
+      tasksByRelatedTo: tasksByType,
+    },
   });
 });
 
 // Get task insights
 export const getTaskInsights = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const { period = '30d' } = req.query;
+  const { period = "30d" } = req.query;
 
   // Calculate date range
   const now = new Date();
   let startDate;
-  
+
   switch (period) {
-    case '7d':
+    case "7d":
       startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       break;
-    case '30d':
+    case "30d":
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       break;
-    case '90d':
+    case "90d":
       startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
       break;
-    case '1y':
+    case "1y":
       startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
       break;
     default:
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
 
-  const baseQuery = { project: new mongoose.Types.ObjectId(projectId), isArchived: false };
+  const baseQuery = {
+    project: new mongoose.Types.ObjectId(projectId),
+    isArchived: false,
+  };
   const periodQuery = { ...baseQuery, createdAt: { $gte: startDate } };
 
   // Get insights data
@@ -1581,103 +1780,124 @@ export const getTaskInsights = asyncHandler(async (req, res) => {
     avgCompletionTime,
     topTags,
     tasksDueSoon,
-    userPerformance
+    userPerformance,
   ] = await Promise.all([
     // Tasks completed in last 30 days
     Task.aggregate([
-      { $match: { ...baseQuery, status: 'completed', completedAt: { $gte: startDate } } },
+      {
+        $match: {
+          ...baseQuery,
+          status: "completed",
+          completedAt: { $gte: startDate },
+        },
+      },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$completedAt' } },
-          count: { $sum: 1 }
-        }
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$completedAt" } },
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]),
-    
+
     // Tasks created in last 30 days
     Task.aggregate([
       { $match: periodQuery },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-          count: { $sum: 1 }
-        }
+          _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+          count: { $sum: 1 },
+        },
       },
-      { $sort: { _id: 1 } }
+      { $sort: { _id: 1 } },
     ]),
-    
+
     // Average completion time
     Task.aggregate([
-      { $match: { ...baseQuery, status: 'completed', completedAt: { $exists: true } } },
+      {
+        $match: {
+          ...baseQuery,
+          status: "completed",
+          completedAt: { $exists: true },
+        },
+      },
       {
         $project: {
           completionTime: {
             $divide: [
-              { $subtract: ['$completedAt', '$createdAt'] },
-              1000 * 60 * 60 // Convert to hours
-            ]
-          }
-        }
+              { $subtract: ["$completedAt", "$createdAt"] },
+              1000 * 60 * 60, // Convert to hours
+            ],
+          },
+        },
       },
-      { $group: { _id: null, avgTime: { $avg: '$completionTime' } } }
+      { $group: { _id: null, avgTime: { $avg: "$completionTime" } } },
     ]),
-    
+
     // Top tags
     Task.aggregate([
       { $match: baseQuery },
-      { $unwind: '$tags' },
-      { $group: { _id: '$tags', count: { $sum: 1 } } },
+      { $unwind: "$tags" },
+      { $group: { _id: "$tags", count: { $sum: 1 } } },
       { $sort: { count: -1 } },
-      { $limit: 10 }
+      { $limit: 10 },
     ]),
-    
+
     // Tasks due soon (next 7 days)
     Task.countDocuments({
       ...baseQuery,
-      dueDate: { 
-        $gte: now, 
-        $lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000) 
+      dueDate: {
+        $gte: now,
+        $lte: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
       },
-      status: { $nin: ['completed', 'cancelled'] }
+      status: { $nin: ["completed", "cancelled"] },
     }),
-    
+
     // User performance
     Task.aggregate([
       { $match: { ...baseQuery, assignedTo: { $exists: true } } },
       {
         $group: {
-          _id: '$assignedTo',
+          _id: "$assignedTo",
           totalTasks: { $sum: 1 },
-          completedTasks: { $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] } },
+          completedTasks: {
+            $sum: { $cond: [{ $eq: ["$status", "completed"] }, 1, 0] },
+          },
           avgCompletionTime: {
             $avg: {
               $cond: [
-                { $eq: ['$status', 'completed'] },
-                { $divide: [{ $subtract: ['$completedAt', '$createdAt'] }, 1000 * 60 * 60] },
-                null
-              ]
-            }
-          }
-        }
+                { $eq: ["$status", "completed"] },
+                {
+                  $divide: [
+                    { $subtract: ["$completedAt", "$createdAt"] },
+                    1000 * 60 * 60,
+                  ],
+                },
+                null,
+              ],
+            },
+          },
+        },
       },
       {
         $lookup: {
-          from: 'users',
-          localField: '_id',
-          foreignField: '_id',
-          as: 'user'
-        }
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "user",
+        },
       },
-      { $unwind: '$user' },
+      { $unwind: "$user" },
       {
         $addFields: {
-          completionRate: { $multiply: [{ $divide: ['$completedTasks', '$totalTasks'] }, 100] }
-        }
+          completionRate: {
+            $multiply: [{ $divide: ["$completedTasks", "$totalTasks"] }, 100],
+          },
+        },
       },
       { $sort: { completionRate: -1 } },
-      { $limit: 10 }
-    ])
+      { $limit: 10 },
+    ]),
   ]);
 
   res.json({
@@ -1691,16 +1911,25 @@ export const getTaskInsights = asyncHandler(async (req, res) => {
       userPerformance,
       summary: {
         totalTasks: await Task.countDocuments(baseQuery),
-        completedTasks: await Task.countDocuments({ ...baseQuery, status: 'completed' }),
-        pendingTasks: await Task.countDocuments({ ...baseQuery, status: 'pending' }),
-        inProgressTasks: await Task.countDocuments({ ...baseQuery, status: 'in_progress' }),
-        overdueTasks: await Task.countDocuments({ 
-          ...baseQuery, 
+        completedTasks: await Task.countDocuments({
+          ...baseQuery,
+          status: "completed",
+        }),
+        pendingTasks: await Task.countDocuments({
+          ...baseQuery,
+          status: "pending",
+        }),
+        inProgressTasks: await Task.countDocuments({
+          ...baseQuery,
+          status: "in_progress",
+        }),
+        overdueTasks: await Task.countDocuments({
+          ...baseQuery,
           dueDate: { $lt: now },
-          status: { $nin: ['completed', 'cancelled'] }
-        })
-      }
-    }
+          status: { $nin: ["completed", "cancelled"] },
+        }),
+      },
+    },
   });
 });
 
@@ -1712,7 +1941,7 @@ export const getOverdueTasks = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    data: overdueTasks
+    data: overdueTasks,
   });
 });
 
@@ -1722,36 +1951,36 @@ export const getTasksByEntity = asyncHandler(async (req, res) => {
   const { status, includeCompleted = false } = req.query;
 
   const query = {
-    'relatedEntity.type': entityType,
-    'relatedEntity.entityId': entityId,
-    isArchived: false
+    "relatedEntity.type": entityType,
+    "relatedEntity.entityId": entityId,
+    isArchived: false,
   };
 
   if (status) {
     query.status = status;
   } else if (!includeCompleted) {
-    query.status = { $nin: ['completed', 'cancelled'] };
+    query.status = { $nin: ["completed", "cancelled"] };
   }
 
   const tasks = await Task.find(query)
-    .populate('assignedTo', 'name email profileImage')
-    .populate('createdBy', 'name email profileImage')
-    .populate('project', 'name')
+    .populate("assignedTo", "name email profileImage")
+    .populate("createdBy", "name email profileImage")
+    .populate("project", "name")
     .sort({ dueDate: 1, priority: -1 });
 
   res.json({
     success: true,
-    data: tasks
+    data: tasks,
   });
 });
 
 // Export tasks
 export const exportTasks = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
-  const { format = 'json', filters = {} } = req.query;
+  const { format = "json", filters = {} } = req.query;
 
   const query = { project: projectId, isArchived: false };
-  
+
   // Apply filters
   if (filters.status) query.status = filters.status;
   if (filters.assignedTo) query.assignedTo = filters.assignedTo;
@@ -1759,39 +1988,80 @@ export const exportTasks = asyncHandler(async (req, res) => {
   if (filters.type) query.type = filters.type;
 
   const tasks = await Task.find(query)
-    .populate('assignedTo', 'name email')
-    .populate('createdBy', 'name email')
-    .populate('project', 'name')
+    .populate("assignedTo", "name email")
+    .populate("createdBy", "name email")
+    .populate("project", "name")
     .sort({ createdAt: -1 });
 
-  if (format === 'csv') {
+  if (format === "csv") {
     // Convert to CSV format
-    const csvData = tasks.map(task => ({
+    const csvData = tasks.map((task) => ({
       title: task.title,
       description: task.description,
       status: task.status,
       priority: task.priority,
       type: task.type,
-      assignedTo: task.assignedTo?.name || '',
-      createdBy: task.createdBy?.name || '',
-      dueDate: task.dueDate?.toISOString().split('T')[0] || '',
-      createdAt: task.createdAt.toISOString().split('T')[0],
-      completedAt: task.completedAt?.toISOString().split('T')[0] || ''
+      assignedTo: task.assignedTo?.name || "",
+      createdBy: task.createdBy?.name || "",
+      dueDate: task.dueDate?.toISOString().split("T")[0] || "",
+      createdAt: task.createdAt.toISOString().split("T")[0],
+      completedAt: task.completedAt?.toISOString().split("T")[0] || "",
     }));
 
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=tasks.csv');
-    
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader("Content-Disposition", "attachment; filename=tasks.csv");
+
     // Simple CSV conversion
-    const headers = Object.keys(csvData[0] || {}).join(',');
-    const rows = csvData.map(row => Object.values(row).map(val => `"${val}"`).join(','));
-    const csv = [headers, ...rows].join('\n');
-    
+    const headers = Object.keys(csvData[0] || {}).join(",");
+    const rows = csvData.map((row) =>
+      Object.values(row)
+        .map((val) => `"${val}"`)
+        .join(",")
+    );
+    const csv = [headers, ...rows].join("\n");
+
     res.send(csv);
   } else {
     res.json({
       success: true,
-      data: tasks
+      data: tasks,
     });
   }
+});
+
+// Stop reminder for a task
+export const stopTaskReminder = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { reminderIndex } = req.body;
+
+  const task = await Task.findById(id);
+  if (!task) {
+    throw new AppError("Task not found", 404);
+  }
+
+  if (reminderIndex === undefined || reminderIndex === null) {
+    // Stop all reminders
+    task.reminders.forEach((reminder) => {
+      reminder.stopped = true;
+      reminder.stoppedAt = new Date();
+      reminder.enabled = false;
+    });
+  } else {
+    // Stop specific reminder
+    if (task.reminders[reminderIndex]) {
+      task.reminders[reminderIndex].stopped = true;
+      task.reminders[reminderIndex].stoppedAt = new Date();
+      task.reminders[reminderIndex].enabled = false;
+    } else {
+      throw new AppError("Reminder not found", 404);
+    }
+  }
+
+  await task.save();
+
+  res.json({
+    success: true,
+    message: "Reminder stopped successfully",
+    task,
+  });
 });

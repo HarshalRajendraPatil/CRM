@@ -3,6 +3,7 @@ import Lead from '../models/Lead.model.js';
 import User from '../models/User.model.js';
 import notificationService from '../utils/notificationService.js';
 import ActivityService from '../utils/activityService.js';
+import activityHelper from '../utils/activityHelper.js';
 import { ForbiddenError } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';
 
@@ -175,16 +176,10 @@ export const updateCustomer = async (req, res) => {
       });
     }
 
-    // Track changes for activity logging
-    const changes = {};
-    Object.keys(updateData).forEach(key => {
-      if (key !== 'updatedBy' && key !== 'updatedAt' && existingCustomer[key] !== updateData[key]) {
-        changes[key] = {
-          oldValue: existingCustomer[key],
-          newValue: updateData[key]
-        };
-      }
-    });
+    // Store old data for comprehensive activity tracking
+    const oldData = existingCustomer.toObject();
+    const oldTags = [...(existingCustomer.tags || [])];
+    const oldCustomFields = existingCustomer.customFields ? new Map(existingCustomer.customFields) : new Map();
 
     const customer = await Customer.findByIdAndUpdate(
       id,
@@ -196,13 +191,26 @@ export const updateCustomer = async (req, res) => {
       { path: 'company', select: 'name industry' }
     ]);
 
-    // Log activity if there were changes
-    if (Object.keys(changes).length > 0) {
-      try {
-        await ActivityService.logCustomerUpdated(customer, changes, req.user);
+    // Comprehensive activity tracking
+    try {
+      // Track all field changes
+      await activityHelper.trackEntityChanges('Customer', customer, oldData, updateData, req.user);
+      
+      // Track tag changes
+      const newTags = customer.tags || [];
+      if (JSON.stringify(oldTags.sort()) !== JSON.stringify(newTags.sort())) {
+        await activityHelper.trackTagChanges('Customer', customer, oldTags, newTags, req.user);
+      }
+      
+      // Track custom field changes
+      const newCustomFields = customer.customFields || new Map();
+      if (oldCustomFields.size !== newCustomFields.size || 
+          JSON.stringify([...oldCustomFields]) !== JSON.stringify([...newCustomFields])) {
+        await activityHelper.trackCustomFieldChanges('Customer', customer, 
+          Object.fromEntries(oldCustomFields), Object.fromEntries(newCustomFields), req.user);
+      }
       } catch (error) {
         console.error('Failed to log customer update activity:', error);
-      }
     }
 
     // Create notification for assignment changes

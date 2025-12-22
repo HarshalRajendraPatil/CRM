@@ -10,6 +10,7 @@ import {
   sanitizeProjectData
 } from '../utils/projectValidation.js';
 import notificationService from '../utils/notificationService.js';
+import ActivityService from '../utils/activityService.js';
 
 // @desc    Create a new project
 // @route   POST /api/projects
@@ -66,6 +67,13 @@ export const createProject = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(req.user._id, {
     $push: { ownedProjects: project._id }
   });
+
+  // Log activity
+  try {
+    await ActivityService.logProjectCreated(project, req.user);
+  } catch (error) {
+    console.error('Failed to log project creation activity:', error);
+  }
   
   res.status(201).json({
     success: true,
@@ -214,25 +222,62 @@ export const updateProject = asyncHandler(async (req, res) => {
   // Sanitize input data
   const sanitizedData = sanitizeProjectData(inputData);
   
+  // Store old data for activity tracking
+  const oldData = project.toObject();
+  const changes = {};
+  
   // Update fields if provided
-  if (name !== undefined) project.name = sanitizedData.name;
-  if (description !== undefined) project.description = sanitizedData.description;
-  if (visibility !== undefined) project.visibility = visibility;
-  if (industry !== undefined) project.industry = sanitizedData.industry;
-  if (tags !== undefined) project.tags = sanitizedData.tags;
-  if (timezone !== undefined) project.timezone = sanitizedData.timezone;
-  if (logo !== undefined) project.logo = logo;
+  if (name !== undefined && name !== project.name) {
+    project.name = sanitizedData.name;
+    changes.name = { oldValue: oldData.name, newValue: sanitizedData.name };
+  }
+  if (description !== undefined && description !== project.description) {
+    project.description = sanitizedData.description;
+    changes.description = { oldValue: oldData.description, newValue: sanitizedData.description };
+  }
+  if (visibility !== undefined && visibility !== project.visibility) {
+    project.visibility = visibility;
+    changes.visibility = { oldValue: oldData.visibility, newValue: visibility };
+  }
+  if (industry !== undefined && industry !== project.industry) {
+    project.industry = sanitizedData.industry;
+    changes.industry = { oldValue: oldData.industry, newValue: sanitizedData.industry };
+  }
+  if (tags !== undefined) {
+    project.tags = sanitizedData.tags;
+    changes.tags = { oldValue: oldData.tags, newValue: sanitizedData.tags };
+  }
+  if (timezone !== undefined && timezone !== project.timezone) {
+    project.timezone = sanitizedData.timezone;
+    changes.timezone = { oldValue: oldData.timezone, newValue: sanitizedData.timezone };
+  }
+  if (logo !== undefined && logo !== project.logo) {
+    project.logo = logo;
+    changes.logo = { oldValue: oldData.logo, newValue: logo };
+  }
   
   // Only owner or system-admin can change active status
   if (
     isActive !== undefined && 
     (project.owner.toString() === req.user._id.toString() || req.user.roleGlobal === 'system-admin')
   ) {
+    if (isActive !== project.isActive) {
     project.isActive = isActive;
+      changes.isActive = { oldValue: oldData.isActive, newValue: isActive };
+    }
   }
   
   // Save updated project
   await project.save();
+
+  // Log activity if there were changes
+  if (Object.keys(changes).length > 0) {
+    try {
+      await ActivityService.logProjectUpdated(project, changes, req.user);
+    } catch (error) {
+      console.error('Failed to log project update activity:', error);
+    }
+  }
   
   res.json({
     success: true,
@@ -342,6 +387,10 @@ export const updateProjectMember = asyncHandler(async (req, res) => {
     throw new NotFoundError('Member not found in this project');
   }
   
+  // Store old role for activity tracking
+  const oldRole = project.members[memberIndex].role;
+  const member = project.members[memberIndex];
+  
   // Update member role
   project.members[memberIndex].role = role;
   await project.save();
@@ -356,6 +405,13 @@ export const updateProjectMember = asyncHandler(async (req, res) => {
       arrayFilters: [{ 'elem.project': project._id }]
     }
   );
+
+  // Log activity
+  try {
+    await ActivityService.logProjectMemberRoleChanged(project, member, oldRole, role, req.user);
+  } catch (error) {
+    console.error('Failed to log project member role change activity:', error);
+  }
   
   // Create notification for role change
   try {
@@ -426,9 +482,19 @@ export const removeProjectMember = asyncHandler(async (req, res) => {
     throw new NotFoundError('Member not found in this project');
   }
   
+  // Store member data for activity tracking
+  const member = project.members[memberIndex];
+  
   // Remove member from project
   project.members.splice(memberIndex, 1);
   await project.save();
+
+  // Log activity
+  try {
+    await ActivityService.logProjectMemberRemoved(project, member, req.user);
+  } catch (error) {
+    console.error('Failed to log project member removal activity:', error);
+  }
   
   // Remove project from user's projectMembers array
   await User.findByIdAndUpdate(userId, {
@@ -515,9 +581,23 @@ export const transferProjectOwnership = asyncHandler(async (req, res) => {
   
   // Get current owner
   const currentOwner = project.owner;
+  const oldOwnerId = project.owner.toString();
   
   // Update project owner
   project.owner = userId;
+  
+  // Log activity for ownership transfer
+  try {
+    const changes = {
+      owner: {
+        oldValue: oldOwnerId,
+        newValue: userId.toString()
+      }
+    };
+    await ActivityService.logProjectUpdated(project, changes, req.user);
+  } catch (error) {
+    console.error('Failed to log project ownership transfer activity:', error);
+  }
   
   // If new owner was a member, remove from members array
   const memberIndex = project.members.findIndex(

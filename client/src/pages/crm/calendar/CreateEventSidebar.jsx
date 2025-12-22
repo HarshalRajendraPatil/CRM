@@ -1,53 +1,87 @@
-import React, { useState, useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
-import { fetchProjectTasks } from '../../../store/taskSlice';
-import { fetchProjectDeals } from '../../../store/dealSlice';
-import { fetchProjectCustomers } from '../../../store/customerSlice';
-import { getProjectCompanies } from '../../../store/companySlice';
-import { getProjectLeads } from '../../../store/leadSlice';
-import { useSettingsIntegration } from '../../../hooks/useSettingsIntegration';
+import React, { useState, useEffect, useMemo } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchProjectTasks } from "../../../store/taskSlice";
+import { fetchProjectDeals } from "../../../store/dealSlice";
+import { fetchProjectCustomers } from "../../../store/customerSlice";
+import { getProjectCompanies } from "../../../store/companySlice";
+import { getProjectLeads } from "../../../store/leadSlice";
+import { useSettingsIntegration } from "../../../hooks/useSettingsIntegration";
+import { getProjectById } from "../../../store/projectSlice";
 
-const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreateEvent }) => {
+const CreateEventSidebar = ({
+  isOpen,
+  onClose,
+  projectId,
+  selectedDate,
+  onCreateEvent,
+}) => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  const { users } = useSelector((state) => state.users);
+  const { project } = useSelector((state) => state.projects);
   const { tasks } = useSelector((state) => state.tasks);
   const { deals } = useSelector((state) => state.deals);
   const { customers } = useSelector((state) => state.customers);
   const { companies } = useSelector((state) => state.companies);
   const { leads } = useSelector((state) => state.leads);
-  const { workingHours, defaultEventDuration } = useSettingsIntegration();
-  
+
+  // Get project members (owner + accepted members)
+  const projectMembers = useMemo(() => {
+    if (!project) return [];
+
+    const members = [];
+
+    // Add owner if exists
+    if (project.owner) {
+      members.push({
+        _id: project.owner._id,
+        name: project.owner.name,
+        email: project.owner.email,
+        role: project.role,
+      });
+    }
+
+    // Add members with accepted invite status
+    if (project.members && Array.isArray(project.members)) {
+      project.members
+        .filter((member) => member.inviteStatus === "accepted" && member.user)
+        .forEach((member) => {
+          // Avoid duplicates (owner might also be in members)
+          if (!members.find((m) => m._id === member.user._id)) {
+            members.push({
+              _id: member.user._id,
+              name: member.user.name,
+              email: member.user.email,
+              role: member.role,
+            });
+          }
+        });
+    }
+
+    return members;
+  }, [project]);
+
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    type: 'custom',
-    startDate: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
-    endDate: selectedDate ? selectedDate.toISOString().split('T')[0] : '',
-    startTime: '',
-    endTime: '',
+    title: "",
+    description: "",
+    type: "custom",
+    startDate: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
+    endDate: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
+    startTime: "",
+    endTime: "",
     allDay: false,
-    location: '',
+    location: "",
     attendees: [],
     relatedEntity: {
-      type: 'task',
-      id: null
+      type: "task",
+      id: null,
     },
     customFields: [],
     tags: [],
-    priority: 'medium',
-    status: 'scheduled',
-    visibility: 'project',
+    priority: "medium",
+    status: "scheduled",
+    visibility: "project",
     reminders: [],
-    recurrence: {
-      frequency: 'none',
-      interval: 1,
-      daysOfWeek: [],
-      endDate: '',
-      occurrences: null
-    },
-    isRecurring: false,
-    metadata: {}
+    metadata: {},
   });
 
   const [errors, setErrors] = useState({});
@@ -55,10 +89,10 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
 
   useEffect(() => {
     if (selectedDate) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        startDate: selectedDate.toISOString().split('T')[0],
-        endDate: selectedDate.toISOString().split('T')[0]
+        startDate: selectedDate.toISOString().split("T")[0],
+        endDate: selectedDate.toISOString().split("T")[0],
       }));
     }
   }, [selectedDate]);
@@ -66,6 +100,7 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
   // Load related entities when component mounts
   useEffect(() => {
     if (projectId) {
+      dispatch(getProjectById(projectId));
       dispatch(fetchProjectTasks({ projectId }));
       dispatch(fetchProjectDeals({ projectId }));
       dispatch(fetchProjectCustomers({ projectId }));
@@ -76,154 +111,148 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => {
+    setFormData((prev) => {
       const newData = {
         ...prev,
-        [name]: type === 'checkbox' ? checked : value
+        [name]: type === "checkbox" ? checked : value,
       };
-      
+
       // When allDay is checked, clear times and set endDate to startDate if not set
-      if (name === 'allDay' && checked) {
-        newData.startTime = '';
-        newData.endTime = '';
+      if (name === "allDay" && checked) {
+        newData.startTime = "";
+        newData.endTime = "";
         if (!newData.endDate) {
           newData.endDate = newData.startDate;
         }
       }
-      
+
       // When allDay is unchecked and endDate is not set, set it to startDate
-      if (name === 'allDay' && !checked && !newData.endDate) {
+      if (name === "allDay" && !checked && !newData.endDate) {
         newData.endDate = newData.startDate;
       }
-      
+
       return newData;
     });
-    
+
     // Clear error when user starts typing
     if (errors[name]) {
-      setErrors(prev => ({
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: "",
       }));
     }
   };
 
   const handleRelatedEntityChange = (type, id) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      relatedEntity: { type, id }
+      relatedEntity: { type, id },
     }));
   };
 
   const handleAddTag = (tag) => {
     if (tag && !formData.tags.includes(tag)) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        tags: [...prev.tags, tag]
+        tags: [...prev.tags, tag],
       }));
     }
   };
 
   const handleRemoveTag = (tagToRemove) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
+      tags: prev.tags.filter((tag) => tag !== tagToRemove),
     }));
   };
 
   const handleAddAttendee = (userId) => {
     if (userId && !formData.attendees.includes(userId)) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        attendees: [...prev.attendees, userId]
+        attendees: [...prev.attendees, userId],
       }));
     }
   };
 
   const handleRemoveAttendee = (userId) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      attendees: prev.attendees.filter(id => id !== userId)
+      attendees: prev.attendees.filter((id) => id !== userId),
     }));
   };
 
   const handleAddReminder = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      reminders: [...prev.reminders, { type: 'email', time: '15', unit: 'minutes' }]
+      reminders: [
+        ...prev.reminders,
+        { type: "email", time: "15", unit: "minutes" },
+      ],
     }));
   };
 
   const handleRemoveReminder = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      reminders: prev.reminders.filter((_, i) => i !== index)
+      reminders: prev.reminders.filter((_, i) => i !== index),
     }));
   };
 
   const handleReminderChange = (index, field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      reminders: prev.reminders.map((reminder, i) => 
+      reminders: prev.reminders.map((reminder, i) =>
         i === index ? { ...reminder, [field]: value } : reminder
-      )
+      ),
     }));
   };
 
   const handleAddCustomField = () => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      customFields: [...prev.customFields, { key: '', value: '' }]
+      customFields: [...prev.customFields, { key: "", value: "" }],
     }));
   };
 
   const handleRemoveCustomField = (index) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      customFields: prev.customFields.filter((_, i) => i !== index)
+      customFields: prev.customFields.filter((_, i) => i !== index),
     }));
   };
 
   const handleCustomFieldChange = (index, field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      customFields: prev.customFields.map((customField, i) => 
+      customFields: prev.customFields.map((customField, i) =>
         i === index ? { ...customField, [field]: value } : customField
-      )
+      ),
     }));
   };
 
-  const handleRecurrenceChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      recurrence: { ...prev.recurrence, [field]: value }
-    }));
-  };
-
-  const handleDaysOfWeekChange = (day) => {
-    setFormData(prev => ({
-      ...prev,
-      recurrence: {
-        ...prev.recurrence,
-        daysOfWeek: prev.recurrence.daysOfWeek.includes(day)
-          ? prev.recurrence.daysOfWeek.filter(d => d !== day)
-          : [...prev.recurrence.daysOfWeek, day]
-      }
-    }));
-  };
 
   const getRelatedEntities = () => {
     switch (formData.relatedEntity.type) {
-      case 'task':
-        return tasks.map(task => ({ id: task._id, name: task.title }));
-      case 'deal':
-        return deals.map(deal => ({ id: deal._id, name: deal.name }));
-      case 'customer':
-        return customers.map(customer => ({ id: customer._id, name: `${customer.firstName} ${customer.lastName}` }));
-      case 'company':
-        return companies.map(company => ({ id: company._id, name: company.name }));
-      case 'lead':
-        return leads.map(lead => ({ id: lead._id, name: `${lead.firstName} ${lead.lastName}` }));
+      case "task":
+        return tasks.map((task) => ({ id: task._id, name: task.title }));
+      case "deal":
+        return deals.map((deal) => ({ id: deal._id, name: deal.name }));
+      case "customer":
+        return customers.map((customer) => ({
+          id: customer._id,
+          name: `${customer.firstName} ${customer.lastName}`,
+        }));
+      case "company":
+        return companies.map((company) => ({
+          id: company._id,
+          name: company.name,
+        }));
+      case "lead":
+        return leads.map((lead) => ({
+          id: lead._id,
+          name: `${lead.firstName} ${lead.lastName}`,
+        }));
       default:
         return [];
     }
@@ -231,55 +260,56 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
+      newErrors.title = "Title is required";
     }
-    
+
     if (!formData.startDate) {
-      newErrors.startDate = 'Start date is required';
+      newErrors.startDate = "Start date is required";
     }
-    
+
     // End date is required when not all day
     if (!formData.allDay && !formData.endDate) {
-      newErrors.endDate = 'End date is required when event is not all day';
+      newErrors.endDate = "End date is required when event is not all day";
     }
-    
+
     // If end date is provided, it must be after or equal to start date
-    if (formData.endDate && formData.startDate && new Date(formData.endDate) < new Date(formData.startDate)) {
-      newErrors.endDate = 'End date must be after or equal to start date';
+    if (
+      formData.endDate &&
+      formData.startDate &&
+      new Date(formData.endDate) < new Date(formData.startDate)
+    ) {
+      newErrors.endDate = "End date must be after or equal to start date";
     }
-    
+
     if (!formData.allDay && formData.startTime && formData.endTime) {
       const start = new Date(`${formData.startDate}T${formData.startTime}`);
       const end = new Date(`${formData.endDate}T${formData.endTime}`);
       if (start >= end) {
-        newErrors.endTime = 'End time must be after start time';
+        newErrors.endTime = "End time must be after start time";
       }
     }
-    
-    if (formData.isRecurring && formData.recurrence.frequency === 'none') {
-      newErrors.recurrence = 'Please select a recurrence frequency';
-    }
-    
+
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
-    
+
     setIsSubmitting(true);
-    
+
     try {
       await onCreateEvent(formData);
       onClose();
     } catch (error) {
-      console.error('Error creating event:', error);
+      console.error("Error creating event:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -289,25 +319,43 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75" onClick={onClose}></div>
-      
+      <div
+        className="absolute inset-0 bg-transparent backdrop-blur-sm bg-opacity-75"
+        onClick={onClose}
+      ></div>
+
       <div className="relative ml-auto h-full w-full max-w-md bg-white shadow-xl">
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
-            <h2 className="text-lg font-semibold text-gray-900">Create Event</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Create Event
+            </h2>
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
-              <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="h-6 w-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4">
+          <form
+            onSubmit={handleSubmit}
+            className="flex-1 overflow-y-auto px-6 py-4"
+          >
             <div className="space-y-6">
               {/* Title */}
               <div>
@@ -320,11 +368,13 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                   value={formData.title}
                   onChange={handleChange}
                   className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                    errors.title ? 'border-red-300' : 'border-gray-300'
+                    errors.title ? "border-red-300" : "border-gray-300"
                   }`}
                   placeholder="Event title"
                 />
-                {errors.title && <p className="mt-1 text-sm text-red-600">{errors.title}</p>}
+                {errors.title && (
+                  <p className="mt-1 text-sm text-red-600">{errors.title}</p>
+                )}
               </div>
 
               {/* Description */}
@@ -374,10 +424,14 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                     value={formData.startDate}
                     onChange={handleChange}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      errors.startDate ? 'border-red-300' : 'border-gray-300'
+                      errors.startDate ? "border-red-300" : "border-gray-300"
                     }`}
                   />
-                  {errors.startDate && <p className="mt-1 text-sm text-red-600">{errors.startDate}</p>}
+                  {errors.startDate && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.startDate}
+                    </p>
+                  )}
                 </div>
 
                 <div>
@@ -390,10 +444,14 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                     value={formData.endDate}
                     onChange={handleChange}
                     className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                      errors.endDate ? 'border-red-300' : 'border-gray-300'
+                      errors.endDate ? "border-red-300" : "border-gray-300"
                     }`}
                   />
-                  {errors.endDate && <p className="mt-1 text-sm text-red-600">{errors.endDate}</p>}
+                  {errors.endDate && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {errors.endDate}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -433,10 +491,14 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                       value={formData.endTime}
                       onChange={handleChange}
                       className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
-                        errors.endTime ? 'border-red-300' : 'border-gray-300'
+                        errors.endTime ? "border-red-300" : "border-gray-300"
                       }`}
                     />
-                    {errors.endTime && <p className="mt-1 text-sm text-red-600">{errors.endTime}</p>}
+                    {errors.endTime && (
+                      <p className="mt-1 text-sm text-red-600">
+                        {errors.endTime}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -515,7 +577,9 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                 </label>
                 <select
                   value={formData.relatedEntity.type}
-                  onChange={(e) => handleRelatedEntityChange(e.target.value, '')}
+                  onChange={(e) =>
+                    handleRelatedEntityChange(e.target.value, "")
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">None</option>
@@ -534,11 +598,18 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                   </label>
                   <select
                     value={formData.relatedEntity.id}
-                    onChange={(e) => handleRelatedEntityChange(formData.relatedEntity.type, e.target.value)}
+                    onChange={(e) =>
+                      handleRelatedEntityChange(
+                        formData.relatedEntity.type,
+                        e.target.value
+                      )
+                    }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
-                    <option value="">Select {formData.relatedEntity.type}</option>
-                    {getRelatedEntities().map(entity => (
+                    <option value="">
+                      Select {formData.relatedEntity.type}
+                    </option>
+                    {getRelatedEntities().map((entity) => (
                       <option key={entity.id} value={entity.id}>
                         {entity.name}
                       </option>
@@ -574,10 +645,10 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                   placeholder="Add tag and press Enter"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === "Enter") {
                       e.preventDefault();
                       handleAddTag(e.target.value.trim());
-                      e.target.value = '';
+                      e.target.value = "";
                     }
                   }}
                 />
@@ -589,37 +660,75 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                   Attendees
                 </label>
                 <div className="space-y-2">
-                  {formData.attendees.map((userId) => {
-                    const user = users.find(u => u._id === userId);
-                    return (
-                      <div key={userId} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                        <span className="text-sm">{user?.name || 'Unknown User'}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveAttendee(userId)}
-                          className="text-red-600 hover:text-red-800"
-                        >
-                          ×
-                        </button>
-                      </div>
-                    );
-                  })}
+                  {formData.attendees.length > 0 && (
+                    <div className="space-y-2 mb-2">
+                      {formData.attendees.map((attendeeId) => {
+                        const attendee = projectMembers.find(
+                          (m) => m._id === attendeeId
+                        );
+                        if (!attendee) return null;
+                        return (
+                          <div
+                            key={attendeeId}
+                            className="flex items-center justify-between bg-gray-50 p-2 rounded"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <div className="h-8 w-8 bg-indigo-100 rounded-full flex items-center justify-center">
+                                <span className="text-xs font-medium text-indigo-800">
+                                  {attendee.name.charAt(0).toUpperCase()}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {attendee.name}
+                                </span>
+                                {project?.owner?._id === attendeeId && (
+                                  <span className="ml-2 text-xs text-indigo-600">
+                                    (Owner)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAttendee(attendeeId)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                   <select
                     onChange={(e) => {
                       if (e.target.value) {
                         handleAddAttendee(e.target.value);
-                        e.target.value = '';
+                        e.target.value = "";
                       }
                     }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   >
                     <option value="">Add attendee...</option>
-                    {users.filter(user => !formData.attendees.includes(user._id)).map(user => (
-                      <option key={user._id} value={user._id}>
-                        {user.name}
-                      </option>
-                    ))}
+                    {projectMembers
+                      .filter(
+                        (member) => !formData.attendees.includes(member._id)
+                      )
+                      .map((member) => (
+                        <option key={member._id} value={member._id}>
+                          {member.name}
+                          {project?.owner?._id === member._id
+                            ? " (Owner)"
+                            : ` (${member.role})`}
+                        </option>
+                      ))}
                   </select>
+                  {projectMembers.length === 0 && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      No project members available
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -642,7 +751,9 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                     <div key={index} className="flex items-center space-x-2">
                       <select
                         value={reminder.type}
-                        onChange={(e) => handleReminderChange(index, 'type', e.target.value)}
+                        onChange={(e) =>
+                          handleReminderChange(index, "type", e.target.value)
+                        }
                         className="px-2 py-1 border border-gray-300 rounded text-sm"
                       >
                         <option value="email">Email</option>
@@ -651,13 +762,17 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                       <input
                         type="number"
                         value={reminder.time}
-                        onChange={(e) => handleReminderChange(index, 'time', e.target.value)}
+                        onChange={(e) =>
+                          handleReminderChange(index, "time", e.target.value)
+                        }
                         className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
                         min="1"
                       />
                       <select
                         value={reminder.unit}
-                        onChange={(e) => handleReminderChange(index, 'unit', e.target.value)}
+                        onChange={(e) =>
+                          handleReminderChange(index, "unit", e.target.value)
+                        }
                         className="px-2 py-1 border border-gray-300 rounded text-sm"
                       >
                         <option value="minutes">Minutes</option>
@@ -697,14 +812,22 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                         type="text"
                         placeholder="Field name"
                         value={field.key}
-                        onChange={(e) => handleCustomFieldChange(index, 'key', e.target.value)}
+                        onChange={(e) =>
+                          handleCustomFieldChange(index, "key", e.target.value)
+                        }
                         className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                       />
                       <input
                         type="text"
                         placeholder="Field value"
                         value={field.value}
-                        onChange={(e) => handleCustomFieldChange(index, 'value', e.target.value)}
+                        onChange={(e) =>
+                          handleCustomFieldChange(
+                            index,
+                            "value",
+                            e.target.value
+                          )
+                        }
                         className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
                       />
                       <button
@@ -719,105 +842,6 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                 </div>
               </div>
 
-              {/* Recurrence */}
-              <div>
-                <div className="flex items-center mb-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isRecurring}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 text-sm font-medium text-gray-700">
-                    Recurring Event
-                  </label>
-                </div>
-
-                {formData.isRecurring && (
-                  <div className="space-y-3 pl-6 border-l-2 border-gray-200">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Frequency
-                      </label>
-                      <select
-                        value={formData.recurrence.frequency}
-                        onChange={(e) => handleRecurrenceChange('frequency', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="none">None</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
-                      </select>
-                      {errors.recurrence && <p className="mt-1 text-sm text-red-600">{errors.recurrence}</p>}
-                    </div>
-
-                    {formData.recurrence.frequency !== 'none' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Interval
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={formData.recurrence.interval}
-                            onChange={(e) => handleRecurrenceChange('interval', parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-
-                        {formData.recurrence.frequency === 'weekly' && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Days of Week
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
-                                <label key={day} className="flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.recurrence.daysOfWeek.includes(day)}
-                                    onChange={() => handleDaysOfWeekChange(day)}
-                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                  />
-                                  <span className="ml-1 text-sm text-gray-700 capitalize">{day}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            End Date (Optional)
-                          </label>
-                          <input
-                            type="date"
-                            value={formData.recurrence.endDate}
-                            onChange={(e) => handleRecurrenceChange('endDate', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Number of Occurrences (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={formData.recurrence.occurrences || ''}
-                            onChange={(e) => handleRecurrenceChange('occurrences', e.target.value ? parseInt(e.target.value) : null)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </form>
 
@@ -837,7 +861,7 @@ const CreateEventSidebar = ({ isOpen, onClose, projectId, selectedDate, onCreate
                 disabled={isSubmitting}
                 className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50"
               >
-                {isSubmitting ? 'Creating...' : 'Create Event'}
+                {isSubmitting ? "Creating..." : "Create Event"}
               </button>
             </div>
           </div>

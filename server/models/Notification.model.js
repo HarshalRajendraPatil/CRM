@@ -99,6 +99,10 @@ const notificationSchema = new mongoose.Schema(
         'lead_note_added',
         'lead_status_updated',
         'lead_converted',
+        'lead_score_updated',
+        'lead_source_updated',
+        'lead_score_updated',
+        'lead_source_updated',
         // Customer management
         'customer_created',
         'customer_updated',
@@ -118,6 +122,14 @@ const notificationSchema = new mongoose.Schema(
         'customer_deal_unassigned',
         'customer_deal_status_updated',
         'customer_deal_stage_updated',
+        // Calendar/Event management
+        'event_created',
+        'event_updated',
+        'event_deleted',
+        'event_reminder',
+        'event_cancelled',
+        'event_attendee_added',
+        'event_attendee_removed',
       ],
       index: true
     },

@@ -1,16 +1,21 @@
-import User from '../models/User.model.js';
-import { asyncHandler, ValidationError, NotFoundError, ForbiddenError } from '../middleware/errorHandler.js';
-import { 
-  validateName, 
-  validateEmail, 
-  validatePhone, 
-  validateProfileImage, 
+import User from "../models/User.model.js";
+import {
+  asyncHandler,
+  ValidationError,
+  NotFoundError,
+  ForbiddenError,
+} from "../middleware/errorHandler.js";
+import {
+  validateName,
+  validateEmail,
+  validatePhone,
+  validateProfileImage,
   validateGlobalRole,
   validateObjectId,
   sanitizeName,
   sanitizeEmail,
-  sanitizePhone
-} from '../utils/validation.js';
+  sanitizePhone,
+} from "../utils/validation.js";
 
 // @desc    Get all users (with pagination and filtering)
 // @route   GET /api/users
@@ -22,33 +27,40 @@ export const getUsers = asyncHandler(async (req, res) => {
 
   // Build filter object
   const filter = {};
-  
+
   // Filter by role
   if (req.query.role) {
     filter.roleGlobal = req.query.role;
   }
-  
+
   // Filter by active status
   if (req.query.isActive !== undefined) {
-    filter.isActive = req.query.isActive === 'true';
+    filter.isActive = req.query.isActive === "true";
   }
-  
+
+  // Filter by project
+  if (req.query.projectId) {
+    filter.ownedProjects = req.query.projectId;
+  }
+
   // Filter by email verification status
   if (req.query.isEmailVerified !== undefined) {
-    filter.isEmailVerified = req.query.isEmailVerified === 'true';
+    filter.isEmailVerified = req.query.isEmailVerified === "true";
   }
-  
+
   // Search by name or email
   if (req.query.search) {
     filter.$or = [
-      { name: { $regex: req.query.search, $options: 'i' } },
-      { email: { $regex: req.query.search, $options: 'i' } }
+      { name: { $regex: req.query.search, $options: "i" } },
+      { email: { $regex: req.query.search, $options: "i" } },
     ];
   }
 
   // Execute query with pagination
   const users = await User.find(filter)
-    .select('-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires')
+    .select(
+      "-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires"
+    )
     .sort({ createdAt: -1 })
     .skip(skip)
     .limit(limit);
@@ -64,9 +76,9 @@ export const getUsers = asyncHandler(async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
-    }
+        pages: Math.ceil(total / limit),
+      },
+    },
   });
 });
 
@@ -75,12 +87,12 @@ export const getUsers = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const getUserById = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
   const { id } = req.params;
-  
+
   // Validate ObjectId
   const validation = validateObjectId(id);
   if (!validation.isValid) {
@@ -88,16 +100,17 @@ export const getUserById = asyncHandler(async (req, res) => {
   }
 
   // Find user by ID
-  const user = await User.findById(id)
-    .select('-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires');
-  
+  const user = await User.findById(id).select(
+    "-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires"
+  );
+
   if (!user) {
-    throw new NotFoundError('User not found');
+    throw new NotFoundError("User not found");
   }
 
   res.json({
     success: true,
-    data: { user }
+    data: { user },
   });
 });
 
@@ -106,15 +119,24 @@ export const getUserById = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const createUser = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
-  const { name, email, password, phone, profileImage, roleGlobal, isActive, isEmailVerified } = req.body;
+  const {
+    name,
+    email,
+    password,
+    phone,
+    profileImage,
+    roleGlobal,
+    isActive,
+    isEmailVerified,
+  } = req.body;
 
   // Validate required fields
   if (!name || !email || !password) {
-    throw new ValidationError('Name, email and password are required');
+    throw new ValidationError("Name, email and password are required");
   }
 
   // Validate name
@@ -132,7 +154,7 @@ export const createUser = asyncHandler(async (req, res) => {
   // Check if email already exists
   const existingUser = await User.findByEmail(email);
   if (existingUser) {
-    throw new ValidationError('User with this email already exists');
+    throw new ValidationError("User with this email already exists");
   }
 
   // Validate phone if provided
@@ -166,9 +188,9 @@ export const createUser = asyncHandler(async (req, res) => {
     password,
     phone: phone ? sanitizePhone(phone) : undefined,
     profileImage,
-    roleGlobal: roleGlobal || 'user',
+    roleGlobal: roleGlobal || "user",
     isActive: isActive !== undefined ? isActive : true,
-    isEmailVerified: isEmailVerified !== undefined ? isEmailVerified : false
+    isEmailVerified: isEmailVerified !== undefined ? isEmailVerified : false,
   });
 
   // Remove sensitive data from response
@@ -181,13 +203,13 @@ export const createUser = asyncHandler(async (req, res) => {
     roleGlobal: user.roleGlobal,
     isActive: user.isActive,
     isEmailVerified: user.isEmailVerified,
-    createdAt: user.createdAt
+    createdAt: user.createdAt,
   };
 
   res.status(201).json({
     success: true,
-    message: 'User created successfully',
-    data: { user: userResponse }
+    message: "User created successfully",
+    data: { user: userResponse },
   });
 });
 
@@ -196,12 +218,20 @@ export const createUser = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const updateUser = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
   const { id } = req.params;
-  const { name, email, phone, profileImage, roleGlobal, isActive, isEmailVerified } = req.body;
+  const {
+    name,
+    email,
+    phone,
+    profileImage,
+    roleGlobal,
+    isActive,
+    isEmailVerified,
+  } = req.body;
 
   // Validate ObjectId
   const validation = validateObjectId(id);
@@ -212,7 +242,7 @@ export const updateUser = asyncHandler(async (req, res) => {
   // Find user by ID
   const user = await User.findById(id);
   if (!user) {
-    throw new NotFoundError('User not found');
+    throw new NotFoundError("User not found");
   }
 
   // Validate and update fields if provided
@@ -229,12 +259,12 @@ export const updateUser = asyncHandler(async (req, res) => {
     if (!emailValidation.isValid) {
       throw new ValidationError(emailValidation.message);
     }
-    
+
     // Check if email is already taken by another user
     if (email !== user.email) {
       const existingUser = await User.findByEmail(email);
       if (existingUser) {
-        throw new ValidationError('Email is already in use');
+        throw new ValidationError("Email is already in use");
       }
       user.email = sanitizeEmail(email);
     }
@@ -261,37 +291,43 @@ export const updateUser = asyncHandler(async (req, res) => {
     if (!roleValidation.isValid) {
       throw new ValidationError(roleValidation.message);
     }
-    
+
     // Prevent removing the last system-admin
-    if (user.roleGlobal === 'system-admin' && roleGlobal !== 'system-admin') {
-      const adminCount = await User.countDocuments({ roleGlobal: 'system-admin' });
+    if (user.roleGlobal === "system-admin" && roleGlobal !== "system-admin") {
+      const adminCount = await User.countDocuments({
+        roleGlobal: "system-admin",
+      });
       if (adminCount <= 1) {
-        throw new ValidationError('Cannot change role: At least one system admin must exist');
+        throw new ValidationError(
+          "Cannot change role: At least one system admin must exist"
+        );
       }
     }
-    
+
     user.roleGlobal = roleGlobal;
   }
 
   if (isActive !== undefined) {
     // Prevent deactivating the last system-admin
-    if (user.roleGlobal === 'system-admin' && !isActive) {
-      const activeAdminCount = await User.countDocuments({ 
-        roleGlobal: 'system-admin',
-        isActive: true
+    if (user.roleGlobal === "system-admin" && !isActive) {
+      const activeAdminCount = await User.countDocuments({
+        roleGlobal: "system-admin",
+        isActive: true,
       });
-      
+
       if (activeAdminCount <= 1) {
-        throw new ValidationError('Cannot deactivate: At least one active system admin must exist');
+        throw new ValidationError(
+          "Cannot deactivate: At least one active system admin must exist"
+        );
       }
     }
-    
+
     user.isActive = isActive;
   }
 
   if (isEmailVerified !== undefined) {
     user.isEmailVerified = isEmailVerified;
-    
+
     // Clear verification token if email is verified
     if (isEmailVerified) {
       user.emailVerificationToken = undefined;
@@ -314,13 +350,13 @@ export const updateUser = asyncHandler(async (req, res) => {
     isEmailVerified: user.isEmailVerified,
     lastLogin: user.lastLogin,
     createdAt: user.createdAt,
-    updatedAt: user.updatedAt
+    updatedAt: user.updatedAt,
   };
 
   res.json({
     success: true,
-    message: 'User updated successfully',
-    data: { user: userResponse }
+    message: "User updated successfully",
+    data: { user: userResponse },
   });
 });
 
@@ -329,8 +365,8 @@ export const updateUser = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const deleteUser = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
   const { id } = req.params;
@@ -344,20 +380,24 @@ export const deleteUser = asyncHandler(async (req, res) => {
   // Find user by ID
   const user = await User.findById(id);
   if (!user) {
-    throw new NotFoundError('User not found');
+    throw new NotFoundError("User not found");
   }
 
   // Prevent deleting the last system-admin
-  if (user.roleGlobal === 'system-admin') {
-    const adminCount = await User.countDocuments({ roleGlobal: 'system-admin' });
+  if (user.roleGlobal === "system-admin") {
+    const adminCount = await User.countDocuments({
+      roleGlobal: "system-admin",
+    });
     if (adminCount <= 1) {
-      throw new ValidationError('Cannot delete: At least one system admin must exist');
+      throw new ValidationError(
+        "Cannot delete: At least one system admin must exist"
+      );
     }
   }
 
   // Prevent self-deletion
   if (user._id.toString() === req.user._id.toString()) {
-    throw new ValidationError('Cannot delete your own account');
+    throw new ValidationError("Cannot delete your own account");
   }
 
   // Delete user
@@ -365,7 +405,7 @@ export const deleteUser = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'User deleted successfully'
+    message: "User deleted successfully",
   });
 });
 
@@ -374,8 +414,8 @@ export const deleteUser = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const resetUserPassword = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
   const { id } = req.params;
@@ -388,13 +428,13 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
   }
 
   if (!newPassword) {
-    throw new ValidationError('New password is required');
+    throw new ValidationError("New password is required");
   }
 
   // Find user by ID
   const user = await User.findById(id);
   if (!user) {
-    throw new NotFoundError('User not found');
+    throw new NotFoundError("User not found");
   }
 
   // Update password
@@ -405,7 +445,7 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: 'User password reset successfully'
+    message: "User password reset successfully",
   });
 });
 
@@ -414,8 +454,8 @@ export const resetUserPassword = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const toggleUserStatus = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
   const { id } = req.params;
@@ -429,24 +469,26 @@ export const toggleUserStatus = asyncHandler(async (req, res) => {
   // Find user by ID
   const user = await User.findById(id);
   if (!user) {
-    throw new NotFoundError('User not found');
+    throw new NotFoundError("User not found");
   }
 
   // Prevent deactivating the last system-admin
-  if (user.roleGlobal === 'system-admin' && user.isActive) {
-    const activeAdminCount = await User.countDocuments({ 
-      roleGlobal: 'system-admin',
-      isActive: true
+  if (user.roleGlobal === "system-admin" && user.isActive) {
+    const activeAdminCount = await User.countDocuments({
+      roleGlobal: "system-admin",
+      isActive: true,
     });
-    
+
     if (activeAdminCount <= 1) {
-      throw new ValidationError('Cannot deactivate: At least one active system admin must exist');
+      throw new ValidationError(
+        "Cannot deactivate: At least one active system admin must exist"
+      );
     }
   }
 
   // Prevent self-deactivation
   if (user._id.toString() === req.user._id.toString()) {
-    throw new ValidationError('Cannot deactivate your own account');
+    throw new ValidationError("Cannot deactivate your own account");
   }
 
   // Toggle status
@@ -455,8 +497,8 @@ export const toggleUserStatus = asyncHandler(async (req, res) => {
 
   res.json({
     success: true,
-    message: `User ${user.isActive ? 'activated' : 'deactivated'} successfully`,
-    data: { isActive: user.isActive }
+    message: `User ${user.isActive ? "activated" : "deactivated"} successfully`,
+    data: { isActive: user.isActive },
   });
 });
 
@@ -465,31 +507,37 @@ export const toggleUserStatus = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const getUserStats = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
   // Get total users count
   const totalUsers = await User.countDocuments();
-  
+
   // Get active users count
   const activeUsers = await User.countDocuments({ isActive: true });
-  
+
   // Get system admin count
-  const systemAdmins = await User.countDocuments({ roleGlobal: 'system-admin' });
-  
+  const systemAdmins = await User.countDocuments({
+    roleGlobal: "system-admin",
+  });
+
   // Get verified users count
   const verifiedUsers = await User.countDocuments({ isEmailVerified: true });
-  
+
   // Get users registered in the last 30 days
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  const newUsers = await User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } });
-  
+  const newUsers = await User.countDocuments({
+    createdAt: { $gte: thirtyDaysAgo },
+  });
+
   // Get users who logged in in the last 7 days
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  const recentlyActiveUsers = await User.countDocuments({ lastLogin: { $gte: sevenDaysAgo } });
+  const recentlyActiveUsers = await User.countDocuments({
+    lastLogin: { $gte: sevenDaysAgo },
+  });
 
   res.json({
     success: true,
@@ -499,8 +547,8 @@ export const getUserStats = asyncHandler(async (req, res) => {
       systemAdmins,
       verifiedUsers,
       newUsers,
-      recentlyActiveUsers
-    }
+      recentlyActiveUsers,
+    },
   });
 });
 
@@ -509,8 +557,8 @@ export const getUserStats = asyncHandler(async (req, res) => {
 // @access  Private/SystemAdmin
 export const getUserActivity = asyncHandler(async (req, res) => {
   // Check if user is system-admin
-  if (req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Not authorized to access this resource');
+  if (req.user.roleGlobal !== "system-admin") {
+    throw new ForbiddenError("Not authorized to access this resource");
   }
 
   const { id } = req.params;
@@ -524,24 +572,24 @@ export const getUserActivity = asyncHandler(async (req, res) => {
   // Find user by ID
   const user = await User.findById(id);
   if (!user) {
-    throw new NotFoundError('User not found');
+    throw new NotFoundError("User not found");
   }
 
   // In a real implementation, you would fetch activity logs from a separate collection
   // For now, we'll just return a placeholder response
   res.json({
     success: true,
-    message: 'Activity log functionality requires additional implementation',
+    message: "Activity log functionality requires additional implementation",
     data: {
       userId: id,
       activities: [
         {
-          type: 'login',
+          type: "login",
           timestamp: user.lastLogin || new Date(),
-          details: 'User logged in'
-        }
-      ]
-    }
+          details: "User logged in",
+        },
+      ],
+    },
   });
 });
 
@@ -554,5 +602,5 @@ export default {
   resetUserPassword,
   toggleUserStatus,
   getUserStats,
-  getUserActivity
-}; 
+  getUserActivity,
+};

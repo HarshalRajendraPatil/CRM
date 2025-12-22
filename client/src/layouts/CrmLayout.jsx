@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
-import { logout } from '../store/authSlice';
-import NotificationBell from '../components/notifications/NotificationBell';
-import socketService from '../utils/socketService';
-import { SettingsProvider, useSettings } from '../contexts/SettingsContext';
-import { useProjectAccess } from '../hooks/useProjectAccess';
-import { getProjectById } from '../store/projectSlice';
+import React, { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { logout } from "../store/authSlice";
+import NotificationBell from "../components/notifications/NotificationBell";
+import socketService from "../utils/socketService";
+import { SettingsProvider, useSettings } from "../contexts/SettingsContext";
+import { useProjectAccess } from "../hooks/useProjectAccess";
+import { getProjectById } from "../store/projectSlice";
 
 const CrmContent = ({ children }) => {
   const location = useLocation();
@@ -16,153 +16,245 @@ const CrmContent = ({ children }) => {
   const { user } = useSelector((state) => state.auth);
   const { currentProject, isLoading } = useSelector((state) => state.projects);
   const { settings } = useSettings();
-  const {hasManagerAccess} = useProjectAccess();
-  
+  const { hasManagerAccess } = useProjectAccess();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  
+  const [searchQuery, setSearchQuery] = useState("");
+
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
-  
+
   const toggleProfileMenu = () => {
     setProfileMenuOpen(!profileMenuOpen);
   };
-  
+
   const handleLogout = () => {
     dispatch(logout());
-    navigate('/login');
+    navigate("/login");
   };
-  
+
   const handleSearch = (e) => {
     e.preventDefault();
     // Implement search functionality
-    console.log('Searching for:', searchQuery);
-  };
-  
-  const handleBackToProjects = () => {
-    navigate('/projects');
+    console.log("Searching for:", searchQuery);
   };
 
-const isInsideProject = location.pathname.includes('/crm/') && location.pathname.split('/').length > 3;
-  
-// Initialize socket connection
-useEffect(() => {
-  if (projectId){
-    dispatch(getProjectById(projectId));
-  }
-  if (isInsideProject) {
-    const projectId = location.pathname.split('/')[2];
-    socketService.joinProjectRoom(projectId);
-  }
-  
-  // Cleanup on unmount
-  return () => {
-    if (isInsideProject) {
-      const projectId = location.pathname.split('/')[2];
-      socketService.leaveProjectRoom(projectId);
-    }
+  const handleBackToProjects = () => {
+    navigate("/projects");
   };
-}, [location.pathname]);
-  
+
+  const isInsideProject =
+    location.pathname.includes("/crm/") &&
+    location.pathname.split("/").length > 3;
+
+  // Initialize socket connection
+  useEffect(() => {
+    if (projectId) {
+      dispatch(getProjectById(projectId));
+    }
+    if (isInsideProject) {
+      const projectId = location.pathname.split("/")[2];
+      socketService.joinProjectRoom(projectId);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (isInsideProject) {
+        const projectId = location.pathname.split("/")[2];
+        socketService.leaveProjectRoom(projectId);
+      }
+    };
+  }, [location.pathname]);
+
   // Navigation items for CRM
   const navigationItems = [
-    { 
-      name: 'Dashboard', 
-      path: `/crm/${projectId}/dashboard`, 
+    {
+      name: "Dashboard",
+      path: `/crm/${projectId}/dashboard`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+          ></path>
         </svg>
-      )
+      ),
     },
-    { 
-      name: 'Notifications', 
-      path: `/notifications`, 
+    {
+      name: "Companies",
+      path: `/crm/${projectId}/companies`,
       icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+          ></path>
         </svg>
-      )
-    },
-    { 
-      name: 'Companies', 
-      path: `/crm/${projectId}/companies`, 
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-        </svg>
-      )
+      ),
     },
 
-    { 
-      name: 'Leads', 
-      path: `/crm/${projectId}/leads`, 
+    {
+      name: "Leads",
+      path: `/crm/${projectId}/leads`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+          ></path>
         </svg>
-      )
+      ),
     },
-    { 
-      name: 'Customers', 
-      path: `/crm/${projectId}/customers`, 
+    {
+      name: "Customers",
+      path: `/crm/${projectId}/customers`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+          ></path>
         </svg>
-      )
+      ),
     },
-    { 
-      name: 'Deals', 
-      path: `/crm/${projectId}/deals`, 
+    {
+      name: "Deals",
+      path: `/crm/${projectId}/deals`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
         </svg>
-      )
+      ),
     },
-    
-    { 
-      name: 'Tasks', 
-      path: `/crm/${projectId}/tasks`, 
+
+    {
+      name: "Tasks",
+      path: `/crm/${projectId}/tasks`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+          ></path>
         </svg>
-      )
+      ),
     },
-    { 
-      name: 'Calendar', 
-      path: `/crm/${projectId}/calendar`, 
+    {
+      name: "Calendar",
+      path: `/crm/${projectId}/calendar`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+          ></path>
         </svg>
-      )
+      ),
     },
-    { 
-      name: 'Reports', 
-      path: `/crm/${projectId}/reports`, 
+    {
+      name: "Reports",
+      path: `/crm/${projectId}/reports`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+          ></path>
         </svg>
-      )
+      ),
     },
     hasManagerAccess && {
-      name: 'Performance', 
-      path: `/crm/${projectId}/performance`, 
+      name: "Performance",
+      path: `/crm/${projectId}/performance`,
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+          ></path>
         </svg>
-      )
+      ),
     },
-    // { 
-    //   name: 'Settings', 
-    //   path: `/crm/${projectId}/settings`, 
+    // {
+    //   name: 'Settings',
+    //   path: `/crm/${projectId}/settings`,
     //   icon: (
     //     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     //       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
@@ -170,17 +262,28 @@ useEffect(() => {
     //     </svg>
     //   )
     // },
-    { 
-      name: 'Back to Projects', 
-      path: '/projects', 
+    {
+      name: "Back to Projects",
+      path: "/projects",
       icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"></path>
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M11 15l-3-3m0 0l3-3m-3 3h8M3 12a9 9 0 1118 0 9 9 0 01-18 0z"
+          ></path>
         </svg>
-      )
-    }
+      ),
+    },
   ];
-  
+
   const isActive = (path) => {
     return location.pathname === path;
   };
@@ -188,8 +291,15 @@ useEffect(() => {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar for mobile */}
-      <div className={`fixed inset-0 z-40 lg:hidden ${sidebarOpen ? 'block' : 'hidden'}`}>
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={toggleSidebar}></div>
+      <div
+        className={`fixed inset-0 z-40 lg:hidden ${
+          sidebarOpen ? "block" : "hidden"
+        }`}
+      >
+        <div
+          className="fixed inset-0 bg-gray-600 bg-opacity-75"
+          onClick={toggleSidebar}
+        ></div>
         <div className="relative flex-1 flex flex-col max-w-xs w-full bg-white">
           <div className="absolute top-0 right-0 -mr-12 pt-2">
             <button
@@ -197,31 +307,49 @@ useEffect(() => {
               onClick={toggleSidebar}
             >
               <span className="sr-only">Close sidebar</span>
-              <svg className="h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+              <svg
+                className="h-6 w-6 text-white"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="2"
+                  d="M6 18L18 6M6 6l12 12"
+                />
               </svg>
             </button>
           </div>
           <div className="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
             <div className="flex-shrink-0 flex items-center px-4">
               <span className="text-xl font-bold text-indigo-600">
-                {settings?.general?.crmName || currentProject?.name || 'CRM Project'}
+                {settings?.general?.crmName ||
+                  currentProject?.name ||
+                  "CRM Project"}
               </span>
             </div>
             <nav className="mt-5 px-2 space-y-1">
               {navigationItems.map((item) => (
                 <Link
-                  key={item.name}
+                  key={item.name + item.path}
                   to={item.path}
                   className={`group flex items-center px-2 py-2 text-base font-medium rounded-md ${
                     isActive(item.path)
-                      ? 'bg-indigo-50 text-indigo-600'
-                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                      ? "bg-indigo-50 text-indigo-600"
+                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                   }`}
                 >
-                  <div className={`mr-4 flex-shrink-0 ${
-                    isActive(item.path) ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
-                  }`}>
+                  <div
+                    className={`mr-4 flex-shrink-0 ${
+                      isActive(item.path)
+                        ? "text-indigo-600"
+                        : "text-gray-400 group-hover:text-gray-500"
+                    }`}
+                  >
                     {item.icon}
                   </div>
                   {item.name}
@@ -234,13 +362,21 @@ useEffect(() => {
               <div>
                 <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
                   <span className="text-indigo-800 font-medium text-sm">
-                    {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                    {user?.name
+                      ?.split(" ")
+                      .map((n) => n[0])
+                      .join("")
+                      .toUpperCase()}
                   </span>
                 </div>
               </div>
               <div className="ml-3">
-                <p className="text-base font-medium text-gray-700">{user?.name}</p>
-                <p className="text-sm font-medium text-gray-500">{user?.email}</p>
+                <p className="text-base font-medium text-gray-700">
+                  {user?.name}
+                </p>
+                <p className="text-sm font-medium text-gray-500">
+                  {user?.email}
+                </p>
               </div>
             </div>
           </div>
@@ -254,23 +390,29 @@ useEffect(() => {
             <div className="flex-1 flex flex-col pt-5 pb-4 overflow-y-auto">
               <div className="flex items-center flex-shrink-0 px-4">
                 <span className="text-xl font-bold text-indigo-600">
-                  {settings?.general?.crmName || currentProject?.name || 'CRM Project'}
+                  {settings?.general?.crmName ||
+                    currentProject?.name ||
+                    "CRM Project"}
                 </span>
               </div>
               <nav className="mt-5 flex-1 px-2 bg-white space-y-1">
                 {navigationItems.map((item) => (
                   <Link
-                    key={item.name}
+                    key={item.name + item.path}
                     to={item.path}
                     className={`group flex items-center px-2 py-2 text-sm font-medium rounded-md ${
                       isActive(item.path)
-                        ? 'bg-indigo-50 text-indigo-600'
-                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                        ? "bg-indigo-50 text-indigo-600"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
                     }`}
                   >
-                    <div className={`mr-3 flex-shrink-0 ${
-                      isActive(item.path) ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-500'
-                    }`}>
+                    <div
+                      className={`mr-3 flex-shrink-0 ${
+                        isActive(item.path)
+                          ? "text-indigo-600"
+                          : "text-gray-400 group-hover:text-gray-500"
+                      }`}
+                    >
                       {item.icon}
                     </div>
                     {item.name}
@@ -290,7 +432,11 @@ useEffect(() => {
                   ) : (
                     <div className="h-9 w-9 rounded-full bg-indigo-100 flex items-center justify-center">
                       <span className="text-indigo-800 font-medium text-sm">
-                        {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {user?.name
+                          ?.split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()}
                       </span>
                     </div>
                   )}
@@ -317,19 +463,43 @@ useEffect(() => {
             onClick={toggleSidebar}
           >
             <span className="sr-only">Open sidebar</span>
-            <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h8m-8 6h16" />
+            <svg
+              className="h-6 w-6"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                d="M4 6h16M4 12h8m-8 6h16"
+              />
             </svg>
           </button>
-          
+
           <div className="flex-1 px-4 flex justify-between">
             <div className="flex-1 flex">
               <form className="w-full flex md:ml-0" onSubmit={handleSearch}>
-                <label htmlFor="search-field" className="sr-only">Search</label>
+                <label htmlFor="search-field" className="sr-only">
+                  Search
+                </label>
                 <div className="relative w-full text-gray-400 focus-within:text-gray-600">
                   <div className="absolute inset-y-0 left-0 flex items-center pointer-events-none">
-                    <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                    <svg
+                      className="h-5 w-5"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+                        clipRule="evenodd"
+                      />
                     </svg>
                   </div>
                   <input
@@ -344,7 +514,7 @@ useEffect(() => {
                 </div>
               </form>
             </div>
-            
+
             <div className="ml-4 flex items-center md:ml-6">
               {/* Back to Projects button */}
               <button
@@ -352,11 +522,22 @@ useEffect(() => {
                 className="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
               >
                 <span className="sr-only">Back to Projects</span>
-                <svg className="h-6 w-6" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                <svg
+                  className="h-6 w-6"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M11 17l-5-5m0 0l5-5m-5 5h12"
+                  />
                 </svg>
               </button>
-              
+
               {/* Notification Bell */}
               <NotificationBell />
 
@@ -376,15 +557,29 @@ useEffect(() => {
                   ) : (
                     <div className="h-8 w-8 rounded-full bg-indigo-100 flex items-center justify-center">
                       <span className="text-indigo-800 font-medium text-sm">
-                        {user?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {user?.name
+                          ?.split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()}
                       </span>
                     </div>
                   )}
                 </button>
                 {profileMenuOpen && (
                   <div className="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg py-1 bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
-                    <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Your Profile</Link>
-                    <Link to="/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</Link>
+                    <Link
+                      to="/profile"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Your Profile
+                    </Link>
+                    <Link
+                      to="/settings"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                    >
+                      Settings
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

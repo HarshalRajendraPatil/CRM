@@ -333,62 +333,6 @@ export const validateCustomFields = (customFields) => {
   return fieldMap;
 };
 
-// Recurrence validation
-export const validateRecurrence = (recurrence) => {
-  if (!recurrence || !recurrence.enabled) {
-    return { enabled: false };
-  }
-  
-  const validPatterns = ['daily', 'weekly', 'monthly', 'yearly'];
-  
-  if (!recurrence.pattern || !validPatterns.includes(recurrence.pattern)) {
-    throw new Error(`Invalid recurrence pattern. Must be one of: ${validPatterns.join(', ')}`);
-  }
-  
-  const interval = Number(recurrence.interval) || 1;
-  if (interval < 1 || interval > 365) {
-    throw new Error('Recurrence interval must be between 1 and 365');
-  }
-  
-  const validatedRecurrence = {
-    enabled: true,
-    pattern: recurrence.pattern,
-    interval
-  };
-  
-  // Validate days of week for weekly pattern
-  if (recurrence.pattern === 'weekly' && recurrence.daysOfWeek) {
-    if (!Array.isArray(recurrence.daysOfWeek)) {
-      throw new Error('Days of week must be an array');
-    }
-    
-    const validDays = recurrence.daysOfWeek.every(day => 
-      Number.isInteger(day) && day >= 0 && day <= 6
-    );
-    
-    if (!validDays) {
-      throw new Error('Days of week must be integers between 0 and 6');
-    }
-    
-    validatedRecurrence.daysOfWeek = [...new Set(recurrence.daysOfWeek)].sort();
-  }
-  
-  // Validate end date
-  if (recurrence.endDate) {
-    validatedRecurrence.endDate = validateDate(recurrence.endDate, 'Recurrence end date');
-  }
-  
-  // Validate occurrences
-  if (recurrence.occurrences) {
-    const occurrences = Number(recurrence.occurrences);
-    if (occurrences < 1 || occurrences > 1000) {
-      throw new Error('Recurrence occurrences must be between 1 and 1000');
-    }
-    validatedRecurrence.occurrences = occurrences;
-  }
-  
-  return validatedRecurrence;
-};
 
 // Reminders validation
 export const validateReminders = (reminders) => {
@@ -518,9 +462,6 @@ export const validateTaskData = (data, isUpdate = false) => {
     if (data.customFields !== undefined) {
       validatedData.customFields = validateCustomFields(data.customFields);
     }
-    if (data.recurrence !== undefined) {
-      validatedData.recurrence = validateRecurrence(data.recurrence);
-    }
     if (data.reminders !== undefined) {
       validatedData.reminders = validateReminders(data.reminders);
     }
@@ -549,7 +490,7 @@ export const sanitizeTaskData = (data) => {
     'status', 'priority', 'type', 'dueDate', 'startDate',
     'estimatedHours', 'actualHours', 'progress', 'completionNotes',
     'relatedEntity', 'subtasks', 'dependencies', 'tags',
-    'customFields', 'recurrence', 'reminders', 'visibility'
+    'customFields', 'reminders', 'visibility'
   ];
   
   Object.keys(sanitized).forEach(key => {

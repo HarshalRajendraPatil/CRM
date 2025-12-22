@@ -1,9 +1,9 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import leadService from '../services/leadService';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import leadService from "../services/leadService";
 
 // Async thunks
 export const getProjectLeads = createAsyncThunk(
-  'leads/getProjectLeads',
+  "leads/getProjectLeads",
   async ({ projectId, params = {} }) => {
     const response = await leadService.getProjectLeads(projectId, params);
     return response.data.data;
@@ -11,79 +11,79 @@ export const getProjectLeads = createAsyncThunk(
 );
 
 export const fetchLead = createAsyncThunk(
-  'leads/fetchLead',
-  async ({projectId, id}) => {
+  "leads/fetchLead",
+  async ({ projectId, id }) => {
     const response = await leadService.fetchLead(projectId, id);
     return response.data.data;
   }
 );
 
 export const createLead = createAsyncThunk(
-  'leads/createLead',
-  async ({projectId, leadData}) => {
+  "leads/createLead",
+  async ({ projectId, leadData }) => {
     const response = await leadService.createLead(projectId, leadData);
     return response.data.data;
   }
 );
 
 export const updateLead = createAsyncThunk(
-  'leads/updateLead',
-  async ({projectId, id, leadData }) => {
+  "leads/updateLead",
+  async ({ projectId, id, leadData }) => {
     const response = await leadService.updateLead(projectId, id, leadData);
     return response.data.data;
   }
 );
 
 export const archiveLead = createAsyncThunk(
-  'leads/archiveLead',
-  async ({projectId, id}) => {
+  "leads/archiveLead",
+  async ({ projectId, id }) => {
     const response = await leadService.archiveLead(projectId, id);
     return response.data.data;
   }
 );
 
 export const deleteLead = createAsyncThunk(
-  'leads/deleteLead',
-  async ({projectId, id}) => {
+  "leads/deleteLead",
+  async ({ projectId, id }) => {
     await leadService.deleteLead(projectId, id);
     return { id, projectId };
   }
 );
 
 export const addLeadNote = createAsyncThunk(
-  'leads/addLeadNote',
-  async ({projectId, id, content }) => {
+  "leads/addLeadNote",
+  async ({ projectId, id, content }) => {
     const response = await leadService.addLeadNote(projectId, id, { content });
     return response.data.data;
   }
 );
 
 export const convertLead = createAsyncThunk(
-  'leads/convertLead',
-  async ({projectId, id}) => {
+  "leads/convertLead",
+  async ({ projectId, id }) => {
     const response = await leadService.convertLead(projectId, id);
     return response.data.data;
   }
 );
 
 export const updateLeadStatus = createAsyncThunk(
-  'leads/updateLeadStatus',
-  async ({projectId, id, status }) => {
+  "leads/updateLeadStatus",
+  async ({ projectId, id, status }) => {
     const response = await leadService.updateLeadStatus(projectId, id, status);
     return response.data.data;
   }
 );
 
 export const assignLeadToUser = createAsyncThunk(
-  'leads/assignLeadToUser',
-  async ({projectId, id, userId }) => {
+  "leads/assignLeadToUser",
+  async ({ projectId, id, userId }) => {
     const response = await leadService.assignLeadToUser(projectId, id, userId);
     return response.data.data;
   }
 );
 
 export const getLeadStats = createAsyncThunk(
-  'leads/getLeadStats',
+  "leads/getLeadStats",
   async ({ projectId }) => {
     const response = await leadService.getLeadStats(projectId);
     return response.data.data;
@@ -91,7 +91,7 @@ export const getLeadStats = createAsyncThunk(
 );
 
 export const getLeadInsights = createAsyncThunk(
-  'leads/getLeadInsights',
+  "leads/getLeadInsights",
   async ({ projectId }) => {
     const response = await leadService.getLeadInsights(projectId);
     return response.data;
@@ -99,7 +99,7 @@ export const getLeadInsights = createAsyncThunk(
 );
 
 export const getArchivedLeads = createAsyncThunk(
-  'leads/getArchivedLeads',
+  "leads/getArchivedLeads",
   async ({ projectId, params = {} }) => {
     const response = await leadService.getArchivedLeads(projectId, params);
     return response.data.data;
@@ -107,39 +107,48 @@ export const getArchivedLeads = createAsyncThunk(
 );
 
 export const unarchiveLead = createAsyncThunk(
-  'leads/unarchiveLead',
-  async ({projectId, id}) => {
+  "leads/unarchiveLead",
+  async ({ projectId, id }) => {
     const response = await leadService.unarchiveLead(projectId, id);
     return response.data;
   }
 );
 
 export const cleanupArchivedLeads = createAsyncThunk(
-  'leads/cleanupArchivedLeads',
-  async ({projectId}) => {
+  "leads/cleanupArchivedLeads",
+  async ({ projectId }) => {
     const response = await leadService.cleanupArchivedLeads(projectId);
     return response.data.data;
   }
 );
 
 export const updateLeadNote = createAsyncThunk(
-  'leads/updateLeadNote',
-  async ({projectId, id, noteId, content }) => {
-    const response = await leadService.updateLeadNote(projectId, id, noteId, content);
+  "leads/updateLeadNote",
+  async ({ projectId, id, noteId, content }) => {
+    const response = await leadService.updateLeadNote(
+      projectId,
+      id,
+      noteId,
+      content
+    );
     return response.data.data;
   }
 );
 
 export const deleteLeadNote = createAsyncThunk(
-  'leads/deleteLeadNote',
-  async ({projectId, leadId, noteId }) => {
-    const response = await leadService.deleteLeadNote(projectId, leadId, noteId);
+  "leads/deleteLeadNote",
+  async ({ projectId, leadId, noteId }) => {
+    const response = await leadService.deleteLeadNote(
+      projectId,
+      leadId,
+      noteId
+    );
     return response.data.data;
   }
 );
 
 export const getLeadForecast = createAsyncThunk(
-  'leads/getLeadForecast',
+  "leads/getLeadForecast",
   async ({ projectId, params = {} }) => {
     const response = await leadService.getLeadForecast(projectId, params);
     return response.data;
@@ -158,14 +167,14 @@ const initialState = {
     total: 0,
     limit: 20,
     skip: 0,
-    hasMore: false
+    hasMore: false,
   },
   isLoading: false,
-  error: null
+  error: null,
 };
 
 const leadSlice = createSlice({
-  name: 'leads',
+  name: "leads",
   initialState,
   reducers: {
     clearLead: (state) => {
@@ -182,13 +191,13 @@ const leadSlice = createSlice({
         total: 0,
         limit: 20,
         skip: 0,
-        hasMore: false
+        hasMore: false,
       };
       state.error = null;
     },
     clearError: (state) => {
       state.error = null;
-    }
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -206,7 +215,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Fetch Lead
       .addCase(fetchLead.pending, (state) => {
         state.isLoading = true;
@@ -221,7 +230,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Create Lead
       .addCase(createLead.pending, (state) => {
         state.isLoading = true;
@@ -241,7 +250,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Update Lead
       .addCase(updateLead.pending, (state) => {
         state.isLoading = true;
@@ -250,7 +259,9 @@ const leadSlice = createSlice({
       .addCase(updateLead.fulfilled, (state, action) => {
         state.isLoading = false;
         const updatedLead = action.payload.lead;
-        const index = state.leads.findIndex(lead => lead._id === updatedLead._id);
+        const index = state.leads.findIndex(
+          (lead) => lead._id === updatedLead._id
+        );
         if (index !== -1) {
           state.leads[index] = updatedLead;
         }
@@ -265,7 +276,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Archive Lead
       .addCase(archiveLead.pending, (state) => {
         state.isLoading = true;
@@ -273,7 +284,9 @@ const leadSlice = createSlice({
       })
       .addCase(archiveLead.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.leads = state.leads.filter(lead => lead._id !== action.meta.arg);
+        state.leads = state.leads.filter(
+          (lead) => lead._id !== action.meta.arg
+        );
         state.pagination.total -= 1;
         if (state.selected && state.selected._id === action.meta.arg) {
           state.selected = null;
@@ -286,7 +299,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Delete Lead (Permanent)
       .addCase(deleteLead.pending, (state) => {
         state.isLoading = true;
@@ -295,16 +308,18 @@ const leadSlice = createSlice({
       .addCase(deleteLead.fulfilled, (state, action) => {
         state.isLoading = false;
         const leadId = action.payload.id;
-        
+
         // Remove from leads array
-        state.leads = state.leads.filter(lead => lead._id !== leadId);
+        state.leads = state.leads.filter((lead) => lead._id !== leadId);
         if (state.pagination.total > 0) {
           state.pagination.total -= 1;
         }
-        
+
         // Remove from archived leads if present
-        state.archivedLeads = state.archivedLeads.filter(lead => lead._id !== leadId);
-        
+        state.archivedLeads = state.archivedLeads.filter(
+          (lead) => lead._id !== leadId
+        );
+
         // Clear selected if it's the deleted lead
         if (state.selected && state.selected._id === leadId) {
           state.selected = null;
@@ -317,7 +332,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Add Lead Note
       .addCase(addLeadNote.pending, (state) => {
         state.isLoading = true;
@@ -327,16 +342,16 @@ const leadSlice = createSlice({
         state.isLoading = false;
         const { note } = action.payload;
         const leadId = action.meta.arg.id;
-        
+
         // Update in leads array
-        const leadIndex = state.leads.findIndex(lead => lead._id === leadId);
+        const leadIndex = state.leads.findIndex((lead) => lead._id === leadId);
         if (leadIndex !== -1) {
           if (!state.leads[leadIndex].notes) {
             state.leads[leadIndex].notes = [];
           }
           state.leads[leadIndex].notes.push(note);
         }
-        
+
         // Update in selected lead
         if (state.selected && state.selected._id === leadId) {
           if (!state.selected.notes) {
@@ -344,7 +359,7 @@ const leadSlice = createSlice({
           }
           state.selected.notes.push(note);
         }
-        
+
         // Update in lead detail
         if (state.lead && state.lead._id === leadId) {
           if (!state.lead.notes) {
@@ -357,7 +372,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Convert Lead
       .addCase(convertLead.pending, (state) => {
         state.isLoading = true;
@@ -366,11 +381,11 @@ const leadSlice = createSlice({
       .addCase(convertLead.fulfilled, (state, action) => {
         state.isLoading = false;
         const leadId = action.meta.arg;
-        
+
         // Remove from leads array
-        state.leads = state.leads.filter(lead => lead._id !== leadId);
+        state.leads = state.leads.filter((lead) => lead._id !== leadId);
         state.pagination.total -= 1;
-        
+
         // Clear selected if it's the converted lead
         if (state.selected && state.selected._id === leadId) {
           state.selected = null;
@@ -383,7 +398,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Update Lead Status
       .addCase(updateLeadStatus.pending, (state) => {
         state.isLoading = true;
@@ -393,18 +408,18 @@ const leadSlice = createSlice({
         state.isLoading = false;
         const updatedLead = action.payload.lead;
         const leadId = action.meta.arg.id;
-        
+
         // Update in leads array
-        const leadIndex = state.leads.findIndex(lead => lead._id === leadId);
+        const leadIndex = state.leads.findIndex((lead) => lead._id === leadId);
         if (leadIndex !== -1) {
           state.leads[leadIndex] = updatedLead;
         }
-        
+
         // Update in selected lead
         if (state.selected && state.selected._id === leadId) {
           state.selected = updatedLead;
         }
-        
+
         // Update in lead detail
         if (state.lead && state.lead._id === leadId) {
           state.lead = updatedLead;
@@ -414,7 +429,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Assign Lead to User
       .addCase(assignLeadToUser.pending, (state) => {
         state.isLoading = true;
@@ -424,18 +439,18 @@ const leadSlice = createSlice({
         state.isLoading = false;
         const updatedLead = action.payload.lead;
         const leadId = action.meta.arg.id;
-        
+
         // Update in leads array
-        const leadIndex = state.leads.findIndex(lead => lead._id === leadId);
+        const leadIndex = state.leads.findIndex((lead) => lead._id === leadId);
         if (leadIndex !== -1) {
           state.leads[leadIndex] = updatedLead;
         }
-        
+
         // Update in selected lead
         if (state.selected && state.selected._id === leadId) {
           state.selected = updatedLead;
         }
-        
+
         // Update in lead detail
         if (state.lead && state.lead._id === leadId) {
           state.lead = updatedLead;
@@ -445,7 +460,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Get Lead Stats
       .addCase(getLeadStats.pending, (state) => {
         state.isLoading = true;
@@ -459,7 +474,7 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       })
-      
+
       // Get Lead Insights
       .addCase(getLeadInsights.pending, (state) => {
         state.isLoading = true;
@@ -498,16 +513,18 @@ const leadSlice = createSlice({
         state.isLoading = false;
         const unarchivedLead = action.payload.lead;
         const leadId = action.meta.arg;
-        
+
         // Remove from archived leads
-        state.archivedLeads = state.archivedLeads.filter(lead => lead._id !== leadId);
+        state.archivedLeads = state.archivedLeads.filter(
+          (lead) => lead._id !== leadId
+        );
         state.pagination.total -= 1;
-        
+
         // Add to active leads only if the lead data is valid
         if (unarchivedLead && unarchivedLead._id) {
           state.leads.unshift(unarchivedLead);
         }
-        
+
         // If the unarchived lead was selected, clear selection
         if (state.selected && state.selected._id === leadId) {
           state.selected = null;
@@ -548,10 +565,10 @@ const leadSlice = createSlice({
         const content = action.payload.content;
 
         // Update in leads array
-        const leadIndex = state.leads.findIndex(lead => lead._id === leadId);
+        const leadIndex = state.leads.findIndex((lead) => lead._id === leadId);
         if (leadIndex !== -1) {
           const notes = state.leads[leadIndex].notes || [];
-          const noteIndex = notes.findIndex(note => note._id === noteId);
+          const noteIndex = notes.findIndex((note) => note._id === noteId);
           if (noteIndex !== -1) {
             notes[noteIndex].content = content;
           }
@@ -560,7 +577,7 @@ const leadSlice = createSlice({
         // Update in selected lead
         if (state.selected && state.selected._id === leadId) {
           const notes = state.selected.notes || [];
-          const noteIndex = notes.findIndex(note => note._id === noteId);
+          const noteIndex = notes.findIndex((note) => note._id === noteId);
           if (noteIndex !== -1) {
             notes[noteIndex].content = content;
           }
@@ -569,7 +586,7 @@ const leadSlice = createSlice({
         // Update in lead detail
         if (state.lead && state.lead._id === leadId) {
           const notes = state.lead.notes || [];
-          const noteIndex = notes.findIndex(note => note._id === noteId);
+          const noteIndex = notes.findIndex((note) => note._id === noteId);
           if (noteIndex !== -1) {
             notes[noteIndex].content = content;
           }
@@ -591,22 +608,24 @@ const leadSlice = createSlice({
         const noteId = action.meta.arg.noteId;
 
         // Update in leads array
-        const leadIndex = state.leads.findIndex(lead => lead._id === leadId);
+        const leadIndex = state.leads.findIndex((lead) => lead._id === leadId);
         if (leadIndex !== -1) {
           const notes = state.leads[leadIndex].notes || [];
-          state.leads[leadIndex].notes = notes.filter(note => note._id !== noteId);
+          state.leads[leadIndex].notes = notes.filter(
+            (note) => note._id !== noteId
+          );
         }
 
         // Update in selected lead
         if (state.selected && state.selected._id === leadId) {
           const notes = state.selected.notes || [];
-          state.selected.notes = notes.filter(note => note._id !== noteId);
+          state.selected.notes = notes.filter((note) => note._id !== noteId);
         }
 
         // Update in lead detail
         if (state.lead && state.lead._id === leadId) {
           const notes = state.lead.notes || [];
-          state.lead.notes = notes.filter(note => note._id !== noteId);
+          state.lead.notes = notes.filter((note) => note._id !== noteId);
         }
       })
       .addCase(deleteLeadNote.rejected, (state, action) => {
@@ -627,10 +646,8 @@ const leadSlice = createSlice({
         state.isLoading = false;
         state.error = action.error.message;
       });
-  }
+  },
 });
 
 export const { clearLead, clearLeadState, clearError } = leadSlice.actions;
 export default leadSlice.reducer;
-
-

@@ -24,6 +24,7 @@ import performanceRoutes from './routes/performance.js';
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
 import { injectSettings, validateBusinessRules, applyDefaultValues, checkNotificationSettings } from './middleware/settingsMiddleware.js';
+import scheduler from './utils/scheduler.js';
 
 // Load environment variables
 dotenv.config();
@@ -133,6 +134,9 @@ server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Health check: http://localhost:${PORT}/health`);
+  
+  // Start scheduler
+  scheduler.start();
 });
 
 // Graceful shutdown

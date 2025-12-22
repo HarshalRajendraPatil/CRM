@@ -1,11 +1,11 @@
-import React from 'react';
-import { 
-  BuildingOfficeIcon, 
-  UserGroupIcon, 
-  CurrencyDollarIcon, 
-  UserPlusIcon, 
-  ClipboardDocumentListIcon
-} from '@heroicons/react/24/outline';
+import React from "react";
+import {
+  BuildingOfficeIcon,
+  UserGroupIcon,
+  CurrencyDollarIcon,
+  UserPlusIcon,
+  ClipboardDocumentListIcon,
+} from "@heroicons/react/24/outline";
 
 const RecentActivity = ({ data, isLoading }) => {
   if (isLoading) {
@@ -37,62 +37,66 @@ const RecentActivity = ({ data, isLoading }) => {
       customers: UserGroupIcon,
       deals: CurrencyDollarIcon,
       leads: UserPlusIcon,
-      tasks: ClipboardDocumentListIcon
+      tasks: ClipboardDocumentListIcon,
     };
     return icons[type] || ClipboardDocumentListIcon;
   };
 
   const getEntityColor = (type) => {
     const colors = {
-      companies: 'bg-blue-50 text-blue-600',
-      customers: 'bg-green-50 text-green-600',
-      deals: 'bg-purple-50 text-purple-600',
-      leads: 'bg-orange-50 text-orange-600',
-      tasks: 'bg-indigo-50 text-indigo-600'
+      companies: "bg-blue-50 text-blue-600",
+      customers: "bg-green-50 text-green-600",
+      deals: "bg-purple-50 text-purple-600",
+      leads: "bg-orange-50 text-orange-600",
+      tasks: "bg-indigo-50 text-indigo-600",
     };
-    return colors[type] || 'bg-gray-50 text-gray-600';
+    return colors[type] || "bg-gray-50 text-gray-600";
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
     });
   };
 
   const getStatusColor = (status) => {
     const colors = {
-      active: 'text-green-600',
-      inactive: 'text-gray-600',
-      archived: 'text-red-600',
-      won: 'text-green-600',
-      lost: 'text-red-600',
-      open: 'text-blue-600',
-      completed: 'text-green-600',
-      pending: 'text-yellow-600',
-      in_progress: 'text-blue-600',
-      overdue: 'text-red-600',
-      qualified: 'text-green-600',
-      unqualified: 'text-red-600',
-      converted: 'text-green-600'
+      active: "text-green-600",
+      inactive: "text-gray-600",
+      archived: "text-red-600",
+      won: "text-green-600",
+      lost: "text-red-600",
+      open: "text-blue-600",
+      completed: "text-green-600",
+      pending: "text-yellow-600",
+      in_progress: "text-blue-600",
+      overdue: "text-red-600",
+      qualified: "text-green-600",
+      unqualified: "text-red-600",
+      converted: "text-green-600",
     };
-    return colors[status] || 'text-gray-600';
+    return colors[status] || "text-gray-600";
   };
 
   // Combine all recent activities
   const allActivities = [
-    ...(data.companies || []).map(item => ({ ...item, type: 'companies' })),
-    ...(data.customers || []).map(item => ({ ...item, type: 'customers' })),
-    ...(data.deals || []).map(item => ({ ...item, type: 'deals' })),
-    ...(data.leads || []).map(item => ({ ...item, type: 'leads' })),
-    ...(data.tasks || []).map(item => ({ ...item, type: 'tasks' }))
-  ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 5);
+    ...(data.companies || []).map((item) => ({ ...item, type: "companies" })),
+    ...(data.customers || []).map((item) => ({ ...item, type: "customers" })),
+    ...(data.deals || []).map((item) => ({ ...item, type: "deals" })),
+    ...(data.leads || []).map((item) => ({ ...item, type: "leads" })),
+    ...(data.tasks || []).map((item) => ({ ...item, type: "tasks" })),
+  ]
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 5);
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h3>
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">
+        Recent Activity
+      </h3>
       <div className="space-y-4">
         {allActivities.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
@@ -102,21 +106,33 @@ const RecentActivity = ({ data, isLoading }) => {
           allActivities.map((activity, index) => {
             const Icon = getEntityIcon(activity.type);
             return (
-              <div key={index} className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
-                <div className={`p-2 rounded-lg ${getEntityColor(activity.type)}`}>
+              <div
+                key={index}
+                className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors"
+              >
+                <div
+                  className={`p-2 rounded-lg ${getEntityColor(activity.type)}`}
+                >
                   <Icon className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
                     <p className="text-sm font-medium text-gray-900 truncate">
-                      {activity.name || activity.title}
+                      {activity.name ||
+                        activity.title ||
+                        activity.firstName + " " + activity.lastName ||
+                        "Unknown"}
                     </p>
                     <p className="text-xs text-gray-500">
                       {formatDate(activity.createdAt)}
                     </p>
                   </div>
                   <div className="flex items-center space-x-2 mt-1">
-                    <span className={`text-xs font-medium ${getStatusColor(activity.status)}`}>
+                    <span
+                      className={`text-xs font-medium ${getStatusColor(
+                        activity.status
+                      )}`}
+                    >
                       {activity.status}
                     </span>
                     {activity.value && (

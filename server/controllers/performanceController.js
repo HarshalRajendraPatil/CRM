@@ -67,7 +67,32 @@ export const getUserPerformance = asyncHandler(async (req, res) => {
   if (startDate) dateRange.startDate = startDate;
   if (endDate) dateRange.endDate = endDate;
 
-  const performance = await calculateUserPerformance(userId, projectId, dateRange);
+  // Check if user role allows performance tracking
+  // admin, owner, viewer don't have performance calculation, but can view others' performance
+  let performance = null;
+  if (targetUserRole === 'admin' || targetUserRole === 'owner' || targetUserRole === 'viewer') {
+    // Return null performance for these roles
+    performance = {
+      userId,
+      projectId,
+      dateRange,
+      userRole: targetUserRole,
+      performanceScore: null,
+      deals: null,
+      tasks: null,
+      customers: null,
+      leads: null,
+      companies: null,
+      activities: null,
+      events: null,
+      summary: {
+        totalTasks: 0,
+        completionRate: 0,
+      },
+    };
+  } else {
+    performance = await calculateUserPerformance(userId, projectId, dateRange, targetUserRole);
+  }
 
   res.json({
     success: true,
@@ -159,7 +184,7 @@ export const getPerformanceUsers = asyncHandler(async (req, res) => {
       const role = user.ownedProjects?.includes(projectId) ? 'owner' : 
         user.projectMembers?.find(m => m.project.toString() === projectId.toString())?.role;
 
-      // Owner and Admin can see all
+      // Owner and Admin can see all users
       // Manager can see sales_executive, support_executive, and themselves
       if (userRole === 'owner' || userRole === 'admin') {
         return {
@@ -234,9 +259,25 @@ export const getPerformanceComparison = asyncHandler(async (req, res) => {
       const user = await User.findById(userId);
       if (!user) return null;
 
-      const performance = await calculateUserPerformance(userId, projectId, dateRange);
       const role = user.ownedProjects?.includes(projectId) ? 'owner' : 
         user.projectMembers?.find(m => m.project.toString() === projectId.toString())?.role;
+
+      // Skip performance calculation for admin, owner, viewer
+      if (role === 'admin' || role === 'owner' || role === 'viewer') {
+        return {
+          user: {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            profileImage: user.profileImage,
+            role: role
+          },
+          performance: null,
+          metrics: null
+        };
+      }
+
+      const performance = await calculateUserPerformance(userId, projectId, dateRange, role);
 
       return {
         user: {
@@ -251,7 +292,8 @@ export const getPerformanceComparison = asyncHandler(async (req, res) => {
           deals: performance.deals,
           tasks: performance.tasks,
           customers: performance.customers,
-          leads: performance.leads
+          leads: performance.leads,
+          companies: performance.companies
         }
       };
     })

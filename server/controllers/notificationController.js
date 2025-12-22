@@ -24,12 +24,17 @@ export const getUserNotifications = asyncHandler(async (req, res) => {
     skip: parseInt(skip)
   };
 
+  // Build filter for notifications - only show notifications for projects user has access to
+  const filter = { recipient: req.user._id };
+
   // Apply optional filters
   if (isRead !== undefined) {
+    filter.isRead = isRead === 'true';
     options.isRead = isRead === 'true';
   }
   
   if (type) {
+    filter.type = type;
     options.type = type;
   }
   
@@ -39,22 +44,50 @@ export const getUserNotifications = asyncHandler(async (req, res) => {
     if (!projectValidation.isValid) {
       throw new ValidationError(projectValidation.message);
     }
+    
+    // Check if user has access to this project
+    const projectDoc = await Project.findById(project);
+    if (!projectDoc) {
+      throw new NotFoundError('Project not found');
+    }
+    
+    if (!projectDoc.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
+      throw new ForbiddenError('You do not have permission to view notifications for this project');
+    }
+    
+    filter.project = project;
     options.project = project;
+  } else {
+    // If no project filter, only show notifications for projects user has access to
+    const userProjects = await Project.find({
+      $or: [
+        { owner: req.user._id },
+        { 'members.user': req.user._id, 'members.inviteStatus': 'accepted' }
+      ]
+    }).select('_id');
+    
+    const projectIds = userProjects.map(p => p._id);
+    filter.project = { $in: projectIds };
   }
 
   // Get notifications
-  const notifications = await Notification.getNotificationsByUser(req.user._id, options);
+  const notifications = await Notification.find(filter)
+    .sort({ [sort]: order === 'desc' ? -1 : 1 })
+    .skip(options.skip)
+    .limit(options.limit)
+    .populate('sender', 'name email profileImage')
+    .populate('project', 'name')
+    .populate('company', 'name industry')
+    .exec();
   
   // Get total count for pagination
-  const totalCount = await Notification.countDocuments({
-    recipient: req.user._id,
-    ...(isRead !== undefined && { isRead: options.isRead }),
-    ...(type && { type }),
-    ...(project && { project })
-  });
+  const totalCount = await Notification.countDocuments(filter);
 
-  // Get unread count
-  const unreadCount = await Notification.getUnreadCount(req.user._id);
+  // Get unread count (only for accessible projects)
+  const unreadCount = await Notification.countDocuments({
+    ...filter,
+    isRead: false
+  });
 
   res.json({
     success: true,
@@ -247,7 +280,21 @@ export const deleteAllNotifications = asyncHandler(async (req, res) => {
 // @route   GET /api/notifications/unread-count
 // @access  Private
 export const getUnreadCount = asyncHandler(async (req, res) => {
-  const count = await Notification.getUnreadCount(req.user._id);
+  // Only count notifications for projects user has access to
+  const userProjects = await Project.find({
+    $or: [
+      { owner: req.user._id },
+      { 'members.user': req.user._id, 'members.inviteStatus': 'accepted' }
+    ]
+  }).select('_id');
+  
+  const projectIds = userProjects.map(p => p._id);
+  
+  const count = await Notification.countDocuments({
+    recipient: req.user._id,
+    isRead: false,
+    project: { $in: projectIds }
+  });
 
   res.json({
     success: true,

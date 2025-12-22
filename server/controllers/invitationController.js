@@ -127,7 +127,8 @@ export const createInvitation = asyncHandler(async (req, res) => {
       invitationUrl, 
       project.name, 
       req.user.name, 
-      message
+      message,
+      projectId
     );
   } catch (error) {
     console.error('Failed to send invitation email:', error);
@@ -301,6 +302,19 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
   }
   
   await project.save();
+  
+  // Log activity for member being added (when invitation is accepted)
+  try {
+    const ActivityService = (await import('../utils/activityService.js')).default;
+    const newMember = project.members.find(
+      m => m.user.toString() === req.user._id.toString() && m.inviteStatus === 'accepted'
+    );
+    if (newMember) {
+      await ActivityService.logProjectMemberAdded(project, newMember, req.user);
+    }
+  } catch (error) {
+    console.error('Failed to log project member addition activity:', error);
+  }
   
   // Update user's projectMembers array
   const userHasProject = req.user.projectMembers.some(

@@ -5,8 +5,10 @@ import User from '../models/User.model.js';
 import { validateDealData, sanitizeDealData } from '../utils/dealValidation.js';
 import { createDealNotification } from '../utils/notificationService.js';
 import ActivityService from '../utils/activityService.js';
+import activityHelper from '../utils/activityHelper.js';
 import { asyncHandler, AppError, ValidationError, ForbiddenError } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';
+import { sendDealAssignedEmail, sendDealWonEmail, sendDealLostEmail } from '../utils/emailService.js';
 
 // Helper function to format currency
 const formatCurrency = (amount, currency = 'USD') => {
@@ -371,24 +373,13 @@ export const updateDeal = asyncHandler(async (req, res) => {
     throw new AppError('Deal not found', 404);
   }
 
-  // Track changes for activity logging
-  const changes = {};
-  Object.keys(sanitizedData).forEach(key => {
-    if (key !== 'updatedBy' && key !== 'updatedAt' && existingDeal[key] !== sanitizedData[key]) {
-      changes[key] = {
-        oldValue: existingDeal[key],
-        newValue: sanitizedData[key]
-      };
-    }
-  });
+  // Store old data for comprehensive activity tracking
+  const oldData = existingDeal.toObject();
+  const oldTags = [...(existingDeal.tags || [])];
+  const oldProducts = existingDeal.products ? JSON.parse(JSON.stringify(existingDeal.products)) : [];
+  const oldCustomFields = existingDeal.customFields ? new Map(existingDeal.customFields) : new Map();
 
-  // Check for changes that need activity tracking
-  const statusChanged = sanitizedData.status && sanitizedData.status !== existingDeal.status;
-  const valueChanged = sanitizedData.value && sanitizedData.value !== existingDeal.value;
-  const assignedChanged = sanitizedData.assignedTo && sanitizedData.assignedTo.toString() !== existingDeal.assignedTo?.toString();
-  const unassigned = !sanitizedData.assignedTo && existingDeal.assignedTo;
-  const closeDateChanged = sanitizedData.expectedCloseDate && sanitizedData.expectedCloseDate.toString() !== existingDeal.expectedCloseDate?.toString();
-
+  // Check for status changes that need special handling
   if(sanitizedData.status == 'closed-won' || sanitizedData.status == 'closed-lost') {
     sanitizedData.actualCloseDate = new Date();
   }
@@ -405,13 +396,155 @@ export const updateDeal = asyncHandler(async (req, res) => {
     { path: 'company', select: 'name website' },
   ]);
 
-  // Log activity if there were changes
-  if (Object.keys(changes).length > 0) {
-    try {
-      await ActivityService.logDealUpdated(deal, changes, req.user);
+  // Comprehensive activity tracking
+  try {
+    // Track all field changes
+    await activityHelper.trackEntityChanges('Deal', deal, oldData, sanitizedData, req.user);
+    
+    // Track tag changes
+    const newTags = deal.tags || [];
+    if (JSON.stringify(oldTags.sort()) !== JSON.stringify(newTags.sort())) {
+      await activityHelper.trackTagChanges('Deal', deal, oldTags, newTags, req.user);
+    }
+    
+    // Track custom field changes
+    const newCustomFields = deal.customFields || new Map();
+    if (oldCustomFields.size !== newCustomFields.size || 
+        JSON.stringify([...oldCustomFields]) !== JSON.stringify([...newCustomFields])) {
+      await activityHelper.trackCustomFieldChanges('Deal', deal, 
+        Object.fromEntries(oldCustomFields), Object.fromEntries(newCustomFields), req.user);
+    }
+    
+    // Track product changes (if products array changed)
+    const newProducts = deal.products || [];
+    if (JSON.stringify(oldProducts) !== JSON.stringify(newProducts)) {
+      // Find added products
+      const addedProducts = newProducts.filter(p => 
+        !oldProducts.some(op => op._id?.toString() === p._id?.toString() || 
+        (op.name === p.name && op.quantity === p.quantity && op.unitPrice === p.unitPrice))
+      );
+      // Find removed products
+      const removedProducts = oldProducts.filter(op => 
+        !newProducts.some(p => p._id?.toString() === op._id?.toString() || 
+        (p.name === op.name && p.quantity === op.quantity && p.unitPrice === op.unitPrice))
+      );
+      
+      for (const product of addedProducts) {
+        await ActivityService.logDealProductAdded(deal, product, req.user);
+      }
+      for (const product of removedProducts) {
+        await ActivityService.logDealProductRemoved(deal, product, req.user);
+      }
+    }
+    
+    // Track specific important changes
+    if (sanitizedData.status && sanitizedData.status !== oldData.status) {
+      if (sanitizedData.status === 'closed-won') {
+        await ActivityService.logDealWon(deal, req.user);
+        
+        // Send email to assigned user and project admins/managers
+        try {
+          const dealUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/crm/${deal.projectId}/deals/${deal._id}`;
+          const project = await import('../models/Project.model.js').then(m => m.default.findById(deal.projectId).select('name owner members'));
+          const dealValue = formatCurrency(deal.value, deal.currency);
+          
+          const recipients = [];
+          if (deal.assignedTo && deal.assignedTo.toString() !== req.user.id) {
+            const assignedUser = await User.findById(deal.assignedTo).select('email name');
+            if (assignedUser && assignedUser.email) recipients.push(assignedUser);
+          }
+          
+          // Add project owner and admins/managers
+          if (project.owner && project.owner.toString() !== req.user.id) {
+            const owner = await User.findById(project.owner).select('email name');
+            if (owner && owner.email && !recipients.find(r => r._id.toString() === owner._id.toString())) {
+              recipients.push(owner);
+            }
+          }
+          
+          for (const member of project.members || []) {
+            if (['admin', 'manager'].includes(member.role) && member.user.toString() !== req.user.id) {
+              const memberUser = await User.findById(member.user).select('email name');
+              if (memberUser && memberUser.email && !recipients.find(r => r._id.toString() === memberUser._id.toString())) {
+                recipients.push(memberUser);
+              }
+            }
+          }
+          
+          for (const recipient of recipients) {
+            await sendDealWonEmail(
+              recipient.email,
+              deal.name,
+              project.name,
+              req.user.name,
+              dealUrl,
+              dealValue,
+              deal.projectId
+            );
+          }
+        } catch (error) {
+          console.error('Failed to send deal won emails:', error);
+        }
+      } else if (sanitizedData.status === 'closed-lost') {
+        await ActivityService.logDealLost(deal, req.user);
+        
+        // Send email to assigned user and project admins/managers
+        try {
+          const dealUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/crm/${deal.projectId}/deals/${deal._id}`;
+          const project = await import('../models/Project.model.js').then(m => m.default.findById(deal.projectId).select('name owner members'));
+          const reason = sanitizedData.statusChangeReason || 'Not specified';
+          
+          const recipients = [];
+          if (deal.assignedTo && deal.assignedTo.toString() !== req.user.id) {
+            const assignedUser = await User.findById(deal.assignedTo).select('email name');
+            if (assignedUser && assignedUser.email) recipients.push(assignedUser);
+          }
+          
+          // Add project owner and admins/managers
+          if (project.owner && project.owner.toString() !== req.user.id) {
+            const owner = await User.findById(project.owner).select('email name');
+            if (owner && owner.email && !recipients.find(r => r._id.toString() === owner._id.toString())) {
+              recipients.push(owner);
+            }
+          }
+          
+          for (const member of project.members || []) {
+            if (['admin', 'manager'].includes(member.role) && member.user.toString() !== req.user.id) {
+              const memberUser = await User.findById(member.user).select('email name');
+              if (memberUser && memberUser.email && !recipients.find(r => r._id.toString() === memberUser._id.toString())) {
+                recipients.push(memberUser);
+              }
+            }
+          }
+          
+          for (const recipient of recipients) {
+            await sendDealLostEmail(
+              recipient.email,
+              deal.name,
+              project.name,
+              req.user.name,
+              dealUrl,
+              reason,
+              deal.projectId
+            );
+          }
+        } catch (error) {
+          console.error('Failed to send deal lost emails:', error);
+        }
+      } else {
+        await ActivityService.logDealStatusChanged(deal, oldData.status, sanitizedData.status, req.user);
+      }
+    }
+    
+    if (sanitizedData.value && sanitizedData.value !== oldData.value) {
+      await ActivityService.logDealValueChanged(deal, oldData.value, sanitizedData.value, req.user);
+    }
+    
+    if (sanitizedData.stage && sanitizedData.stage !== oldData.stage) {
+      await ActivityService.logDealStageChanged(deal, oldData.stage, sanitizedData.stage, req.user);
+    }
     } catch (error) {
       console.error('Failed to log deal update activity:', error);
-    }
   }
 
   // Track activities for various changes
@@ -796,6 +929,13 @@ export const updateDealNote = asyncHandler(async (req, res) => {
 
   await deal.save();
 
+  // Log activity
+  try {
+    await ActivityService.logDealNoteUpdated(deal, note, req.user);
+  } catch (error) {
+    console.error('Failed to log deal note update activity:', error);
+  }
+
   // Add activity
   await deal.addActivity({
     type: 'note',
@@ -833,6 +973,13 @@ export const deleteDealNote = asyncHandler(async (req, res) => {
 
   await note.deleteOne();
   await deal.save();
+
+  // Log activity
+  try {
+    await ActivityService.logDealNoteDeleted(deal, noteId, req.user);
+  } catch (error) {
+    console.error('Failed to log deal note deletion activity:', error);
+  }
 
   // Add activity
   await deal.addActivity({
@@ -873,15 +1020,41 @@ export const bulkUpdateDeals = asyncHandler(async (req, res) => {
 
   const sanitizedUpdates = sanitizeDealData(validation.sanitizedData);
 
+  // Get old deal data for activity tracking
+  const oldDeals = await Deal.find({ _id: { $in: dealIds }, projectId: req.params.projectId });
+
   // Update deals
   const result = await Deal.updateMany(
     { _id: { $in: dealIds }, projectId: req.params.projectId },
     sanitizedUpdates
   );
 
-  // Create notifications for each updated deal
+  // Create notifications and log activities for each updated deal
   const deals = await Deal.find({ _id: { $in: dealIds } });
-  for (const deal of deals) {
+  for (let i = 0; i < deals.length; i++) {
+    const deal = deals[i];
+    const oldDeal = oldDeals.find(od => od._id.toString() === deal._id.toString());
+    
+    if (oldDeal) {
+      try {
+        const changes = {};
+        Object.keys(sanitizedUpdates).forEach(key => {
+          if (oldDeal[key] !== sanitizedUpdates[key]) {
+            changes[key] = {
+              oldValue: oldDeal[key],
+              newValue: sanitizedUpdates[key]
+            };
+          }
+        });
+        
+        if (Object.keys(changes).length > 0) {
+          await ActivityService.logDealUpdated(deal, changes, req.user);
+        }
+      } catch (error) {
+        console.error(`Failed to log activity for deal ${deal._id}:`, error);
+      }
+    }
+    
     await createDealNotification('deal_updated', deal, deal.projectId, req.user.id);
   }
 
@@ -923,8 +1096,13 @@ export const bulkArchiveDeals = asyncHandler(async (req, res) => {
     );
   }
 
-  // Create notifications for each archived deal
+  // Log activities and create notifications for each archived deal
   for (const deal of deals) {
+    try {
+      await ActivityService.logDealArchived(deal, req.user);
+    } catch (error) {
+      console.error(`Failed to log activity for deal ${deal._id}:`, error);
+    }
     await createDealNotification('deal_archived', deal, deal.projectId, req.user.id);
   }
 
@@ -945,8 +1123,17 @@ export const bulkDeleteDeals = asyncHandler(async (req, res) => {
     throw new AppError('Deal IDs are required', 400);
   }
 
-  // Get deals before deletion for notifications and company updates
+  // Get deals before deletion for notifications, company updates, and activity logging
   const deals = await Deal.find({ _id: { $in: dealIds }, projectId: req.params.projectId });
+  
+  // Log activities for each deal before deletion
+  for (const deal of deals) {
+    try {
+      await ActivityService.logDealDeleted(deal, req.user);
+    } catch (error) {
+      console.error(`Failed to log activity for deal ${deal._id}:`, error);
+    }
+  }
   
   // Remove deals from company's deals arrays
   const companyIds = [...new Set(deals.filter(deal => deal.company).map(deal => deal.company))];
@@ -1016,6 +1203,26 @@ export const bulkAssignDeals = asyncHandler(async (req, res) => {
       metadata: { assignedTo: user._id, assignedToName: user.name }
     });
     await createDealNotification('deal_assigned', deal, deal.projectId, req.user.id);
+    
+    // Send email to assigned user
+    try {
+      if (user.email && user._id.toString() !== req.user.id) {
+        const dealUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/crm/${deal.projectId}/deals/${deal._id}`;
+        const project = await import('../models/Project.model.js').then(m => m.default.findById(deal.projectId).select('name'));
+        const dealValue = deal.value ? formatCurrency(deal.value, deal.currency) : null;
+        await sendDealAssignedEmail(
+          user.email,
+          deal.name,
+          project?.name || 'CRM',
+          req.user.name,
+          dealUrl,
+          dealValue,
+          deal.projectId
+        );
+      }
+    } catch (error) {
+      console.error('Failed to send deal assignment email:', error);
+    }
   }
 
   res.json({

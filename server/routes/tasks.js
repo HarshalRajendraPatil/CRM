@@ -28,7 +28,8 @@ import {
   getTaskInsights,
   getOverdueTasks,
   getTasksByEntity,
-  exportTasks
+  exportTasks,
+  stopTaskReminder
 } from '../controllers/taskController.js';
 import { authenticateToken, requireManagerRole, requireViewerRole } from '../middleware/auth.js';
 
@@ -85,5 +86,8 @@ router.delete('/:id/subtasks/:subtaskId', requireManagerRole(), deleteSubtask);
 router.post('/:id/custom-fields', requireManagerRole(), addTaskCustomField);
 router.put('/:id/custom-fields/:key', requireManagerRole(), updateTaskCustomField);
 router.delete('/:id/custom-fields/:key', requireManagerRole(), deleteTaskCustomField);
+
+// Stop reminders
+router.patch('/:id/stop-reminder', requireManagerRole(), stopTaskReminder);
 
 export default router;

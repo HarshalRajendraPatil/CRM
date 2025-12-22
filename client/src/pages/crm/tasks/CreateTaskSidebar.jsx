@@ -40,14 +40,6 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
     subtasks: [],
     customFields: {},
     visibility: 'project',
-    recurrence: {
-      enabled: false,
-      pattern: 'daily',
-      interval: 1,
-      daysOfWeek: [],
-      endDate: '',
-      occurrences: ''
-    },
     reminders: []
   });
 
@@ -171,27 +163,6 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
     }));
   };
 
-  const handleRecurrenceChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      recurrence: {
-        ...prev.recurrence,
-        [field]: value
-      }
-    }));
-  };
-
-  const handleDaysOfWeekChange = (day) => {
-    setFormData(prev => ({
-      ...prev,
-      recurrence: {
-        ...prev.recurrence,
-        daysOfWeek: prev.recurrence.daysOfWeek.includes(day)
-          ? prev.recurrence.daysOfWeek.filter(d => d !== day)
-          : [...prev.recurrence.daysOfWeek, day]
-      }
-    }));
-  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -253,7 +224,6 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
         progress: formData.progress || 0,
         completionNotes: formData.completionNotes || undefined,
         subtasks,
-        recurrence: formData.recurrence.enabled ? formData.recurrence : undefined,
         reminders: formData.reminders.length > 0 ? formData.reminders : undefined
       };
 
@@ -286,14 +256,6 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
         subtasks: [],
         customFields: {},
         visibility: 'project',
-        recurrence: {
-          enabled: false,
-          pattern: 'daily',
-          interval: 1,
-          daysOfWeek: [],
-          endDate: '',
-          occurrences: ''
-        },
         reminders: []
       });
       setErrors({});
@@ -753,110 +715,6 @@ const CreateTaskSidebar = ({ isOpen, onClose, projectId }) => {
                           </button>
                         </div>
                       ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Recurrence */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-900 mb-3">Recurrence</h3>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="recurrenceEnabled"
-                      checked={formData.recurrence.enabled}
-                      onChange={(e) => handleRecurrenceChange('enabled', e.target.checked)}
-                      className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="recurrenceEnabled" className="ml-2 block text-sm text-gray-900">
-                      Enable recurrence
-                    </label>
-                  </div>
-
-                  {formData.recurrence.enabled && (
-                    <div className="space-y-3 pl-6">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Pattern
-                          </label>
-                          <select
-                            value={formData.recurrence.pattern}
-                            onChange={(e) => handleRecurrenceChange('pattern', e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          >
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                            <option value="yearly">Yearly</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Interval
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.recurrence.interval}
-                            onChange={(e) => handleRecurrenceChange('interval', parseInt(e.target.value))}
-                            min="1"
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                        </div>
-                      </div>
-
-                      {formData.recurrence.pattern === 'weekly' && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Days of Week
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((day, index) => (
-                              <label key={day} className="flex items-center">
-                                <input
-                                  type="checkbox"
-                                  checked={formData.recurrence.daysOfWeek.includes(index)}
-                                  onChange={() => handleDaysOfWeekChange(index)}
-                                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                />
-                                <span className="ml-1 text-sm text-gray-700">{day}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            End Date
-                          </label>
-                          <input
-                            type="date"
-                            value={formData.recurrence.endDate}
-                            onChange={(e) => handleRecurrenceChange('endDate', e.target.value)}
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Occurrences
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.recurrence.occurrences}
-                            onChange={(e) => handleRecurrenceChange('occurrences', e.target.value)}
-                            min="1"
-                            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                            placeholder="Leave empty for unlimited"
-                          />
-                        </div>
-                      </div>
                     </div>
                   )}
                 </div>

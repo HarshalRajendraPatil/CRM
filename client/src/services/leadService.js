@@ -1,4 +1,4 @@
-import axios from '../utils/axiosConfig';
+import axios from "../utils/axiosConfig";
 
 // Lead Service - handles all API calls for lead management
 
@@ -35,7 +35,9 @@ export const updateLeadStatus = async (projectId, id, status) => {
 };
 
 export const assignLeadToUser = async (projectId, id, userId) => {
-  return axios.patch(`/leads/${id}/assign?projectId=${projectId}`, { assignedTo: userId });
+  return axios.patch(`/leads/${id}/assign?projectId=${projectId}`, {
+    assignedTo: userId,
+  });
 };
 
 export const convertLead = async (projectId, id) => {
@@ -67,11 +69,15 @@ export const cleanupArchivedLeads = async (projectId) => {
 };
 
 export const updateLeadNote = async (projectId, id, noteId, content) => {
-  return axios.put(`/leads/${id}/notes/${noteId}?projectId=${projectId}`, { content });
+  return axios.put(`/leads/${id}/notes/${noteId}?projectId=${projectId}`, {
+    content,
+  });
 };
 
 export const deleteLeadNote = async (projectId, leadId, noteId) => {
-  return axios.delete(`/leads/${leadId}/notes/${noteId}?projectId=${projectId}`);
+  return axios.delete(
+    `/leads/${leadId}/notes/${noteId}?projectId=${projectId}`
+  );
 };
 
 export default {
@@ -92,7 +98,5 @@ export default {
   unarchiveLead,
   cleanupArchivedLeads,
   updateLeadNote,
-  deleteLeadNote
+  deleteLeadNote,
 };
-
-

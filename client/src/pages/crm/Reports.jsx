@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useLocation, useNavigate } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
-import CrmLayout from '../../layouts/CrmLayout';
-import { generateReport } from '../../services/reportService';
+import React, { useState, useEffect } from "react";
+import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { useSelector, useDispatch } from "react-redux";
+import CrmLayout from "../../layouts/CrmLayout";
+import { generateReport } from "../../services/reportService";
 
 const Reports = () => {
   const { projectId } = useParams();
@@ -10,20 +10,25 @@ const Reports = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
-  
+
   // Initialize from location state if available (from Performance page)
   const locationState = location.state || {};
-  
-  const [selectedReport, setSelectedReport] = useState(locationState.selectedReport || '');
-  const [reportFormat, setReportFormat] = useState('pdf');
-  const [dateRange, setDateRange] = useState(locationState.dateRange || {
-    startDate: '',
-    endDate: ''
-  });
-  const [filters, setFilters] = useState(locationState.userId ? { userId: locationState.userId } : {});
+  const [selectedReport, setSelectedReport] = useState(
+    locationState.selectedReport || ""
+  );
+  const [reportFormat, setReportFormat] = useState("pdf");
+  const [dateRange, setDateRange] = useState(
+    locationState.dateRange || {
+      startDate: "",
+      endDate: "",
+    }
+  );
+  const [filters, setFilters] = useState(
+    locationState.userId ? { userId: locationState.userId } : {}
+  );
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedReports, setGeneratedReports] = useState([]);
-  
+
   // Clear location state after using it
   useEffect(() => {
     if (locationState.selectedReport) {
@@ -33,80 +38,82 @@ const Reports = () => {
 
   const reportTypes = [
     {
-      id: 'overview',
-      name: 'CRM Overview',
-      description: 'Complete overview of your CRM including all entities and statistics',
-      icon: '📊',
-      category: 'General'
+      id: "overview",
+      name: "CRM Overview",
+      description:
+        "Complete overview of your CRM including all entities and statistics",
+      icon: "📊",
+      category: "General",
     },
     {
-      id: 'companies',
-      name: 'Companies Report',
-      description: 'Detailed report of all companies in your CRM',
-      icon: '🏢',
-      category: 'Entities'
+      id: "companies",
+      name: "Companies Report",
+      description: "Detailed report of all companies in your CRM",
+      icon: "🏢",
+      category: "Entities",
     },
     {
-      id: 'leads',
-      name: 'Leads Report',
-      description: 'Comprehensive leads analysis and conversion metrics',
-      icon: '💡',
-      category: 'Entities'
+      id: "leads",
+      name: "Leads Report",
+      description: "Comprehensive leads analysis and conversion metrics",
+      icon: "💡",
+      category: "Entities",
     },
     {
-      id: 'customers',
-      name: 'Customers Report',
-      description: 'Customer data, lifecycle analysis, and engagement metrics',
-      icon: '👥',
-      category: 'Entities'
+      id: "customers",
+      name: "Customers Report",
+      description: "Customer data, lifecycle analysis, and engagement metrics",
+      icon: "👥",
+      category: "Entities",
     },
     {
-      id: 'deals',
-      name: 'Deals Report',
-      description: 'Sales pipeline, deal analysis, and revenue forecasting',
-      icon: '💰',
-      category: 'Sales'
+      id: "deals",
+      name: "Deals Report",
+      description: "Sales pipeline, deal analysis, and revenue forecasting",
+      icon: "💰",
+      category: "Sales",
     },
     {
-      id: 'tasks',
-      name: 'Tasks Report',
-      description: 'Task completion, productivity metrics, and team performance',
-      icon: '✅',
-      category: 'Productivity'
+      id: "tasks",
+      name: "Tasks Report",
+      description:
+        "Task completion, productivity metrics, and team performance",
+      icon: "✅",
+      category: "Productivity",
     },
     {
-      id: 'activities',
-      name: 'Activities Report',
-      description: 'All activities, interactions, and communication logs',
-      icon: '📝',
-      category: 'Activities'
+      id: "activities",
+      name: "Activities Report",
+      description: "All activities, interactions, and communication logs",
+      icon: "📝",
+      category: "Activities",
     },
     {
-      id: 'performance',
-      name: 'Performance Report',
-      description: 'Team performance, productivity metrics, and KPIs',
-      icon: '📈',
-      category: 'Analytics'
+      id: "performance",
+      name: "Performance Report",
+      description: "Team performance, productivity metrics, and KPIs",
+      icon: "📈",
+      category: "Analytics",
     },
     {
-      id: 'financial',
-      name: 'Financial Report',
-      description: 'Revenue analysis, deal values, and financial metrics',
-      icon: '💵',
-      category: 'Financial'
-    }
+      id: "financial",
+      name: "Financial Report",
+      description: "Revenue analysis, deal values, and financial metrics",
+      icon: "💵",
+      category: "Financial",
+    },
   ];
 
   const formatOptions = [
-    { value: 'pdf', label: 'PDF', icon: '📄' },
-    { value: 'excel', label: 'Excel', icon: '📊' },
-    { value: 'csv', label: 'CSV', icon: '📋' },
-    { value: 'json', label: 'JSON', icon: '🔧' }
+    { value: "pdf", label: "PDF", icon: "📄" },
+    { value: "excel", label: "Excel", icon: "📊" },
+    { value: "csv", label: "CSV", icon: "📋" },
+    { value: "json", label: "JSON", icon: "🔧" },
   ];
 
   const handleReportGeneration = async () => {
     if (!selectedReport) {
-      alert('Please select a report type');
+      alert("Please select a report type");
       return;
     }
 
@@ -116,87 +123,104 @@ const Reports = () => {
         reportType: selectedReport,
         format: reportFormat,
         dateRange,
-        filters
+        filters,
       };
 
-      console.log('Generating report with data:', reportData);
+      console.log("Generating report with data:", reportData);
 
       // Use the report service
       const response = await generateReport(projectId, reportData);
-      
-      console.log('Report generation response:', response);
+
+      console.log("Report generation response:", response);
 
       // Handle the response based on format
-      if (reportFormat === 'json') {
+      if (reportFormat === "json") {
         // For JSON, show the data in a new window or download as file
         const jsonData = JSON.stringify(response.data, null, 2);
-        const blob = new Blob([jsonData], { type: 'application/json' });
+        const blob = new Blob([jsonData], { type: "application/json" });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = `${selectedReport}_report_${new Date().toISOString().split('T')[0]}.json`;
+        a.download = `${selectedReport}_report_${
+          new Date().toISOString().split("T")[0]
+        }.json`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       } else {
         // For binary formats (PDF, Excel, CSV), use the blob data from response
-        const blob = new Blob([response.data], { 
-          type: response.type || (reportFormat === 'pdf' ? 'application/pdf' : 
-                reportFormat === 'excel' ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' :
-                'text/csv')
+        const blob = new Blob([response.data], {
+          type:
+            response.type ||
+            (reportFormat === "pdf"
+              ? "application/pdf"
+              : reportFormat === "excel"
+              ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              : "text/csv"),
         });
         const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
+        const a = document.createElement("a");
         a.href = url;
-        a.download = `${selectedReport}_report_${new Date().toISOString().split('T')[0]}.${reportFormat}`;
+        a.download = `${selectedReport}_report_${
+          new Date().toISOString().split("T")[0]
+        }.${reportFormat}`;
         document.body.appendChild(a);
         a.click();
         window.URL.revokeObjectURL(url);
         document.body.removeChild(a);
       }
-      
-      // Add to generated reports list
-      setGeneratedReports(prev => [...prev, {
-        id: Date.now(),
-        type: selectedReport,
-        format: reportFormat,
-        generatedAt: new Date(),
-        size: response.size || (response.data?.size || Math.floor(Math.random() * 5000) + 1000)
-      }]);
 
-      alert('Report generated successfully!');
-      
+      // Add to generated reports list
+      setGeneratedReports((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          type: selectedReport,
+          format: reportFormat,
+          generatedAt: new Date(),
+          size:
+            response.size ||
+            response.data?.size ||
+            Math.floor(Math.random() * 5000) + 1000,
+        },
+      ]);
+
+      alert("Report generated successfully!");
     } catch (error) {
-      console.error('Error generating report:', error);
-      alert(`Failed to generate report: ${error.response?.data?.message || error.message}`);
+      console.error("Error generating report:", error);
+      alert(
+        `Failed to generate report: ${
+          error.response?.data?.message || error.message
+        }`
+      );
     } finally {
       setIsGenerating(false);
     }
   };
 
   const handleFilterChange = (key, value) => {
-    setFilters(prev => ({
+    setFilters((prev) => ({
       ...prev,
-      [key]: value
+      [key]: value,
     }));
   };
 
   const formatFileSize = (bytes) => {
-    if (bytes === 0) return '0 Bytes';
+    if (bytes === 0) return "0 Bytes";
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const sizes = ["Bytes", "KB", "MB", "GB"];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   const getReportIcon = (type) => {
-    const report = reportTypes.find(r => r.id === type);
-    return report ? report.icon : '📊';
+    const report = reportTypes.find((r) => r.id === type);
+    return report ? report.icon : "📊";
   };
 
   const getReportName = (type) => {
-    const report = reportTypes.find(r => r.id === type);
+    const report = reportTypes.find((r) => r.id === type);
     return report ? report.name : type;
   };
 
@@ -206,15 +230,19 @@ const Reports = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Reports</h1>
-          <p className="text-gray-600">Generate and download comprehensive reports for your CRM data</p>
+          <p className="text-gray-600">
+            Generate and download comprehensive reports for your CRM data
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Report Configuration */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Generate Report</h2>
-              
+              <h2 className="text-xl font-semibold text-gray-900 mb-6">
+                Generate Report
+              </h2>
+
               {/* Report Type Selection */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
@@ -226,16 +254,20 @@ const Reports = () => {
                       key={report.id}
                       className={`p-4 border rounded-lg cursor-pointer transition-all ${
                         selectedReport === report.id
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? "border-indigo-500 bg-indigo-50"
+                          : "border-gray-200 hover:border-gray-300"
                       }`}
                       onClick={() => setSelectedReport(report.id)}
                     >
                       <div className="flex items-start space-x-3">
                         <span className="text-2xl">{report.icon}</span>
                         <div className="flex-1">
-                          <h3 className="font-medium text-gray-900">{report.name}</h3>
-                          <p className="text-sm text-gray-600 mt-1">{report.description}</p>
+                          <h3 className="font-medium text-gray-900">
+                            {report.name}
+                          </h3>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {report.description}
+                          </p>
                           <span className="inline-block mt-2 px-2 py-1 text-xs font-medium bg-gray-100 text-gray-700 rounded">
                             {report.category}
                           </span>
@@ -257,8 +289,8 @@ const Reports = () => {
                       key={format.value}
                       className={`flex items-center space-x-2 p-3 border rounded-lg cursor-pointer transition-all ${
                         reportFormat === format.value
-                          ? 'border-indigo-500 bg-indigo-50'
-                          : 'border-gray-200 hover:border-gray-300'
+                          ? "border-indigo-500 bg-indigo-50"
+                          : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
                       <input
@@ -283,20 +315,34 @@ const Reports = () => {
                 </label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">Start Date</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      Start Date
+                    </label>
                     <input
                       type="date"
                       value={dateRange.startDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, startDate: e.target.value }))}
+                      onChange={(e) =>
+                        setDateRange((prev) => ({
+                          ...prev,
+                          startDate: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-600 mb-1">End Date</label>
+                    <label className="block text-sm text-gray-600 mb-1">
+                      End Date
+                    </label>
                     <input
                       type="date"
                       value={dateRange.endDate}
-                      onChange={(e) => setDateRange(prev => ({ ...prev, endDate: e.target.value }))}
+                      onChange={(e) =>
+                        setDateRange((prev) => ({
+                          ...prev,
+                          endDate: e.target.value,
+                        }))
+                      }
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     />
                   </div>
@@ -310,13 +356,17 @@ const Reports = () => {
                     Additional Filters
                   </label>
                   <div className="space-y-3">
-                    {selectedReport === 'deals' && (
+                    {selectedReport === "deals" && (
                       <>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Deal Status</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Deal Status
+                          </label>
                           <select
-                            value={filters.status || ''}
-                            onChange={(e) => handleFilterChange('status', e.target.value)}
+                            value={filters.status || ""}
+                            onChange={(e) =>
+                              handleFilterChange("status", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Statuses</option>
@@ -326,24 +376,32 @@ const Reports = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Minimum Value</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Minimum Value
+                          </label>
                           <input
                             type="number"
-                            value={filters.minValue || ''}
-                            onChange={(e) => handleFilterChange('minValue', e.target.value)}
+                            value={filters.minValue || ""}
+                            onChange={(e) =>
+                              handleFilterChange("minValue", e.target.value)
+                            }
                             placeholder="Enter minimum deal value"
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           />
                         </div>
                       </>
                     )}
-                    {selectedReport === 'customers' && (
+                    {selectedReport === "customers" && (
                       <>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Customer Status</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Customer Status
+                          </label>
                           <select
-                            value={filters.status || ''}
-                            onChange={(e) => handleFilterChange('status', e.target.value)}
+                            value={filters.status || ""}
+                            onChange={(e) =>
+                              handleFilterChange("status", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Statuses</option>
@@ -353,10 +411,14 @@ const Reports = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Customer Stage</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Customer Stage
+                          </label>
                           <select
-                            value={filters.stage || ''}
-                            onChange={(e) => handleFilterChange('stage', e.target.value)}
+                            value={filters.stage || ""}
+                            onChange={(e) =>
+                              handleFilterChange("stage", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Stages</option>
@@ -368,13 +430,17 @@ const Reports = () => {
                         </div>
                       </>
                     )}
-                    {selectedReport === 'leads' && (
+                    {selectedReport === "leads" && (
                       <>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Lead Status</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Lead Status
+                          </label>
                           <select
-                            value={filters.status || ''}
-                            onChange={(e) => handleFilterChange('status', e.target.value)}
+                            value={filters.status || ""}
+                            onChange={(e) =>
+                              handleFilterChange("status", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Statuses</option>
@@ -385,10 +451,14 @@ const Reports = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Lead Source</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Lead Source
+                          </label>
                           <select
-                            value={filters.source || ''}
-                            onChange={(e) => handleFilterChange('source', e.target.value)}
+                            value={filters.source || ""}
+                            onChange={(e) =>
+                              handleFilterChange("source", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Sources</option>
@@ -401,13 +471,17 @@ const Reports = () => {
                         </div>
                       </>
                     )}
-                    {selectedReport === 'tasks' && (
+                    {selectedReport === "tasks" && (
                       <>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Task Status</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Task Status
+                          </label>
                           <select
-                            value={filters.status || ''}
-                            onChange={(e) => handleFilterChange('status', e.target.value)}
+                            value={filters.status || ""}
+                            onChange={(e) =>
+                              handleFilterChange("status", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Statuses</option>
@@ -417,10 +491,14 @@ const Reports = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Priority</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Priority
+                          </label>
                           <select
-                            value={filters.priority || ''}
-                            onChange={(e) => handleFilterChange('priority', e.target.value)}
+                            value={filters.priority || ""}
+                            onChange={(e) =>
+                              handleFilterChange("priority", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Priorities</option>
@@ -431,13 +509,17 @@ const Reports = () => {
                         </div>
                       </>
                     )}
-                    {selectedReport === 'companies' && (
+                    {selectedReport === "companies" && (
                       <>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Company Status</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Company Status
+                          </label>
                           <select
-                            value={filters.status || ''}
-                            onChange={(e) => handleFilterChange('status', e.target.value)}
+                            value={filters.status || ""}
+                            onChange={(e) =>
+                              handleFilterChange("status", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Statuses</option>
@@ -447,10 +529,14 @@ const Reports = () => {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-sm text-gray-600 mb-1">Industry</label>
+                          <label className="block text-sm text-gray-600 mb-1">
+                            Industry
+                          </label>
                           <select
-                            value={filters.industry || ''}
-                            onChange={(e) => handleFilterChange('industry', e.target.value)}
+                            value={filters.industry || ""}
+                            onChange={(e) =>
+                              handleFilterChange("industry", e.target.value)
+                            }
                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
                           >
                             <option value="">All Industries</option>
@@ -479,7 +565,9 @@ const Reports = () => {
                     <span>Generating Report...</span>
                   </div>
                 ) : (
-                  `Generate ${selectedReport ? getReportName(selectedReport) : 'Report'}`
+                  `Generate ${
+                    selectedReport ? getReportName(selectedReport) : "Report"
+                  }`
                 )}
               </button>
             </div>
@@ -488,24 +576,34 @@ const Reports = () => {
           {/* Generated Reports History */}
           <div className="lg:col-span-1">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Reports</h3>
-              
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Recent Reports
+              </h3>
+
               {generatedReports.length === 0 ? (
                 <div className="text-center py-8">
                   <div className="text-gray-400 text-4xl mb-2">📊</div>
-                  <p className="text-gray-500 text-sm">No reports generated yet</p>
+                  <p className="text-gray-500 text-sm">
+                    No reports generated yet
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {generatedReports.slice(0, 5).map((report) => (
-                    <div key={report.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg">
-                      <span className="text-lg">{getReportIcon(report.type)}</span>
+                    <div
+                      key={report.id}
+                      className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg"
+                    >
+                      <span className="text-lg">
+                        {getReportIcon(report.type)}
+                      </span>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-900 truncate">
                           {getReportName(report.type)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          {report.generatedAt.toLocaleDateString()} • {formatFileSize(report.size)}
+                          {report.generatedAt.toLocaleDateString()} •{" "}
+                          {formatFileSize(report.size)}
                         </p>
                       </div>
                       <span className="text-xs font-medium text-gray-500 uppercase">
@@ -519,28 +617,34 @@ const Reports = () => {
 
             {/* Quick Actions */}
             <div className="mt-6 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                Quick Actions
+              </h3>
               <div className="space-y-3">
                 <button
                   onClick={() => {
-                    setSelectedReport('overview');
-                    setReportFormat('pdf');
+                    setSelectedReport("overview");
+                    setReportFormat("pdf");
                   }}
                   className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   <div className="flex items-center space-x-3">
                     <span className="text-lg">📊</span>
                     <div>
-                      <p className="font-medium text-gray-900">Quick Overview</p>
-                      <p className="text-sm text-gray-500">Generate PDF overview</p>
+                      <p className="font-medium text-gray-900">
+                        Quick Overview
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Generate PDF overview
+                      </p>
                     </div>
                   </div>
                 </button>
-                
+
                 <button
                   onClick={() => {
-                    setSelectedReport('deals');
-                    setReportFormat('excel');
+                    setSelectedReport("deals");
+                    setReportFormat("excel");
                   }}
                   className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -548,15 +652,17 @@ const Reports = () => {
                     <span className="text-lg">💰</span>
                     <div>
                       <p className="font-medium text-gray-900">Sales Report</p>
-                      <p className="text-sm text-gray-500">Excel deals analysis</p>
+                      <p className="text-sm text-gray-500">
+                        Excel deals analysis
+                      </p>
                     </div>
                   </div>
                 </button>
-                
+
                 <button
                   onClick={() => {
-                    setSelectedReport('performance');
-                    setReportFormat('pdf');
+                    setSelectedReport("performance");
+                    setReportFormat("pdf");
                   }}
                   className="w-full text-left p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
                 >
@@ -564,11 +670,13 @@ const Reports = () => {
                     <span className="text-lg">📈</span>
                     <div>
                       <p className="font-medium text-gray-900">Performance</p>
-                      <p className="text-sm text-gray-500">Team performance PDF</p>
+                      <p className="text-sm text-gray-500">
+                        Team performance PDF
+                      </p>
                     </div>
                   </div>
                 </button>
-                
+
                 <button
                   onClick={() => {
                     navigate(`/crm/${projectId}/performance`);
@@ -578,8 +686,12 @@ const Reports = () => {
                   <div className="flex items-center space-x-3">
                     <span className="text-lg">👥</span>
                     <div>
-                      <p className="font-medium text-gray-900">View Performance</p>
-                      <p className="text-sm text-gray-500">Go to Performance page</p>
+                      <p className="font-medium text-gray-900">
+                        View Performance
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        Go to Performance page
+                      </p>
                     </div>
                   </div>
                 </button>

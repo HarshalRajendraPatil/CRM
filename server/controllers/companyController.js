@@ -6,6 +6,7 @@ import { validateCompanyData, sanitizeCompanyData } from '../utils/companyValida
 import { validateObjectId } from '../utils/validation.js';
 import notificationService from '../utils/notificationService.js';
 import ActivityService from '../utils/activityService.js';
+import activityHelper from '../utils/activityHelper.js';
 
 
 // @desc    Create a new company
@@ -256,16 +257,10 @@ export const updateCompany = asyncHandler(async (req, res) => {
   // Sanitize update data
   const sanitizedData = sanitizeCompanyData(updateData);
   
-  // Track changes for activity logging
-  const changes = {};
-  Object.keys(sanitizedData).forEach(key => {
-    if (company[key] !== sanitizedData[key] && key !== 'updatedAt' && key !== 'updatedBy') {
-      changes[key] = {
-        oldValue: company[key],
-        newValue: sanitizedData[key]
-      };
-    }
-  });
+  // Store old data for activity tracking
+  const oldData = company.toObject();
+  const oldTags = [...(company.tags || [])];
+  const oldCustomFields = company.customFields ? new Map(company.customFields) : new Map();
 
   // Update company
   const updatedCompany = await Company.findByIdAndUpdate(
@@ -280,13 +275,26 @@ export const updateCompany = asyncHandler(async (req, res) => {
     .populate('updatedBy', 'name email profileImage')
 ;
 
-  // Log activity if there were changes
-  if (Object.keys(changes).length > 0) {
-    try {
-      await ActivityService.logCompanyUpdated(updatedCompany, changes, req.user);
+  // Track all changes comprehensively
+  try {
+    // Track field changes
+    await activityHelper.trackEntityChanges('Company', updatedCompany, oldData, sanitizedData, req.user);
+    
+    // Track tag changes
+    const newTags = updatedCompany.tags || [];
+    if (JSON.stringify(oldTags.sort()) !== JSON.stringify(newTags.sort())) {
+      await activityHelper.trackTagChanges('Company', updatedCompany, oldTags, newTags, req.user);
+    }
+    
+    // Track custom field changes
+    const newCustomFields = updatedCompany.customFields || new Map();
+    if (oldCustomFields.size !== newCustomFields.size || 
+        JSON.stringify([...oldCustomFields]) !== JSON.stringify([...newCustomFields])) {
+      await activityHelper.trackCustomFieldChanges('Company', updatedCompany, 
+        Object.fromEntries(oldCustomFields), Object.fromEntries(newCustomFields), req.user);
+    }
     } catch (error) {
       console.error('Failed to log company update activity:', error);
-    }
   }
   
   // Create notification for company update

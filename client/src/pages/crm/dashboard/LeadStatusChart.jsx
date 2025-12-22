@@ -1,5 +1,12 @@
-import React from 'react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
+import React from "react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend,
+} from "recharts";
 
 const LeadStatusChart = ({ data, isLoading }) => {
   if (isLoading) {
@@ -16,7 +23,9 @@ const LeadStatusChart = ({ data, isLoading }) => {
   if (!data || data.length === 0) {
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Lead Status</h3>
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+          Lead Status
+        </h3>
         <div className="flex items-center justify-center h-64 text-gray-500">
           <p>No lead data available</p>
         </div>
@@ -25,28 +34,28 @@ const LeadStatusChart = ({ data, isLoading }) => {
   }
 
   // Format data for the chart
-  const chartData = data.map(item => ({
-    status: item._id || 'Unknown',
-    count: item.count || 0
+  const chartData = data.map((item) => ({
+    status: item._id || "Unknown",
+    count: item.count || 0,
   }));
 
   const colors = {
-    'new': '#10b981',
-    'contacted': '#3b82f6',
-    'qualified': '#f59e0b',
-    'disqualified': '#ef4444'
+    new: "#10b981",
+    contacted: "#3b82f6",
+    qualified: "#f59e0b",
+    disqualified: "#ef4444",
   };
 
   const getStatusColor = (status) => {
-    return colors[status] || '#6b7280';
+    return colors[status] || "#6b7280";
   };
 
   const getStatusLabel = (status) => {
     const labels = {
-      'new': 'New',
-      'contacted': 'Contacted',
-      'qualified': 'Qualified',
-      'disqualified': 'Disqualified'
+      new: "New",
+      contacted: "Contacted",
+      qualified: "Qualified",
+      disqualified: "Disqualified",
     };
     return labels[status] || status;
   };
@@ -68,32 +77,37 @@ const LeadStatusChart = ({ data, isLoading }) => {
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ status, count, percent }) => 
-                `${getStatusLabel(status)}: ${count} (${(percent * 100).toFixed(0)}%)`
+              label={({ status, count, percent }) =>
+                `${getStatusLabel(status)}: ${count} (${(percent * 100).toFixed(
+                  0
+                )}%)`
               }
               outerRadius={80}
               fill="#8884d8"
               dataKey="count"
             >
               {chartData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={getStatusColor(entry.status)} />
+                <Cell
+                  key={`cell-${index}`}
+                  fill={getStatusColor(entry.status)}
+                />
               ))}
             </Pie>
-            <Tooltip 
-              formatter={(value, name) => [value, 'Leads']}
-              labelStyle={{ color: '#374151' }}
+            <Tooltip
+              formatter={(value, name) => [value, "Leads"]}
+              labelStyle={{ color: "#374151" }}
               contentStyle={{
-                backgroundColor: '#fff',
-                border: '1px solid #e5e7eb',
-                borderRadius: '8px',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                backgroundColor: "#fff",
+                border: "1px solid #e5e7eb",
+                borderRadius: "8px",
+                boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
               }}
             />
-            <Legend 
-              verticalAlign="bottom" 
-              height={36}
+            {/* <Legend
+              verticalAlign="bottom"
+              height={20}
               formatter={(value) => getStatusLabel(value)}
-            />
+            /> */}
           </PieChart>
         </ResponsiveContainer>
       </div>

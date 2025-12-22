@@ -95,25 +95,6 @@ export const checkEventConflicts = async (projectId, eventData) => {
   return axios.post(`/calendar/events/check-conflicts?projectId=${projectId}`, eventData);
 };
 
-// Get recurring events
-export const getRecurringEvents = async (projectId, eventId) => {
-  return axios.get(`/calendar/events/${eventId}/recurring?projectId=${projectId}`);
-};
-
-// Update recurring events
-export const updateRecurringEvents = async (projectId, eventId, updates, scope = 'this') => {
-  return axios.patch(`/calendar/events/${eventId}/recurring?projectId=${projectId}`, {
-    updates,
-    scope // 'this', 'following', 'all'
-  });
-};
-
-// Delete recurring events
-export const deleteRecurringEvents = async (projectId, eventId, scope = 'this') => {
-  return axios.delete(`/calendar/events/${eventId}/recurring?projectId=${projectId}`, {
-    data: { scope }
-  });
-};
 
 // Get event attendees
 export const getEventAttendees = async (projectId, eventId) => {
@@ -148,6 +129,13 @@ export const getCalendarSettings = async (projectId) => {
 // Update calendar settings
 export const updateCalendarSettings = async (projectId, settings) => {
   return axios.put(`/calendar/settings/${projectId}?projectId=${projectId}`, settings);
+};
+
+// Stop event reminder
+export const stopEventReminder = async (projectId, eventId, reminderIndex = null) => {
+  return axios.patch(`/calendar/events/${eventId}/stop-reminder?projectId=${projectId}`, {
+    reminderIndex
+  });
 };
 
 // Get time zones

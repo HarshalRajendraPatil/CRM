@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 
-const DealFilters = ({ 
-  filters, 
-  onFilterChange, 
-  customers = [], 
-  companies = [] 
+const DealFilters = ({
+  filters,
+  onFilterChange,
+  customers = [],
+  companies = [],
 }) => {
   const [localFilters, setLocalFilters] = useState(filters);
 
@@ -19,14 +19,14 @@ const DealFilters = ({
 
   const handleClearFilters = () => {
     const clearedFilters = {
-      status: '',
-      priority: '',
-      assignedTo: '',
-      customer: '',
-      company: '',
-      valueRange: { min: '', max: '' },
-      closeDateRange: { start: '', end: '' },
-      createdDateRange: { start: '', end: '' }
+      status: "",
+      priority: "",
+      assignedTo: "",
+      customer: "",
+      company: "",
+      valueRange: { min: "", max: "" },
+      closeDateRange: { start: "", end: "" },
+      createdDateRange: { start: "", end: "" },
     };
     setLocalFilters(clearedFilters);
     onFilterChange(clearedFilters);
@@ -35,9 +35,9 @@ const DealFilters = ({
   const getActiveFilterCount = () => {
     let count = 0;
     Object.entries(localFilters).forEach(([key, value]) => {
-      if (key.includes('Range')) {
+      if (key.includes("Range")) {
         if (value.min || value.max) count++;
-      } else if (value && value !== '') {
+      } else if (value && value !== "") {
         count++;
       }
     });
@@ -45,20 +45,20 @@ const DealFilters = ({
   };
 
   const statusOptions = [
-    { value: 'open', label: 'Open' },
-    { value: 'qualified', label: 'Qualified' },
-    { value: 'proposal', label: 'Proposal' },
-    { value: 'negotiation', label: 'Negotiation' },
-    { value: 'closed-won', label: 'Closed Won' },
-    { value: 'closed-lost', label: 'Closed Lost' },
-    { value: 'on-hold', label: 'On Hold' }
+    { value: "open", label: "Open" },
+    { value: "qualified", label: "Qualified" },
+    { value: "proposal", label: "Proposal" },
+    { value: "negotiation", label: "Negotiation" },
+    { value: "closed-won", label: "Closed Won" },
+    { value: "closed-lost", label: "Closed Lost" },
+    { value: "on-hold", label: "On Hold" },
   ];
 
   const priorityOptions = [
-    { value: 'low', label: 'Low' },
-    { value: 'medium', label: 'Medium' },
-    { value: 'high', label: 'High' },
-    { value: 'urgent', label: 'Urgent' }
+    { value: "low", label: "Low" },
+    { value: "medium", label: "Medium" },
+    { value: "high", label: "High" },
+    { value: "urgent", label: "Urgent" },
   ];
 
   return (
@@ -85,12 +85,12 @@ const DealFilters = ({
             Status
           </label>
           <select
-            value={localFilters.status || ''}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
+            value={localFilters.status || ""}
+            onChange={(e) => handleFilterChange("status", e.target.value)}
             className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="">All Statuses</option>
-            {statusOptions.map(option => (
+            {statusOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -104,12 +104,12 @@ const DealFilters = ({
             Priority
           </label>
           <select
-            value={localFilters.priority || ''}
-            onChange={(e) => handleFilterChange('priority', e.target.value)}
+            value={localFilters.priority || ""}
+            onChange={(e) => handleFilterChange("priority", e.target.value)}
             className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="">All Priorities</option>
-            {priorityOptions.map(option => (
+            {priorityOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -117,21 +117,20 @@ const DealFilters = ({
           </select>
         </div>
 
-
         {/* Customer Filter */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Customer
           </label>
           <select
-            value={localFilters.customer || ''}
-            onChange={(e) => handleFilterChange('customer', e.target.value)}
+            value={localFilters.customer || ""}
+            onChange={(e) => handleFilterChange("customer", e.target.value)}
             className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="">All Customers</option>
-            {customers.map(customer => (
+            {customers.map((customer) => (
               <option key={customer._id} value={customer._id}>
-                {customer.name}
+                {customer.firstName} {customer.lastName}
               </option>
             ))}
           </select>
@@ -143,12 +142,12 @@ const DealFilters = ({
             Company
           </label>
           <select
-            value={localFilters.company || ''}
-            onChange={(e) => handleFilterChange('company', e.target.value)}
+            value={localFilters.company || ""}
+            onChange={(e) => handleFilterChange("company", e.target.value)}
             className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           >
             <option value="">All Companies</option>
-            {companies.map(company => (
+            {companies.map((company) => (
               <option key={company._id} value={company._id}>
                 {company.name}
               </option>
@@ -165,21 +164,25 @@ const DealFilters = ({
             <input
               type="number"
               placeholder="Min"
-              value={localFilters.valueRange?.min || ''}
-              onChange={(e) => handleFilterChange('valueRange', {
-                ...localFilters.valueRange,
-                min: e.target.value
-              })}
+              value={localFilters.valueRange?.min || ""}
+              onChange={(e) =>
+                handleFilterChange("valueRange", {
+                  ...localFilters.valueRange,
+                  min: e.target.value,
+                })
+              }
               className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
             <input
               type="number"
               placeholder="Max"
-              value={localFilters.valueRange?.max || ''}
-              onChange={(e) => handleFilterChange('valueRange', {
-                ...localFilters.valueRange,
-                max: e.target.value
-              })}
+              value={localFilters.valueRange?.max || ""}
+              onChange={(e) =>
+                handleFilterChange("valueRange", {
+                  ...localFilters.valueRange,
+                  max: e.target.value,
+                })
+              }
               className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -193,20 +196,24 @@ const DealFilters = ({
           <div className="flex space-x-2">
             <input
               type="date"
-              value={localFilters.closeDateRange?.start || ''}
-              onChange={(e) => handleFilterChange('closeDateRange', {
-                ...localFilters.closeDateRange,
-                start: e.target.value
-              })}
+              value={localFilters.closeDateRange?.start || ""}
+              onChange={(e) =>
+                handleFilterChange("closeDateRange", {
+                  ...localFilters.closeDateRange,
+                  start: e.target.value,
+                })
+              }
               className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
             <input
               type="date"
-              value={localFilters.closeDateRange?.end || ''}
-              onChange={(e) => handleFilterChange('closeDateRange', {
-                ...localFilters.closeDateRange,
-                end: e.target.value
-              })}
+              value={localFilters.closeDateRange?.end || ""}
+              onChange={(e) =>
+                handleFilterChange("closeDateRange", {
+                  ...localFilters.closeDateRange,
+                  end: e.target.value,
+                })
+              }
               className="w-full text-sm border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>

@@ -36,14 +36,6 @@ const EditEventSidebar = ({ isOpen, onClose, event, onUpdateEvent }) => {
     status: 'scheduled',
     visibility: 'project',
     reminders: [],
-    recurrence: {
-      frequency: 'none',
-      interval: 1,
-      daysOfWeek: [],
-      endDate: '',
-      occurrences: null
-    },
-    isRecurring: false,
     metadata: {}
   });
 
@@ -78,14 +70,6 @@ const EditEventSidebar = ({ isOpen, onClose, event, onUpdateEvent }) => {
         status: event.status || 'scheduled',
         visibility: event.visibility || 'project',
         reminders: event.reminders || [],
-        recurrence: event.recurrence || {
-          frequency: 'none',
-          interval: 1,
-          daysOfWeek: [],
-          endDate: '',
-          occurrences: null
-        },
-        isRecurring: event.isRecurring || false,
         metadata: event.metadata || {}
       });
     }
@@ -210,24 +194,6 @@ const EditEventSidebar = ({ isOpen, onClose, event, onUpdateEvent }) => {
     }));
   };
 
-  const handleRecurrenceChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      recurrence: { ...prev.recurrence, [field]: value }
-    }));
-  };
-
-  const handleDaysOfWeekChange = (day) => {
-    setFormData(prev => ({
-      ...prev,
-      recurrence: {
-        ...prev.recurrence,
-        daysOfWeek: prev.recurrence.daysOfWeek.includes(day)
-          ? prev.recurrence.daysOfWeek.filter(d => d !== day)
-          : [...prev.recurrence.daysOfWeek, day]
-      }
-    }));
-  };
 
   const getRelatedEntities = () => {
     switch (formData.relatedEntity.type) {
@@ -275,9 +241,6 @@ const EditEventSidebar = ({ isOpen, onClose, event, onUpdateEvent }) => {
       }
     }
     
-    if (formData.isRecurring && formData.recurrence.frequency === 'none') {
-      newErrors.recurrence = 'Please select a recurrence frequency';
-    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -738,105 +701,6 @@ const EditEventSidebar = ({ isOpen, onClose, event, onUpdateEvent }) => {
                 </div>
               </div>
 
-              {/* Recurrence */}
-              <div>
-                <div className="flex items-center mb-2">
-                  <input
-                    type="checkbox"
-                    checked={formData.isRecurring}
-                    onChange={(e) => setFormData(prev => ({ ...prev, isRecurring: e.target.checked }))}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 text-sm font-medium text-gray-700">
-                    Recurring Event
-                  </label>
-                </div>
-
-                {formData.isRecurring && (
-                  <div className="space-y-3 pl-6 border-l-2 border-gray-200">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Frequency
-                      </label>
-                      <select
-                        value={formData.recurrence.frequency}
-                        onChange={(e) => handleRecurrenceChange('frequency', e.target.value)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                      >
-                        <option value="none">None</option>
-                        <option value="daily">Daily</option>
-                        <option value="weekly">Weekly</option>
-                        <option value="monthly">Monthly</option>
-                        <option value="yearly">Yearly</option>
-                      </select>
-                      {errors.recurrence && <p className="mt-1 text-sm text-red-600">{errors.recurrence}</p>}
-                    </div>
-
-                    {formData.recurrence.frequency !== 'none' && (
-                      <>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Interval
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={formData.recurrence.interval}
-                            onChange={(e) => handleRecurrenceChange('interval', parseInt(e.target.value))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-
-                        {formData.recurrence.frequency === 'weekly' && (
-                          <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                              Days of Week
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
-                                <label key={day} className="flex items-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={formData.recurrence.daysOfWeek.includes(day)}
-                                    onChange={() => handleDaysOfWeekChange(day)}
-                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                  />
-                                  <span className="ml-1 text-sm text-gray-700 capitalize">{day}</span>
-                                </label>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            End Date (Optional)
-                          </label>
-                          <input
-                            type="date"
-                            value={formData.recurrence.endDate}
-                            onChange={(e) => handleRecurrenceChange('endDate', e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Number of Occurrences (Optional)
-                          </label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={formData.recurrence.occurrences || ''}
-                            onChange={(e) => handleRecurrenceChange('occurrences', e.target.value ? parseInt(e.target.value) : null)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                          />
-                        </div>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
             </div>
           </form>
 
