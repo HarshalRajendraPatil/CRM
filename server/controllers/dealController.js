@@ -9,6 +9,8 @@ import activityHelper from '../utils/activityHelper.js';
 import { asyncHandler, AppError, ValidationError, ForbiddenError } from '../middleware/errorHandler.js';
 import mongoose from 'mongoose';
 import { sendDealAssignedEmail, sendDealWonEmail, sendDealLostEmail } from '../utils/emailService.js';
+import { autoGenerateInvoiceFromDeal } from '../utils/invoiceService.js';
+import Invoice from '../models/Invoice.model.js';
 
 // Helper function to format currency
 const formatCurrency = (amount, currency = 'USD') => {
@@ -441,6 +443,15 @@ export const updateDeal = asyncHandler(async (req, res) => {
     if (sanitizedData.status && sanitizedData.status !== oldData.status) {
       if (sanitizedData.status === 'closed-won') {
         await ActivityService.logDealWon(deal, req.user);
+        
+        // Auto-generate invoice for closed-won deal
+        try {
+          const invoice = await autoGenerateInvoiceFromDeal(deal, req.user);
+          console.log(`Invoice ${invoice.invoiceNumber} auto-generated for deal ${deal.dealNumber}`);
+        } catch (error) {
+          console.error('Failed to auto-generate invoice for deal:', error);
+          // Don't throw error - invoice generation failure shouldn't break deal update
+        }
         
         // Send email to assigned user and project admins/managers
         try {

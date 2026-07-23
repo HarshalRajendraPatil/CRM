@@ -859,6 +859,64 @@ export const sendMentionedInCommentEmail = async (
   );
 };
 
+// ==================== INVOICE EMAILS ====================
+
+export const sendInvoiceEmail = async (
+  customerEmail,
+  invoiceNumber,
+  invoiceAmount,
+  currency,
+  dueDate,
+  invoiceUrl,
+  projectName,
+  projectId = null
+) => {
+  return sendEmail(
+    customerEmail,
+    "invoice",
+    {
+      invoiceNumber,
+      invoiceAmount,
+      currency,
+      dueDate: new Date(dueDate).toLocaleDateString(),
+      invoiceUrl,
+      projectName,
+      eventType: "invoice_sent",
+    },
+    projectId
+  );
+};
+
+// ==================== RECEIPT EMAILS ====================
+
+export const sendReceiptEmail = async (
+  customerEmail,
+  receiptNumber,
+  receiptAmount,
+  currency,
+  paymentDate,
+  paymentMethod,
+  receiptUrl,
+  projectName,
+  projectId = null
+) => {
+  return sendEmail(
+    customerEmail,
+    "receipt",
+    {
+      receiptNumber,
+      receiptAmount,
+      currency,
+      paymentDate: new Date(paymentDate).toLocaleDateString(),
+      paymentMethod,
+      receiptUrl,
+      projectName,
+      eventType: "receipt_sent",
+    },
+    projectId
+  );
+};
+
 export default {
   sendEmail,
   sendWelcomeEmail,
@@ -883,4 +941,6 @@ export default {
   sendCustomerAssignedEmail,
   sendCompanyAssignedEmail,
   sendMentionedInCommentEmail,
+  sendInvoiceEmail,
+  sendReceiptEmail,
 };

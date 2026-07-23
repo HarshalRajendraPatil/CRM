@@ -2279,6 +2279,305 @@ class ActivityService {
       }
     });
   }
+
+  // ==================== INVOICE ACTIVITY METHODS ====================
+
+  static async logInvoiceCreated(invoice, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      project: invoice.project,
+      activityType: 'invoice_created',
+      description: `Invoice "${invoice.invoiceNumber}" was created`,
+      category: 'creation',
+      performedBy: performedBy._id,
+      priority: 'high',
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceId: invoice._id,
+        total: invoice.total,
+        currency: invoice.currency,
+        createdBy: performedBy.name
+      }
+    });
+  }
+
+  static async logInvoiceUpdated(invoice, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      project: invoice.project,
+      activityType: 'invoice_updated',
+      description: `Invoice "${invoice.invoiceNumber}" was updated`,
+      category: 'update',
+      performedBy: performedBy._id,
+      priority: 'medium',
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceId: invoice._id,
+        updatedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logInvoiceDeleted(invoice, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      project: invoice.project,
+      activityType: 'invoice_deleted',
+      description: `Invoice "${invoice.invoiceNumber}" was deleted`,
+      category: 'deletion',
+      performedBy: performedBy._id,
+      priority: 'critical',
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceId: invoice._id,
+        deletedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logInvoiceArchived(invoice, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      project: invoice.project,
+      activityType: 'invoice_archived',
+      description: `Invoice "${invoice.invoiceNumber}" was archived`,
+      category: 'update',
+      performedBy: performedBy._id,
+      priority: 'medium',
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceId: invoice._id,
+        archivedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logInvoiceRestored(invoice, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      project: invoice.project,
+      activityType: 'invoice_restored',
+      description: `Invoice "${invoice.invoiceNumber}" was restored`,
+      category: 'update',
+      performedBy: performedBy._id,
+      priority: 'medium',
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceId: invoice._id,
+        restoredBy: performedBy.name
+      }
+    });
+  }
+
+  static async logInvoiceSent(invoice, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Invoice',
+      entityId: invoice._id,
+      project: invoice.project,
+      activityType: 'invoice_sent',
+      description: `Invoice "${invoice.invoiceNumber}" was sent`,
+      category: 'interaction',
+      performedBy: performedBy._id,
+      priority: 'high',
+      metadata: {
+        invoiceNumber: invoice.invoiceNumber,
+        invoiceId: invoice._id,
+        sentToEmail: invoice.sentToEmail,
+        sentBy: performedBy.name
+      }
+    });
+  }
+
+  // ==================== PAYMENT ACTIVITY METHODS ====================
+
+  static async logPaymentCreated(payment, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Payment',
+      entityId: payment._id,
+      project: payment.project,
+      activityType: 'payment_created',
+      description: `Payment "${payment.paymentNumber}" was created`,
+      category: 'creation',
+      performedBy: performedBy._id,
+      priority: 'high',
+      metadata: {
+        paymentNumber: payment.paymentNumber,
+        paymentId: payment._id,
+        amount: payment.amount,
+        currency: payment.currency,
+        paymentMethod: payment.paymentMethod,
+        createdBy: performedBy.name
+      }
+    });
+  }
+
+  static async logPaymentUpdated(payment, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Payment',
+      entityId: payment._id,
+      project: payment.project,
+      activityType: 'payment_updated',
+      description: `Payment "${payment.paymentNumber}" was updated`,
+      category: 'update',
+      performedBy: performedBy._id,
+      priority: 'medium',
+      metadata: {
+        paymentNumber: payment.paymentNumber,
+        paymentId: payment._id,
+        updatedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logPaymentDeleted(payment, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Payment',
+      entityId: payment._id,
+      project: payment.project,
+      activityType: 'payment_deleted',
+      description: `Payment "${payment.paymentNumber}" was deleted`,
+      category: 'deletion',
+      performedBy: performedBy._id,
+      priority: 'critical',
+      metadata: {
+        paymentNumber: payment.paymentNumber,
+        paymentId: payment._id,
+        deletedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logPaymentCompleted(payment, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Payment',
+      entityId: payment._id,
+      project: payment.project,
+      activityType: 'payment_completed',
+      description: `Payment "${payment.paymentNumber}" was completed`,
+      category: 'status_change',
+      performedBy: performedBy._id,
+      priority: 'critical',
+      changes: {
+        field: 'status',
+        oldValue: 'pending',
+        newValue: 'completed'
+      },
+      metadata: {
+        paymentNumber: payment.paymentNumber,
+        paymentId: payment._id,
+        amount: payment.amount,
+        currency: payment.currency,
+        completedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logPaymentRefunded(payment, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Payment',
+      entityId: payment._id,
+      project: payment.project,
+      activityType: 'payment_refunded',
+      description: `Payment "${payment.paymentNumber}" was refunded`,
+      category: 'status_change',
+      performedBy: performedBy._id,
+      priority: 'high',
+      changes: {
+        field: 'status',
+        oldValue: 'completed',
+        newValue: 'refunded'
+      },
+      metadata: {
+        paymentNumber: payment.paymentNumber,
+        paymentId: payment._id,
+        refundAmount: payment.refundAmount,
+        refundReason: payment.refundReason,
+        refundedBy: performedBy.name
+      }
+    });
+  }
+
+  // ==================== RECEIPT ACTIVITY METHODS ====================
+
+  static async logReceiptCreated(receipt, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Receipt',
+      entityId: receipt._id,
+      project: receipt.project,
+      activityType: 'receipt_created',
+      description: `Receipt "${receipt.receiptNumber}" was created`,
+      category: 'creation',
+      performedBy: performedBy._id,
+      priority: 'high',
+      metadata: {
+        receiptNumber: receipt.receiptNumber,
+        receiptId: receipt._id,
+        amount: receipt.amount,
+        currency: receipt.currency,
+        createdBy: performedBy.name
+      }
+    });
+  }
+
+  static async logReceiptUpdated(receipt, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Receipt',
+      entityId: receipt._id,
+      project: receipt.project,
+      activityType: 'receipt_updated',
+      description: `Receipt "${receipt.receiptNumber}" was updated`,
+      category: 'update',
+      performedBy: performedBy._id,
+      priority: 'medium',
+      metadata: {
+        receiptNumber: receipt.receiptNumber,
+        receiptId: receipt._id,
+        updatedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logReceiptDeleted(receipt, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Receipt',
+      entityId: receipt._id,
+      project: receipt.project,
+      activityType: 'receipt_deleted',
+      description: `Receipt "${receipt.receiptNumber}" was deleted`,
+      category: 'deletion',
+      performedBy: performedBy._id,
+      priority: 'critical',
+      metadata: {
+        receiptNumber: receipt.receiptNumber,
+        receiptId: receipt._id,
+        deletedBy: performedBy.name
+      }
+    });
+  }
+
+  static async logReceiptSent(receipt, performedBy) {
+    return await Activity.logActivity({
+      entityType: 'Receipt',
+      entityId: receipt._id,
+      project: receipt.project,
+      activityType: 'receipt_sent',
+      description: `Receipt "${receipt.receiptNumber}" was sent`,
+      category: 'interaction',
+      performedBy: performedBy._id,
+      priority: 'high',
+      metadata: {
+        receiptNumber: receipt.receiptNumber,
+        receiptId: receipt._id,
+        sentToEmail: receipt.sentToEmail,
+        sentBy: performedBy.name
+      }
+    });
+  }
 }
 
 export default ActivityService;

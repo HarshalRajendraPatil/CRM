@@ -4,9 +4,18 @@ import { selectSettings } from '../store/settingsSlice';
 // Utility functions to apply CRM settings throughout the application
 
 // Format currency based on CRM settings
-export const formatCurrency = (amount, settings = null) => {
-  const currentSettings = settings || useSelector(selectSettings);
-  const currency = currentSettings?.general?.currency || 'USD';
+export const formatCurrency = (amount, currencyCode = null, settings = null) => {
+  // If currency code is provided, use it; otherwise get from settings
+  let currency = currencyCode;
+  if (!currency) {
+    try {
+      const currentSettings = settings || useSelector(selectSettings);
+      currency = currentSettings?.general?.currency || 'USD';
+    } catch (e) {
+      // If useSelector fails (outside component), default to USD
+      currency = 'USD';
+    }
+  }
   
   const currencySymbols = {
     'USD': '$',
@@ -22,15 +31,27 @@ export const formatCurrency = (amount, settings = null) => {
   };
   
   const symbol = currencySymbols[currency] || '$';
-  return `${symbol}${amount.toLocaleString()}`;
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    return `${symbol}0.00`;
+  }
+  return `${symbol}${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 };
 
 // Format date based on CRM settings
 export const formatDate = (date, settings = null) => {
-  const currentSettings = settings || useSelector(selectSettings);
-  const dateFormat = currentSettings?.general?.dateFormat || 'MM/DD/YYYY';
+  if (!date) return '';
+  
+  let dateFormat = 'MM/DD/YYYY';
+  try {
+    const currentSettings = settings || useSelector(selectSettings);
+    dateFormat = currentSettings?.general?.dateFormat || 'MM/DD/YYYY';
+  } catch (e) {
+    // If useSelector fails (outside component), use default
+    dateFormat = 'MM/DD/YYYY';
+  }
   
   const dateObj = new Date(date);
+  if (isNaN(dateObj.getTime())) return '';
   
   switch (dateFormat) {
     case 'MM/DD/YYYY':
