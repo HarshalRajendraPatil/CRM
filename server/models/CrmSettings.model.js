@@ -426,6 +426,6 @@ const CrmSettingsSchema = new mongoose.Schema({
 });
 
 // Index for projectId
-CrmSettingsSchema.index({ projectId: 1 });
+// CrmSettingsSchema.index({ projectId: 1 });
 
 export default mongoose.model('CrmSettings', CrmSettingsSchema);

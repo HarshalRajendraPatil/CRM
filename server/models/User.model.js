@@ -135,7 +135,6 @@ userSchema.virtual('allProjects').get(function() {
 });
 
 // Index for better query performance
-userSchema.index({ email: 1 });
 userSchema.index({ roleGlobal: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ ownedProjects: 1 });

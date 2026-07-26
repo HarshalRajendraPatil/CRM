@@ -81,7 +81,7 @@ const invitationSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-invitationSchema.index({ token: 1 });
+// invitationSchema.index({ token: 1 });
 invitationSchema.index({ "invitee.email": 1 });
 invitationSchema.index({ project: 1, "invitee.email": 1 });
 invitationSchema.index({ status: 1, expiresAt: 1 });
