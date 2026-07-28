@@ -14,10 +14,6 @@ import dashboardReducer from './dashboardSlice';
 import settingsReducer from './settingsSlice';
 import systemAdminReducer from './systemAdminSlice';
 import activityReducer from './activitySlice';
-import invoiceReducer from './invoiceSlice';
-import paymentReducer from './paymentSlice';
-import receiptReducer from './receiptSlice';
-import financialReducer from './financialSlice';
 
 // Configure store with reducers
 const store = configureStore({
@@ -37,10 +33,6 @@ const store = configureStore({
     settings: settingsReducer,
     systemAdmin: systemAdminReducer,
     activity: activityReducer,
-    invoices: invoiceReducer,
-    payments: paymentReducer,
-    receipts: receiptReducer,
-    financial: financialReducer,
   },
   devTools: import.meta.env.DEV, // Enable Redux DevTools only in development
 });

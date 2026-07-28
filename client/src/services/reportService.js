@@ -156,22 +156,7 @@ export const generatePerformanceReport = async (projectId, options = {}) => {
   }
 };
 
-export const generateFinancialReport = async (projectId, options = {}) => {
-  const response = await axios.post(`/reports/${projectId}/financial?projectId=${projectId}`, options, {
-    responseType: options.format === 'json' ? 'json' : 'blob'
-  });
-  
-  if (options.format === 'json') {
-    return response.data;
-  } else {
-    const blob = response.data instanceof Blob ? response.data : new Blob([response.data]);
-    return {
-      data: blob,
-      type: response.headers['content-type'],
-      size: blob.size || response.data.length || 0
-    };
-  }
-};
+
 
 // Download report file
 export const downloadReport = async (projectId, url, filename) => {

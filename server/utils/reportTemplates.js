@@ -426,9 +426,7 @@ const getReportContent = (data, reportName, reportType) => {
     case "performance":
       content = getPerformanceContent(data);
       break;
-    case "financial":
-      content = getFinancialContent(data);
-      break;
+
     default:
       content =
         '<div class="section"><p>Report content not available.</p></div>';
@@ -478,45 +476,7 @@ const getOverviewContent = (data) => {
         </div>
       </div>
       
-      <div class="summary-box">
-        <h3>Financial Metrics</h3>
-        <div class="summary-grid">
-          <div class="summary-item">
-            <span class="summary-label">Total Deal Value</span>
-            <span class="summary-value">${formatCurrency(
-              overview.totalDealValue || 0
-            )}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Won Deal Value</span>
-            <span class="summary-value">${formatCurrency(
-              overview.wonDealValue || 0
-            )}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Active Deals</span>
-            <span class="summary-value">${overview.activeDeals || 0}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Won Deals</span>
-            <span class="summary-value">${overview.wonDeals || 0}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Lost Deals</span>
-            <span class="summary-value">${overview.lostDeals || 0}</span>
-          </div>
-          ${
-            overview.dealWinRate
-              ? `
-          <div class="summary-item">
-            <span class="summary-label">Deal Win Rate</span>
-            <span class="summary-value">${overview.dealWinRate}%</span>
-          </div>
-          `
-              : ""
-          }
-        </div>
-      </div>
+
       
       <div class="summary-box">
         <h3>Task Metrics</h3>
@@ -2124,167 +2084,6 @@ const getPerformanceContent = (data) => {
   `;
 };
 
-const getFinancialContent = (data) => {
-  const financial = data.financial || {};
-  const deals = data.deals || [];
-
-  return `
-    <div class="section">
-      <h2 class="section-title">📈 Financial Summary</h2>
-      <div class="stats-grid">
-        <div class="stat-card primary">
-          <div class="stat-value">${financial.totalDeals || 0}</div>
-          <div class="stat-label">Total Deals</div>
-        </div>
-        <div class="stat-card success">
-          <div class="stat-value">${formatCurrency(
-            financial.wonValue || 0
-          )}</div>
-          <div class="stat-label">Won Value</div>
-        </div>
-        <div class="stat-card warning">
-          <div class="stat-value">${formatCurrency(
-            financial.lostValue || 0
-          )}</div>
-          <div class="stat-label">Lost Value</div>
-        </div>
-        <div class="stat-card info">
-          <div class="stat-value">${formatCurrency(
-            financial.openValue || 0
-          )}</div>
-          <div class="stat-label">Open Value</div>
-        </div>
-        ${
-          financial.winRate
-            ? `
-        <div class="stat-card">
-          <div class="stat-value">${financial.winRate}%</div>
-          <div class="stat-label">Win Rate</div>
-        </div>
-        `
-            : ""
-        }
-        ${
-          financial.averageDealValue
-            ? `
-        <div class="stat-card">
-          <div class="stat-value">${formatCurrency(
-            financial.averageDealValue
-          )}</div>
-          <div class="stat-label">Avg Deal Value</div>
-        </div>
-        `
-            : ""
-        }
-      </div>
-      
-      <div class="summary-box">
-        <h3>Deal Breakdown</h3>
-        <div class="summary-grid">
-          <div class="summary-item">
-            <span class="summary-label">Won Deals</span>
-            <span class="summary-value">${financial.wonDeals || 0}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Lost Deals</span>
-            <span class="summary-value">${financial.lostDeals || 0}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Open Deals</span>
-            <span class="summary-value">${financial.openDeals || 0}</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-label">Total Value</span>
-            <span class="summary-value">${formatCurrency(
-              financial.totalValue || 0
-            )}</span>
-          </div>
-        </div>
-      </div>
-      
-      ${
-        Object.keys(financial.monthlyRevenue || {}).length > 0
-          ? `
-      <div class="summary-box">
-        <h3>Monthly Revenue</h3>
-        <div class="summary-grid">
-          ${Object.entries(financial.monthlyRevenue)
-            .sort()
-            .map(
-              ([month, revenue]) => `
-            <div class="summary-item">
-              <span class="summary-label">${formatMonth(month)}</span>
-              <span class="summary-value">${formatCurrency(revenue)}</span>
-            </div>
-          `
-            )
-            .join("")}
-        </div>
-      </div>
-      `
-          : ""
-      }
-    </div>
-    
-    <div class="section">
-      <h2 class="section-title">💰 Deal Details</h2>
-      ${
-        deals.length > 0
-          ? `
-      <div class="table-container">
-        <table>
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Value</th>
-              <th>Status</th>
-              <th>Customer</th>
-              <th>Assigned To</th>
-              <th>Probability</th>
-              <th>Expected Close</th>
-              <th>Created</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${deals
-              .map(
-                (deal) => `
-              <tr>
-                <td><strong>${escapeHtml(deal.name || "N/A")}</strong></td>
-                <td><strong>${formatCurrency(deal.value || 0)} ${
-                  deal.currency || "USD"
-                }</strong></td>
-                <td>${getDealStatusBadge(deal.status)}</td>
-                <td>${escapeHtml(deal.customer || "N/A")}</td>
-                <td>${escapeHtml(deal.assignedTo || "Unassigned")}</td>
-                <td>
-                  <div class="progress-bar">
-                    <div class="progress-fill" style="width: ${
-                      deal.probability || 0
-                    }%">
-                      ${deal.probability || 0}%
-                    </div>
-                  </div>
-                </td>
-                <td>${
-                  deal.expectedCloseDate
-                    ? formatDate(deal.expectedCloseDate)
-                    : "N/A"
-                }</td>
-                <td>${formatDate(deal.createdAt)}</td>
-              </tr>
-            `
-              )
-              .join("")}
-          </tbody>
-        </table>
-      </div>
-      `
-          : "<p>No deals found.</p>"
-      }
-    </div>
-  `;
-};
 
 // Helper functions
 const formatDate = (date) => {

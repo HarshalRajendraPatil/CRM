@@ -59,7 +59,7 @@ The CRM settings system allows each project to have its own configuration that a
 **Integration Points**:
 - CRM name displayed in sidebar and headers
 - Date/time formatting throughout the application
-- Currency formatting for deals and financial data
+- Currency formatting for deals data
 - Timezone handling for calendar events
 
 ### 2. Email Settings

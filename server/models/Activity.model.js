@@ -2,7 +2,7 @@ import mongoose from "mongoose";
 
 const activitySchema = new mongoose.Schema(
   {
-    // Entity reference (Company, Lead, Customer, Deal, Task, CalendarEvent, Project, Invoice, Payment, Receipt)
+    // Entity reference (Company, Lead, Customer, Deal, Task, CalendarEvent, Project)
     entityType: {
       type: String,
       enum: [
@@ -13,9 +13,6 @@ const activitySchema = new mongoose.Schema(
         "Task",
         "CalendarEvent",
         "Project",
-        "Invoice",
-        "Payment",
-        "Receipt",
       ],
       required: true,
       index: true,
@@ -240,35 +237,7 @@ const activitySchema = new mongoose.Schema(
         "project_archived",
         "project_unarchived",
 
-        // Invoice activities
-        "invoice_created",
-        "invoice_updated",
-        "invoice_deleted",
-        "invoice_archived",
-        "invoice_restored",
-        "invoice_sent",
-        "invoice_status_changed",
-        "invoice_paid",
-        "invoice_overdue",
-        "invoice_amount_changed",
-        "invoice_due_date_changed",
 
-        // Payment activities
-        "payment_created",
-        "payment_updated",
-        "payment_deleted",
-        "payment_completed",
-        "payment_failed",
-        "payment_refunded",
-        "payment_status_changed",
-        "payment_amount_changed",
-        "payment_method_changed",
-
-        // Receipt activities
-        "receipt_created",
-        "receipt_updated",
-        "receipt_deleted",
-        "receipt_sent",
       ],
       index: true,
     },
@@ -308,9 +277,6 @@ const activitySchema = new mongoose.Schema(
           "Task",
           "Project",
           "CalendarEvent",
-          "Invoice",
-          "Payment",
-          "Receipt",
         ],
       },
       id: {

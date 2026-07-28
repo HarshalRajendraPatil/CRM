@@ -95,13 +95,7 @@ const Reports = () => {
       icon: "📈",
       category: "Analytics",
     },
-    {
-      id: "financial",
-      name: "Financial Report",
-      description: "Revenue analysis, deal values, and financial metrics",
-      icon: "💵",
-      category: "Financial",
-    },
+
   ];
 
   const formatOptions = [

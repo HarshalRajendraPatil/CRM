@@ -1230,112 +1230,7 @@ export const generateActivitiesReport = asyncHandler(async (req, res) => {
   }
 });
 
-// Generate financial report
-export const generateFinancialReport = asyncHandler(async (req, res) => {
-  const { projectId } = req.params;
-  const { format = "pdf", dateRange = {}, filters = {} } = req.body;
 
-  const project = await Project.findById(projectId);
-  if (!project) {
-    throw new NotFoundError("Project not found");
-  }
-
-  let query = {
-    projectId: new mongoose.Types.ObjectId(projectId),
-    isArchived: { $ne: true },
-  };
-
-  // Apply date filters
-  if (dateRange.startDate && dateRange.endDate) {
-    query.createdAt = {
-      $gte: new Date(dateRange.startDate),
-      $lte: new Date(dateRange.endDate),
-    };
-  }
-
-  const deals = await Deal.find(query)
-    .populate("customer", "firstName lastName email")
-    .populate("assignedTo", "name email")
-    .sort({ createdAt: -1 });
-
-  const totalValue = deals.reduce((sum, deal) => sum + (deal.value || 0), 0);
-  const wonDeals = deals.filter((deal) => deal.status === "won");
-  const lostDeals = deals.filter((deal) => deal.status === "lost");
-  const openDeals = deals.filter((deal) => deal.status === "open");
-
-  const wonValue = wonDeals.reduce((sum, deal) => sum + (deal.value || 0), 0);
-  const lostValue = lostDeals.reduce((sum, deal) => sum + (deal.value || 0), 0);
-  const openValue = openDeals.reduce((sum, deal) => sum + (deal.value || 0), 0);
-
-  // Calculate monthly revenue
-  const monthlyRevenue = {};
-  wonDeals.forEach((deal) => {
-    const month = new Date(deal.updatedAt).toISOString().slice(0, 7); // YYYY-MM
-    monthlyRevenue[month] = (monthlyRevenue[month] || 0) + (deal.value || 0);
-  });
-
-  const reportData = {
-    project: {
-      name: project.name,
-      description: project.description,
-    },
-    financial: {
-      totalDeals: deals.length,
-      totalValue,
-      wonDeals: wonDeals.length,
-      wonValue,
-      lostDeals: lostDeals.length,
-      lostValue,
-      openDeals: openDeals.length,
-      openValue,
-      winRate:
-        deals.length > 0
-          ? ((wonDeals.length / deals.length) * 100).toFixed(2)
-          : 0,
-      averageDealValue:
-        deals.length > 0 ? (totalValue / deals.length).toFixed(2) : 0,
-      monthlyRevenue,
-    },
-    deals: deals.map((deal) => ({
-      name: deal.name,
-      dealNumber: deal.dealNumber || "N/A",
-      value: deal.value || 0,
-      currency: deal.currency || "USD",
-      status: deal.status,
-      priority: deal.priority || "medium",
-      customer: deal.customer
-        ? `${deal.customer.firstName || ""} ${
-            deal.customer.lastName || ""
-          }`.trim() ||
-          deal.customer.email ||
-          "No Customer"
-        : "No Customer",
-      customerEmail: deal.customer?.email || "N/A",
-      assignedTo: deal.assignedTo?.name || "Unassigned",
-      assignedToEmail: deal.assignedTo?.email || "N/A",
-      probability: deal.probability || 0,
-      expectedCloseDate: deal.expectedCloseDate,
-      actualCloseDate: deal.actualCloseDate || null,
-      createdAt: deal.createdAt,
-      updatedAt: deal.updatedAt,
-    })),
-    generatedAt: new Date(),
-    generatedBy: req.user.name,
-  };
-
-  if (format === "json") {
-    res.json({
-      success: true,
-      data: reportData,
-    });
-  } else if (format === "excel") {
-    await generateExcelReport(res, reportData, "Financial Report");
-  } else if (format === "csv") {
-    await generateCSVReport(res, reportData, "Financial Report");
-  } else {
-    await generatePDFReport(res, reportData, "Financial Report");
-  }
-});
 
 // Helper function to generate Excel reports
 const generateExcelReport = async (res, data, reportName) => {
@@ -1465,7 +1360,7 @@ const generateExcelReport = async (res, data, reportName) => {
         customer.updatedAt,
       ]);
     });
-  } else if (data.deals && !data.financial) {
+  } else if (data.deals) {
     // Deals report - Enhanced with all fields
     worksheet.addRow([
       "Deal Number",
@@ -1761,47 +1656,8 @@ const generateExcelReport = async (res, data, reportName) => {
         member.companies?.total || 0,
         member.activities?.total || 0,
       ]);
-    });
-  } else if (data.financial) {
-    // Financial report
-    worksheet.addRow(["Financial Summary"]);
-    worksheet.addRow(["Total Deals:", data.financial.totalDeals]);
-    worksheet.addRow(["Total Value:", data.financial.totalValue]);
-    worksheet.addRow(["Won Deals:", data.financial.wonDeals]);
-    worksheet.addRow(["Won Value:", data.financial.wonValue]);
-    worksheet.addRow(["Lost Deals:", data.financial.lostDeals]);
-    worksheet.addRow(["Lost Value:", data.financial.lostValue]);
-    worksheet.addRow(["Open Deals:", data.financial.openDeals]);
-    worksheet.addRow(["Open Value:", data.financial.openValue]);
-    worksheet.addRow(["Win Rate:", data.financial.winRate + "%"]);
-    worksheet.addRow(["Average Deal Value:", data.financial.averageDealValue]);
-    worksheet.addRow([]);
-    worksheet.addRow(["Deal Details"]);
-    worksheet.addRow([
-      "Name",
-      "Value",
-      "Currency",
-      "Status",
-      "Customer",
-      "Assigned To",
-      "Probability",
-      "Expected Close Date",
-      "Created At",
-    ]);
-    data.deals.forEach((deal) => {
-      worksheet.addRow([
-        deal.name,
-        deal.value,
-        deal.currency,
-        deal.status,
-        deal.customer,
-        deal.assignedTo,
-        deal.probability,
-        deal.expectedCloseDate,
-        deal.createdAt,
-      ]);
-    });
-  }
+    })};
+
 
   res.setHeader(
     "Content-Type",
@@ -1823,7 +1679,6 @@ const generatePDFReport = async (res, data, reportName) => {
     let reportType = "overview";
     if (data.companies) reportType = "companies";
     else if (data.customers) reportType = "customers";
-    else if (data.deals && data.financial) reportType = "financial";
     else if (data.deals) reportType = "deals";
     else if (data.leads) reportType = "leads";
     else if (data.tasks) reportType = "tasks";
@@ -2109,27 +1964,8 @@ const generateCSVReport = async (res, data, reportName) => {
       }","${member.customers?.total || 0}","${member.companies?.total || 0}","${
         member.activities?.total || 0
       }"\n`;
-    });
-  } else if (data.financial) {
-    // Financial report
-    csvContent += "Metric,Value\n";
-    csvContent += `Total Deals,${data.financial.totalDeals}\n`;
-    csvContent += `Total Value,${data.financial.totalValue}\n`;
-    csvContent += `Won Deals,${data.financial.wonDeals}\n`;
-    csvContent += `Won Value,${data.financial.wonValue}\n`;
-    csvContent += `Lost Deals,${data.financial.lostDeals}\n`;
-    csvContent += `Lost Value,${data.financial.lostValue}\n`;
-    csvContent += `Open Deals,${data.financial.openDeals}\n`;
-    csvContent += `Open Value,${data.financial.openValue}\n`;
-    csvContent += `Win Rate,${data.financial.winRate}%\n`;
-    csvContent += `Average Deal Value,${data.financial.averageDealValue}\n`;
-    csvContent += "\nDeal Details\n";
-    csvContent +=
-      "Name,Value,Currency,Status,Customer,Assigned To,Probability,Expected Close Date,Created At\n";
-    data.deals.forEach((deal) => {
-      csvContent += `"${deal.name}","${deal.value}","${deal.currency}","${deal.status}","${deal.customer}","${deal.assignedTo}","${deal.probability}","${deal.expectedCloseDate}","${deal.createdAt}"\n`;
-    });
-  }
+    })};
+
 
   res.setHeader("Content-Type", "text/csv");
   res.setHeader(
@@ -2170,8 +2006,6 @@ export const generateReport = asyncHandler(async (req, res) => {
       return generateActivitiesReport(req, res);
     case "performance":
       return generatePerformanceReport(req, res);
-    case "financial":
-      return generateFinancialReport(req, res);
     default:
       throw new ValidationError("Invalid report type");
   }

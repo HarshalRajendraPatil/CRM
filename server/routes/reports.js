@@ -8,8 +8,7 @@ import {
   generateLeadsReport,
   generateTasksReport,
   generateActivitiesReport,
-  generatePerformanceReport,
-  generateFinancialReport
+  generatePerformanceReport
 } from '../controllers/reportController.js';
 import { authenticateToken, requireViewerRole } from '../middleware/auth.js';
 
@@ -30,6 +29,5 @@ router.post('/:projectId/leads', requireViewerRole(), generateLeadsReport);
 router.post('/:projectId/tasks', requireViewerRole(), generateTasksReport);
 router.post('/:projectId/activities', requireViewerRole(), generateActivitiesReport);
 router.post('/:projectId/performance', requireViewerRole(), generatePerformanceReport);
-router.post('/:projectId/financial', requireViewerRole(), generateFinancialReport);
 
 export default router;

@@ -20,10 +20,6 @@ import settingsRoutes from './routes/settings.js';
 import systemAdminRoutes from './routes/systemAdmin.js';
 import activityRoutes from './routes/activities.js';
 import performanceRoutes from './routes/performance.js';
-import invoiceRoutes from './routes/invoices.js';
-import paymentRoutes from './routes/payments.js';
-import receiptRoutes from './routes/receipts.js';
-import financialRoutes from './routes/financial.js';
 
 import { errorHandler, notFound } from './middleware/errorHandler.js';
 import { initSocketServer } from './utils/socketService.js';
@@ -100,10 +96,6 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/system-admin', systemAdminRoutes);
 app.use('/api/activities', injectSettings, activityRoutes);
 app.use('/api/performance', injectSettings, performanceRoutes);
-app.use('/api/invoices', injectSettings, invoiceRoutes);
-app.use('/api/payments', injectSettings, paymentRoutes);
-app.use('/api/receipts', injectSettings, receiptRoutes);
-app.use('/api/financial', injectSettings, financialRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {

@@ -39,13 +39,6 @@ import Calendar from './pages/crm/Calendar';
 import Reports from './pages/crm/Reports';
 import Performance from './pages/crm/Performance';
 import Settings from './pages/crm/Settings';
-import Invoices from './pages/crm/invoices/Invoices';
-import InvoiceDetail from './pages/crm/invoices/InvoiceDetail';
-import Payments from './pages/crm/payments/Payments';
-import Receipts from './pages/crm/receipts/Receipts';
-import ReceiptDetail from './pages/crm/receipts/ReceiptDetail';
-import PaymentDetail from './pages/crm/payments/PaymentDetail';
-import Financial from './pages/crm/financial/Financial';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -274,62 +267,6 @@ function App() {
             element={
               <ProtectedRoute>
                 <Settings />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="invoices" 
-            element={
-              <ProtectedRoute>
-                <Invoices />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="invoices/:invoiceId" 
-            element={
-              <ProtectedRoute>
-                <InvoiceDetail />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="payments" 
-            element={
-              <ProtectedRoute>
-                <Payments />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="receipts" 
-            element={
-              <ProtectedRoute>
-                <Receipts />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="receipts/:receiptId" 
-            element={
-              <ProtectedRoute>
-                <ReceiptDetail />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="payments/:paymentId" 
-            element={
-              <ProtectedRoute>
-                <PaymentDetail />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="financial" 
-            element={
-              <ProtectedRoute>
-                <Financial />
               </ProtectedRoute>
             } 
           />
