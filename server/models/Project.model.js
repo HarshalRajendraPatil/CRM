@@ -45,6 +45,12 @@ const pipelineSchema = new mongoose.Schema({
     minlength: [2, "Pipeline name must be at least 2 characters long"],
     maxlength: [50, "Pipeline name cannot exceed 50 characters"]
   },
+  type: {
+    type: String,
+    enum: ['lead', 'customer', 'deal', 'task'],
+    required: true,
+    default: 'deal'
+  },
   description: {
     type: String,
     trim: true,
@@ -252,51 +258,94 @@ projectSchema.statics.findInvitesForUser = function(userId) {
   });
 };
 
-// Pre-save middleware to ensure at least one default pipeline
+// Pre-save middleware to ensure default pipelines exist for all types
 projectSchema.pre('save', function(next) {
-  // If this is a new project or no pipelines exist
+  const types = ['lead', 'customer', 'deal', 'task'];
+  
   if (this.isNew || this.pipelines.length === 0) {
-    // Create a default sales pipeline with stages
-    const defaultPipeline = {
-      name: 'Sales Pipeline',
-      description: 'Default sales pipeline',
-      isDefault: true,
-      stages: [
-        { name: 'Lead', order: 0, isDefault: true },
-        { name: 'Qualification', order: 1 },
-        { name: 'Needs Analysis', order: 2 },
-        { name: 'Proposal', order: 3 },
-        { name: 'Negotiation', order: 4 },
-        { name: 'Closed Won', order: 5 },
-        { name: 'Closed Lost', order: 6 }
-      ]
-    };
-    
-    this.pipelines.push(defaultPipeline);
-  } else {
-    // Ensure at least one pipeline is default
-    const hasDefault = this.pipelines.some(pipeline => pipeline.isDefault);
-    if (!hasDefault && this.pipelines.length > 0) {
-      this.pipelines[0].isDefault = true;
+    this.pipelines = [];
+  }
+  
+  types.forEach(type => {
+    const hasTypePipeline = this.pipelines.some(p => p.type === type);
+    if (!hasTypePipeline) {
+      let defaultPipeline = {
+        type,
+        isDefault: true,
+        stages: []
+      };
+      
+      switch (type) {
+        case 'lead':
+          defaultPipeline.name = 'Default Lead Pipeline';
+          defaultPipeline.description = 'Standard pipeline for leads';
+          defaultPipeline.stages = [
+            { name: 'New', order: 1, isDefault: true, color: '#9CA3AF' },
+            { name: 'Contacted', order: 2, color: '#60A5FA' },
+            { name: 'Qualified', order: 3, color: '#34D399' },
+            { name: 'Disqualified', order: 4, color: '#F87171' }
+          ];
+          break;
+        case 'customer':
+          defaultPipeline.name = 'Default Customer Pipeline';
+          defaultPipeline.description = 'Standard pipeline for customers';
+          defaultPipeline.stages = [
+            { name: 'Prospect', order: 1, isDefault: true, color: '#9CA3AF' },
+            { name: 'Active', order: 2, color: '#34D399' },
+            { name: 'Inactive', order: 3, color: '#FCD34D' },
+            { name: 'Churned', order: 4, color: '#F87171' }
+          ];
+          break;
+        case 'deal':
+          defaultPipeline.name = 'Default Deal Pipeline';
+          defaultPipeline.description = 'Standard pipeline for deals';
+          defaultPipeline.stages = [
+            { name: 'Qualification', order: 1, isDefault: true, color: '#60A5FA' },
+            { name: 'Proposal', order: 2, color: '#A78BFA' },
+            { name: 'Negotiation', order: 3, color: '#FCD34D' },
+            { name: 'Closed Won', order: 4, color: '#34D399' },
+            { name: 'Closed Lost', order: 5, color: '#9CA3AF' }
+          ];
+          break;
+        case 'task':
+          defaultPipeline.name = 'Default Task Pipeline';
+          defaultPipeline.description = 'Standard pipeline for tasks';
+          defaultPipeline.stages = [
+            { name: 'Pending', order: 1, isDefault: true, color: '#9CA3AF' },
+            { name: 'In Progress', order: 2, color: '#60A5FA' },
+            { name: 'Review', order: 3, color: '#FCD34D' },
+            { name: 'Completed', order: 4, color: '#34D399' }
+          ];
+          break;
+      }
+      this.pipelines.push(defaultPipeline);
+    } else {
+      // Ensure there is at least one default pipeline for this type
+      const hasDefaultForType = this.pipelines.some(p => p.type === type && p.isDefault);
+      if (!hasDefaultForType) {
+        const firstOfType = this.pipelines.find(p => p.type === type);
+        if (firstOfType) firstOfType.isDefault = true;
+      }
+    }
+  });
+  
+  // Ensure each pipeline has at least one stage
+  this.pipelines.forEach(pipeline => {
+    if (pipeline.stages.length === 0) {
+      pipeline.stages.push({
+        name: 'New',
+        order: 1,
+        isDefault: true,
+        color: '#9CA3AF'
+      });
     }
     
-    // Ensure each pipeline has at least one stage
-    this.pipelines.forEach(pipeline => {
-      if (pipeline.stages.length === 0) {
-        pipeline.stages.push({
-          name: 'New',
-          order: 0,
-          isDefault: true
-        });
-      }
-      
-      // Ensure at least one stage is default
-      const hasDefaultStage = pipeline.stages.some(stage => stage.isDefault);
-      if (!hasDefaultStage && pipeline.stages.length > 0) {
-        pipeline.stages[0].isDefault = true;
-      }
-    });
-  }
+    // Ensure at least one stage is default
+    const hasDefaultStage = pipeline.stages.some(stage => stage.isDefault);
+    if (!hasDefaultStage && pipeline.stages.length > 0) {
+      pipeline.stages[0].isDefault = true;
+    }
+  });
   
   next();
 });

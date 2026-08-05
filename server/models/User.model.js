@@ -33,7 +33,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: null,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         if (!v) return true; // Allow null/empty
         return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp)$/i.test(v);
       },
@@ -44,7 +44,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
     validate: {
-      validator: function(v) {
+      validator: function (v) {
         if (!v) return true; // Allow empty
         return /^[\+]?[1-9][\d]{0,15}$/.test(v.replace(/[\s\-\(\)]/g, ''));
       },
@@ -123,12 +123,12 @@ const userSchema = new mongoose.Schema({
 });
 
 // Virtual for full name
-userSchema.virtual('fullName').get(function() {
+userSchema.virtual('fullName').get(function () {
   return this.name;
 });
 
 // Virtual to get all project memberships (owned + member)
-userSchema.virtual('allProjects').get(function() {
+userSchema.virtual('allProjects').get(function () {
   const owned = this.ownedProjects || [];
   const member = this.projectMembers ? this.projectMembers.map(m => m.project) : [];
   return [...owned, ...member];
@@ -141,10 +141,10 @@ userSchema.index({ ownedProjects: 1 });
 userSchema.index({ 'projectMembers.project': 1 });
 
 // Pre-save middleware to hash password
-userSchema.pre('save', async function(next) {
+userSchema.pre('save', async function (next) {
   // Only hash the password if it has been modified (or is new)
   if (!this.isModified('password')) return next();
-  
+
   try {
     // Hash password with cost of 12
     const salt = await bcrypt.genSalt(12);
@@ -156,12 +156,12 @@ userSchema.pre('save', async function(next) {
 });
 
 // Instance method to check if account is locked
-userSchema.methods.isLocked = function() {
+userSchema.methods.isLocked = function () {
   return !!(this.lockUntil && this.lockUntil > Date.now());
 };
 
 // Instance method to compare password
-userSchema.methods.comparePassword = async function(candidatePassword) {
+userSchema.methods.comparePassword = async function (candidatePassword) {
   try {
     return await bcrypt.compare(candidatePassword, this.password);
   } catch (error) {
@@ -170,7 +170,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 };
 
 // Instance method to increment login attempts
-userSchema.methods.incLoginAttempts = function() {
+userSchema.methods.incLoginAttempts = function () {
   // If we have a previous lock that has expired, restart at 1
   if (this.lockUntil && this.lockUntil < Date.now()) {
     return this.updateOne({
@@ -178,66 +178,66 @@ userSchema.methods.incLoginAttempts = function() {
       $set: { loginAttempts: 1 }
     });
   }
-  
+
   const updates = { $inc: { loginAttempts: 1 } };
-  
+
   // Lock account after 5 failed attempts for 2 hours
   if (this.loginAttempts + 1 >= 5 && !this.isLocked()) {
     updates.$set = { lockUntil: Date.now() + 2 * 60 * 60 * 1000 };
   }
-  
+
   return this.updateOne(updates);
 };
 
 // Instance method to reset login attempts
-userSchema.methods.resetLoginAttempts = function() {
+userSchema.methods.resetLoginAttempts = function () {
   return this.updateOne({
     $unset: { loginAttempts: 1, lockUntil: 1 }
   });
 };
 
 // Instance method to check if user owns a project
-userSchema.methods.ownsProject = function(projectId) {
+userSchema.methods.ownsProject = function (projectId) {
   return this.ownedProjects && this.ownedProjects.includes(projectId);
 };
 
 // Instance method to check if user is member of a project
-userSchema.methods.isMemberOfProject = function(projectId) {
+userSchema.methods.isMemberOfProject = function (projectId) {
   return this.projectMembers && this.projectMembers.some(m => m.project.toString() === projectId.toString());
 };
 
 // Instance method to get role in a specific project
-userSchema.methods.getProjectRole = function(projectId) {
+userSchema.methods.getProjectRole = function (projectId) {
   if (this.ownsProject(projectId)) {
     return 'owner';
   }
-  
+
   const membership = this.projectMembers?.find(m => m.project.toString() === projectId.toString());
   return membership ? membership.role : null;
 };
 
 // Static method to find user by id
-userSchema.statics.findById = function(id) {
+userSchema.statics.findById = function (id) {
   return this.findOne({ _id: id }).select('+password');
 };
 
 // Static method to find user by email
-userSchema.statics.findByEmail = function(email) {
+userSchema.statics.findByEmail = function (email) {
   return this.findOne({ email: email.toLowerCase() });
 };
 
 // Static method to find active users
-userSchema.statics.findActive = function() {
+userSchema.statics.findActive = function () {
   return this.find({ isActive: true });
 };
 
 // Static method to find system admins
-userSchema.statics.findSystemAdmins = function() {
+userSchema.statics.findSystemAdmins = function () {
   return this.find({ roleGlobal: 'system-admin', isActive: true });
 };
 
 // Static method to find users by project
-userSchema.statics.findByProject = function(projectId) {
+userSchema.statics.findByProject = function (projectId) {
   return this.find({
     $or: [
       { ownedProjects: projectId },

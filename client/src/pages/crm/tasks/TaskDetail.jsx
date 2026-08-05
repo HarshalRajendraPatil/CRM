@@ -35,7 +35,7 @@ import {
 } from '../../../services/taskService';
 import { formatDate, formatDateTime } from '../../../utils/dealUtils';
 import CrmLayout from '../../../layouts/CrmLayout';
-import { getProjectById } from '../../../store/projectSlice';
+import { getProjectById, getProjectPipelines } from '../../../store/projectSlice';
 import { useProjectAccess } from '../../../hooks/useProjectAccess';
 import ActivityTimeline from '../../../components/activity/ActivityTimeline';
 import EditTaskSidebar from './EditTaskSidebar';
@@ -55,6 +55,11 @@ const TaskDetail = () => {
   const { users } = useSelector((state) => state.users);
   const { user } = useSelector((state) => state.auth);
   
+  const { pipelines } = useSelector((state) => state.projects);
+  const taskPipelines = pipelines?.filter(p => p.type === 'task') || [];
+  const defaultPipeline = taskPipelines.find(p => p.isDefault) || taskPipelines[0];
+  const taskStages = defaultPipeline?.stages || [];
+
   const [activeTab, setActiveTab] = useState('overview');
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -81,10 +86,11 @@ const TaskDetail = () => {
   useEffect(() => {
     if (taskId) {
       dispatch(getProjectById(projectId));
+      dispatch(getProjectPipelines(projectId));
       dispatch(fetchTask({ projectId, taskId }));
       dispatch(getUsers());
     }
-  }, [dispatch, taskId]);
+  }, [dispatch, taskId, projectId]);
 
   const handleStatusChange = async (newStatus) => {
     try {
@@ -443,8 +449,11 @@ const TaskDetail = () => {
               <div>
                 <h1 className="text-2xl font-bold text-gray-900">{task.title}</h1>
                 <div className="flex items-center space-x-4 mt-2">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
-                    {formatTaskStatus(task.status)}
+                  <span 
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    style={{ backgroundColor: taskStages.find(s => s._id === task.status)?.color || '#e5e7eb', color: '#1f2937' }}
+                  >
+                    {taskStages.find(s => s._id === task.status)?.name || task.status}
                   </span>
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskPriorityColor(task.priority)}`}>
                     {formatTaskPriority(task.priority)}
@@ -514,14 +523,17 @@ const TaskDetail = () => {
                   value={task.status}
                   onChange={(e) => handleStatusChange(e.target.value)}
                   className="text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                  style={{ backgroundColor: taskStages.find(s => s._id === task.status)?.color || '#e5e7eb', color: '#1f2937' }}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="on_hold">On Hold</option>
-                  <option value="cancelled">Cancelled</option>
-                </select> : <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
-                  {formatTaskStatus(task.status)}
+                  <option value="">Select Stage</option>
+                  {taskStages.map(stage => (
+                    <option key={stage._id} value={stage._id}>{stage.name}</option>
+                  ))}
+                </select> : <span 
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                    style={{ backgroundColor: taskStages.find(s => s._id === task.status)?.color || '#e5e7eb', color: '#1f2937' }}
+                  >
+                  {taskStages.find(s => s._id === task.status)?.name || task.status}
                 </span>}
               </div>
               

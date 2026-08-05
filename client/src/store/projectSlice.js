@@ -6,6 +6,7 @@ const initialState = {
   projects: [],
   project: null,
   pipelines: [],
+  currentProjectId: null,  // Track which project's pipelines are loaded
   pipeline: null,
   isLoading: false,
   isSuccess: false,
@@ -251,6 +252,12 @@ const projectSlice = createSlice({
     },
     clearPipeline: (state) => {
       state.pipeline = null;
+    },
+    clearPipelines: (state) => {
+      // Wipe pipelines and reset the tracked projectId so the next
+      // getProjectPipelines call always loads fresh data for that project.
+      state.pipelines = [];
+      state.currentProjectId = null;
     }
   },
   extraReducers: (builder) => {
@@ -341,6 +348,8 @@ const projectSlice = createSlice({
         state.isLoading = false;
         state.isSuccess = true;
         state.pipelines = action.payload.data.pipelines;
+        // Track which project's pipelines are in the store
+        state.currentProjectId = action.meta.arg;
       })
       .addCase(getProjectPipelines.rejected, (state, action) => {
         state.isLoading = false;
@@ -421,6 +430,10 @@ const projectSlice = createSlice({
         if (state.pipeline && state.pipeline._id === action.meta.arg.pipelineId) {
           state.pipeline.stages.push(action.payload.data.stage);
         }
+        const pipelineIndex = state.pipelines.findIndex(p => p._id === action.meta.arg.pipelineId);
+        if (pipelineIndex !== -1) {
+          state.pipelines[pipelineIndex].stages.push(action.payload.data.stage);
+        }
       })
       .addCase(createStage.rejected, (state, action) => {
         state.isLoading = false;
@@ -437,6 +450,12 @@ const projectSlice = createSlice({
         state.isSuccess = true;
         if (state.pipeline && state.pipeline._id === action.meta.arg.pipelineId) {
           state.pipeline.stages = state.pipeline.stages.map(stage => 
+            stage._id === action.meta.arg.stageId ? action.payload.data.stage : stage
+          );
+        }
+        const pipelineIndex = state.pipelines.findIndex(p => p._id === action.meta.arg.pipelineId);
+        if (pipelineIndex !== -1) {
+          state.pipelines[pipelineIndex].stages = state.pipelines[pipelineIndex].stages.map(stage => 
             stage._id === action.meta.arg.stageId ? action.payload.data.stage : stage
           );
         }
@@ -459,6 +478,12 @@ const projectSlice = createSlice({
             stage._id !== action.meta.arg.stageId
           );
         }
+        const pipelineIndex = state.pipelines.findIndex(p => p._id === action.meta.arg.pipelineId);
+        if (pipelineIndex !== -1) {
+          state.pipelines[pipelineIndex].stages = state.pipelines[pipelineIndex].stages.filter(stage => 
+            stage._id !== action.meta.arg.stageId
+          );
+        }
       })
       .addCase(deleteStage.rejected, (state, action) => {
         state.isLoading = false;
@@ -475,6 +500,10 @@ const projectSlice = createSlice({
         state.isSuccess = true;
         if (state.pipeline && state.pipeline._id === action.meta.arg.pipelineId) {
           state.pipeline.stages = action.payload.data.stages;
+        }
+        const pipelineIndex = state.pipelines.findIndex(p => p._id === action.meta.arg.pipelineId);
+        if (pipelineIndex !== -1) {
+          state.pipelines[pipelineIndex].stages = action.payload.data.stages;
         }
       })
       .addCase(reorderStages.rejected, (state, action) => {
@@ -533,5 +562,5 @@ const projectSlice = createSlice({
   }
 });
 
-export const { reset, clearProject, clearPipeline } = projectSlice.actions;
+export const { reset, clearProject, clearPipeline, clearPipelines } = projectSlice.actions;
 export default projectSlice.reducer;

@@ -70,14 +70,28 @@ const leadSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["new", "contacted", "qualified", "disqualified"],
       default: "new",
       index: true,
     },
     score: {
       type: Number,
-      default: 0,
+      default: 50,
       min: 0,
+      max: 100,
+    },
+    // AI scoring metadata (PRD §3.1)
+    scoreReason: {
+      type: String,
+      default: 'New lead — score will be computed shortly.',
+    },
+    scoreUpdatedAt: {
+      type: Date,
+      default: null,
+    },
+    scoreMethod: {
+      type: String,
+      enum: ['rule_based', 'llm_based', 'hybrid'],
+      default: 'rule_based',
     },
     jobTitle: {
       type: String,

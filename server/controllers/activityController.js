@@ -81,9 +81,12 @@ export const getEntityActivities = asyncHandler(async (req, res) => {
   });
 
   // Get total count for pagination
-  const totalCount = await Activity.countDocuments({
-    entityType,
-    entityId
+  const totalCount = await Activity.countEntityActivities(entityType, entityId, {
+    category,
+    activityType,
+    performedBy,
+    startDate,
+    endDate,
   });
 
   res.json({
@@ -153,7 +156,14 @@ export const getProjectActivities = asyncHandler(async (req, res) => {
   });
 
   // Get total count for pagination
-  const totalCount = await Activity.countDocuments({ project: projectId });
+  const totalCount = await Activity.countProjectActivities(projectId, {
+    entityType,
+    category,
+    activityType,
+    performedBy,
+    startDate,
+    endDate,
+  });
 
   res.json({
     success: true,

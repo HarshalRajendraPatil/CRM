@@ -25,9 +25,8 @@ export const validateLeadPhone = (phone) => {
 };
 
 export const validateLeadStatus = (status) => {
-  const validStatuses = ['new', 'contacted', 'qualified', 'disqualified'];
-  if (!status) return { isValid: true }; // Status is optional, defaults to 'new'
-  if (!validStatuses.includes(status)) {
+  if (!status) return { isValid: true }; 
+  if (typeof status !== 'string') {
     return { isValid: false, message: 'Invalid lead status' };
   }
   return { isValid: true };

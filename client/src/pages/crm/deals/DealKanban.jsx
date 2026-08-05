@@ -1,27 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { useDispatch, useSelector } from 'react-redux';
-import { 
-  fetchProjectDeals, 
-  moveDealToStageAction,
+import {
+  fetchProjectDeals,
+  updateDealStatusAction,
   setSelectedDeals,
   bulkUpdateDealsAction,
   bulkDeleteDealsAction
 } from '../../../store/dealSlice';
-import { getProjectPipelines } from '../../../store/projectSlice';
+import { getProjectPipelines, clearPipelines } from '../../../store/projectSlice';
 import Button from '../../../components/ui/Button';
-import { 
-  formatCurrency, 
-  formatDate, 
-  getStatusColor, 
-  getPriorityColor, 
-  getInitials 
+import {
+  formatCurrency,
+  formatDate,
+  getPriorityColor,
+  getInitials
 } from '../../../utils/dealUtils';
 
 const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
   const dispatch = useDispatch();
-  const { deals, loading, selectedDeals } = useSelector((state) => state.deals);
-  const { pipelines } = useSelector((state) => state.projects);
+  const { deals, selectedDeals } = useSelector((state) => state.deals);
+  const { pipelines, currentProjectId } = useSelector((state) => state.projects);
 
   const [selectedPipeline, setSelectedPipeline] = useState(null);
   const [showBulkActions, setShowBulkActions] = useState(false);
@@ -29,15 +28,24 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
   useEffect(() => {
     if (projectId) {
       dispatch(fetchProjectDeals({ projectId }));
-      dispatch(getProjectPipelines(projectId));
+      if (projectId !== currentProjectId) {
+        dispatch(clearPipelines());
+        dispatch(getProjectPipelines(projectId));
+      }
     }
-  }, [dispatch, projectId]);
+  }, [dispatch, projectId, currentProjectId]);
 
   useEffect(() => {
-    if (pipelines.length > 0 && !selectedPipeline) {
-      setSelectedPipeline(pipelines[0]);
+    // Only set selectedPipeline from pipelines — never depend on selectedPipeline
+    // itself to avoid a re-render loop.
+    const dealPipelines = pipelines.filter(p => p.type === 'deal');
+    const defaultPipeline = dealPipelines.find(p => p.isDefault) || dealPipelines[0];
+    if (defaultPipeline) {
+      setSelectedPipeline(prev =>
+        prev && prev._id === defaultPipeline._id ? prev : defaultPipeline
+      );
     }
-  }, [pipelines, selectedPipeline]);
+  }, [pipelines]);
 
   const handleDragEnd = async (result) => {
     const { destination, source, draggableId } = result;
@@ -55,20 +63,28 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
     if (!deal) return;
 
     const newStageId = destination.droppableId;
-    
+
     try {
-      await dispatch(moveDealToStageAction({
+      await dispatch(updateDealStatusAction({
+        projectId,
         dealId: draggableId,
-        stage: newStageId,
-        reason: 'Moved via kanban board'
-      }));
+        status: newStageId
+      })).unwrap();
     } catch (error) {
       console.error('Failed to move deal:', error);
     }
   };
 
   const getDealsByStage = (stageId) => {
-    return deals.filter(deal => deal.stage?._id === stageId);
+    return deals.filter(deal => {
+      const status = deal.status;
+      const matchesStage = status === stageId;
+      if (matchesStage) return true;
+
+      const firstStageId = selectedPipeline?.stages?.[0]?._id;
+      const isUnmapped = !selectedPipeline?.stages?.some(s => s._id === status);
+      return isUnmapped && stageId === firstStageId;
+    });
   };
 
   const handleDealSelect = (dealId) => {
@@ -81,9 +97,9 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
   const handleSelectAll = (stageId) => {
     const stageDeals = getDealsByStage(stageId);
     const stageDealIds = stageDeals.map(deal => deal._id);
-    
+
     const allSelected = stageDealIds.every(id => selectedDeals.includes(id));
-    
+
     if (allSelected) {
       // Deselect all deals in this stage
       dispatch(setSelectedDeals(selectedDeals.filter(id => !stageDealIds.includes(id))));
@@ -95,7 +111,7 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
 
   const handleBulkStatusUpdate = async (newStatus) => {
     if (selectedDeals.length === 0) return;
-    
+
     try {
       await dispatch(bulkUpdateDealsAction({
         projectId,
@@ -111,11 +127,11 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
 
   const handleBulkDelete = async () => {
     if (selectedDeals.length === 0) return;
-    
+
     const confirmDelete = window.confirm(
       `Are you sure you want to delete ${selectedDeals.length} deal(s)? This action cannot be undone.`
     );
-    
+
     if (confirmDelete) {
       try {
         await dispatch(bulkDeleteDealsAction({
@@ -138,9 +154,8 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`bg-white rounded-lg shadow-sm border p-4 mb-3 cursor-pointer transition-all duration-200 hover:shadow-md ${
-            snapshot.isDragging ? 'shadow-lg rotate-2' : ''
-          } ${selectedDeals.includes(deal._id) ? 'ring-2 ring-blue-500' : ''}`}
+          className={`bg-white rounded-lg shadow-sm border p-4 mb-3 cursor-pointer transition-all duration-200 hover:shadow-md ${snapshot.isDragging ? 'shadow-lg rotate-2' : ''
+            } ${selectedDeals.includes(deal._id) ? 'ring-2 ring-blue-500' : ''}`}
           onClick={() => onViewDeal(deal._id)}
         >
           {/* Header */}
@@ -177,8 +192,11 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
 
           {/* Status and Priority */}
           <div className="flex items-center space-x-2 mb-3">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(deal.status)}`}>
-              {deal.status?.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ backgroundColor: selectedPipeline?.stages?.find(s => s._id === deal.status)?.color || '#e5e7eb', color: '#1f2937' }}
+            >
+              {selectedPipeline?.stages?.find(s => s._id === deal.status)?.name || 'Unknown'}
             </span>
             {deal.priority && (
               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(deal.priority)}`}>
@@ -209,8 +227,8 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
             <div className="flex items-center">
               <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center mr-2">
                 {deal.assignedTo.profileImage ? (
-                  <img 
-                    src={deal.assignedTo.profileImage} 
+                  <img
+                    src={deal.assignedTo.profileImage}
                     alt={deal.assignedTo.name}
                     className="w-6 h-6 rounded-full"
                   />
@@ -246,24 +264,6 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
     <div className="space-y-6">
       {/* Pipeline Selector */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <label className="text-sm font-medium text-gray-700">Pipeline:</label>
-          <select
-            value={selectedPipeline?._id || ''}
-            onChange={(e) => {
-              const pipeline = pipelines.find(p => p._id === e.target.value);
-              setSelectedPipeline(pipeline);
-            }}
-            className="border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            {pipelines.map(pipeline => (
-              <option key={pipeline._id} value={pipeline._id}>
-                {pipeline.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
         {/* Bulk Actions */}
         {selectedDeals.length > 0 && (
           <div className="flex items-center space-x-2">
@@ -286,7 +286,7 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 w-96">
             <h3 className="text-lg font-semibold mb-4">Bulk Actions</h3>
-            
+
             <div className="space-y-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -300,18 +300,14 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
                     }
                   }}
                 >
-                  <option value="">Select Status</option>
-                  <option value="open">Open</option>
-                  <option value="qualified">Qualified</option>
-                  <option value="proposal">Proposal</option>
-                  <option value="negotiation">Negotiation</option>
-                  <option value="closed-won">Closed Won</option>
-                  <option value="closed-lost">Closed Lost</option>
-                  <option value="on-hold">On Hold</option>
+                  <option value="">Select Stage</option>
+                  {selectedPipeline?.stages?.map(stage => (
+                    <option key={stage._id} value={stage._id}>{stage.name}</option>
+                  ))}
                 </select>
               </div>
             </div>
-            
+
             <div className="flex justify-end space-x-2 mt-6">
               <Button
                 variant="secondary"
@@ -337,7 +333,7 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
             const stageDeals = getDealsByStage(stage._id);
             const stageDealIds = stageDeals.map(deal => deal._id);
             const allSelected = stageDealIds.length > 0 && stageDealIds.every(id => selectedDeals.includes(id));
-            
+
             return (
               <div key={stage._id} className="flex-shrink-0 w-80">
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -372,15 +368,14 @@ const DealKanban = ({ projectId, onEditDeal, onViewDeal }) => {
                       <div
                         ref={provided.innerRef}
                         {...provided.droppableProps}
-                        className={`min-h-96 ${
-                          snapshot.isDraggingOver ? 'bg-blue-50' : ''
-                        }`}
+                        className={`min-h-96 ${snapshot.isDraggingOver ? 'bg-blue-50' : ''
+                          }`}
                       >
                         {stageDeals.map((deal, index) => (
                           <DealCard key={deal._id} deal={deal} index={index} />
                         ))}
                         {provided.placeholder}
-                        
+
                         {stageDeals.length === 0 && (
                           <div className="text-center py-8 text-gray-500">
                             <svg className="mx-auto h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

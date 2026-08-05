@@ -26,6 +26,7 @@ import CreateDealSidebar from "./CreateDealSidebar";
 import EditDealSidebar from "./EditDealSidebar";
 import DealFilters from "./DealFilters";
 import DealListItem from "./DealListItem";
+import DealKanban from "./DealKanban";
 import DealStats from "./DealStats";
 import DealInsights from "./DealInsights";
 import DealForecasting from "./DealForecasting";
@@ -61,7 +62,7 @@ const Deals = () => {
   const [showEditSidebar, setShowEditSidebar] = useState(false);
   const [editingDeal, setEditingDeal] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [currentView, setCurrentView] = useState("list"); // list, stats, insights, forecasting
+  const [currentView, setCurrentView] = useState("kanban"); // kanban, list, stats, insights, forecasting
   const [bulkAction, setBulkAction] = useState("");
   const [showBulkActions, setShowBulkActions] = useState(false);
   const { hasSupportExecutiveAccess } = useProjectAccess();
@@ -758,8 +759,30 @@ const Deals = () => {
             {/* View Toggle */}
             <div className="flex rounded-md shadow-sm">
               <button
-                onClick={() => setCurrentView("list")}
+                onClick={() => setCurrentView("kanban")}
                 className={`px-3 py-2 text-sm font-medium rounded-l-md border ${
+                  currentView === "kanban"
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2"
+                  />
+                </svg>
+              </button>
+              <button
+                onClick={() => setCurrentView("list")}
+                className={`px-3 py-2 text-sm font-medium border-t border-b ${
                   currentView === "list"
                     ? "bg-indigo-600 text-white border-indigo-600"
                     : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
@@ -853,6 +876,13 @@ const Deals = () => {
         {error && <Alert variant="error" title="Error" message={error} />}
 
         {/* Content */}
+        {currentView === "kanban" && (
+          <DealKanban
+            projectId={projectId}
+            onEditDeal={handleEditDeal}
+            onViewDeal={handleViewDeal}
+          />
+        )}
         {currentView === "list" && renderListView()}
         {currentView === "stats" && <DealStats projectId={projectId} />}
         {currentView === "insights" && <DealInsights projectId={projectId} />}

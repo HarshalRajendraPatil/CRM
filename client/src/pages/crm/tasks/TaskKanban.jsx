@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { fetchProjectTasks, updateTaskAction } from '../../../store/taskSlice';
+import { getProjectPipelines } from '../../../store/projectSlice';
 import { formatTaskPriority, formatTaskStatus, getTaskPriorityColor, getTaskStatusColor, calculateDaysUntilDue, isTaskOverdue } from '../../../services/taskService';
 import { formatDate } from '../../../utils/dealUtils';
 
 const TaskKanban = ({ projectId, onEditTask, onViewTask, onArchiveTask, onDeleteTask }) => {
   const dispatch = useDispatch();
   const { tasks, loading } = useSelector((state) => state.tasks);
+  const { pipelines } = useSelector((state) => state.projects);
 
   const [draggedTask, setDraggedTask] = useState(null);
   const [draggedOverColumn, setDraggedOverColumn] = useState(null);
@@ -14,16 +16,19 @@ const TaskKanban = ({ projectId, onEditTask, onViewTask, onArchiveTask, onDelete
   useEffect(() => {
     if (projectId) {
       dispatch(fetchProjectTasks({ projectId, params: { isArchived: false } }));
+      dispatch(getProjectPipelines(projectId));
     }
   }, [dispatch, projectId]);
 
-  const statusColumns = [
-    { id: 'pending', name: 'Pending', color: 'bg-gray-100' },
-    { id: 'in_progress', name: 'In Progress', color: 'bg-blue-100' },
-    { id: 'completed', name: 'Completed', color: 'bg-green-100' },
-    { id: 'on_hold', name: 'On Hold', color: 'bg-yellow-100' },
-    { id: 'cancelled', name: 'Cancelled', color: 'bg-red-100' }
-  ];
+  const taskPipelines = pipelines?.filter(p => p.type === 'task') || [];
+  const defaultPipeline = taskPipelines.find(p => p.isDefault) || taskPipelines[0];
+  const dynamicStages = defaultPipeline?.stages || [];
+
+  const statusColumns = dynamicStages.map(stage => ({
+    id: stage._id,
+    name: stage.name,
+    color: stage.color || '#e5e7eb'
+  }));
 
   const getTasksByStatus = (status) => {
     return tasks.filter(task => task.status === status);
@@ -90,7 +95,7 @@ const TaskKanban = ({ projectId, onEditTask, onViewTask, onArchiveTask, onDelete
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, column.id)}
           >
-            <div className={`rounded-lg ${column.color} p-4`}>
+            <div className="rounded-lg p-4" style={{ backgroundColor: column.color }}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-medium text-gray-900">{column.name}</h3>
                 <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">

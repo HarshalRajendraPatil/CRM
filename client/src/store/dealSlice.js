@@ -489,6 +489,11 @@ const dealSlice = createSlice({
       state.selectedDeals = [];
     },
     
+    // Set selected deals array directly
+    setSelectedDeals: (state, action) => {
+      state.selectedDeals = action.payload;
+    },
+    
     // Set current deal
     setCurrentDeal: (state, action) => {
       state.currentDeal = action.payload;
@@ -940,6 +945,7 @@ export const {
   selectDeal,
   selectAllDeals,
   clearSelection,
+  setSelectedDeals,
   setCurrentDeal,
   clearCurrentDeal,
   toggleCreateModal,

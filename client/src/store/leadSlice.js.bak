@@ -147,22 +147,6 @@ export const deleteLeadNote = createAsyncThunk(
   }
 );
 
-export const getLeadScoreHistory = createAsyncThunk(
-  "leads/getLeadScoreHistory",
-  async ({ id, projectId }) => {
-    const response = await leadService.getLeadScoreHistory(id, projectId);
-    return response.data.data;
-  }
-);
-
-export const recomputeLeadScore = createAsyncThunk(
-  "leads/recomputeLeadScore",
-  async ({ id, projectId }) => {
-    const response = await leadService.recomputeLeadScore(id, projectId);
-    return response.data.data;
-  }
-);
-
 
 const initialState = {
   leads: [],
@@ -171,8 +155,6 @@ const initialState = {
   selected: null,
   stats: null,
   insights: null,
-  scoreHistory: null,
-  isScoring: false,
   pagination: {
     total: 0,
     limit: 20,
@@ -196,6 +178,7 @@ const leadSlice = createSlice({
       state.selected = null;
       state.stats = null;
       state.insights = null;
+      state.forecastData = null;
       state.pagination = {
         total: 0,
         limit: 20,
@@ -640,35 +623,6 @@ const leadSlice = createSlice({
       .addCase(deleteLeadNote.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.error.message;
-      })
-
-      // Score History
-      .addCase(getLeadScoreHistory.pending, (state) => {
-        state.isScoring = true;
-      })
-      .addCase(getLeadScoreHistory.fulfilled, (state, action) => {
-        state.isScoring = false;
-        state.scoreHistory = action.payload;
-      })
-      .addCase(getLeadScoreHistory.rejected, (state) => {
-        state.isScoring = false;
-      })
-
-      // Manual Recompute
-      .addCase(recomputeLeadScore.pending, (state) => {
-        state.isScoring = true;
-      })
-      .addCase(recomputeLeadScore.fulfilled, (state, action) => {
-        state.isScoring = false;
-        // Update the score on the current lead detail
-        if (state.lead && action.payload) {
-          state.lead.score = action.payload.score;
-          state.lead.scoreReason = action.payload.reason;
-          state.lead.scoreMethod = action.payload.method;
-        }
-      })
-      .addCase(recomputeLeadScore.rejected, (state) => {
-        state.isScoring = false;
       });
   },
 });

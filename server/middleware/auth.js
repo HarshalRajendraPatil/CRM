@@ -17,11 +17,11 @@ export const authenticateToken = async (req, res, next) => {
 
     // Verify token
     const decoded = verifyAccessToken(token);
-    
-    
+
+
     // Check if user exists and is active
     const user = await User.findById(decoded.userId).select('-password');
-    
+
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -43,7 +43,7 @@ export const authenticateToken = async (req, res, next) => {
     next();
   } catch (error) {
     console.log("Authentication error:", error.message);
-    
+
     if (error.message.includes('expired')) {
       return res.status(401).json({
         success: false,
@@ -51,7 +51,7 @@ export const authenticateToken = async (req, res, next) => {
         code: 'TOKEN_EXPIRED'
       });
     }
-    
+
     if (error.message.includes('Invalid')) {
       return res.status(401).json({
         success: false,
@@ -59,7 +59,7 @@ export const authenticateToken = async (req, res, next) => {
         code: 'INVALID_TOKEN'
       });
     }
-    
+
     return res.status(401).json({
       success: false,
       message: 'Authentication failed',
@@ -100,7 +100,7 @@ export const requireUser = requireGlobalRole('user', 'system-admin');
 // Middleware to check if the user has the admin role in a specific crm
 export const requireAdminRole = () => {
   return (req, res, next) => {
-    try{
+    try {
       const projectId = req.params.projectId || req.query.projectId;
       if (!req.user) {
         throw new Error('Authentication required');
@@ -123,16 +123,16 @@ export const requireAdminRole = () => {
 // Middleware to check if the user has the owner role in a specific crm
 export const requireOwnerRole = () => {
   return (req, res, next) => {
-    try{
+    try {
       const projectId = req.params.projectId || req.query.projectId;
-    if (!req.user) {
-      throw new Error('Authentication required');
-    }
-    const userRole = req.user.getProjectRole(projectId);
-    if (!userRole || ['admin', 'owner'].includes(userRole)) {
-      throw new Error('Insufficient permissions to access this project');
-    }
-    return next();
+      if (!req.user) {
+        throw new Error('Authentication required');
+      }
+      const userRole = req.user.getProjectRole(projectId);
+      if (!userRole || ['admin', 'owner'].includes(userRole)) {
+        throw new Error('Insufficient permissions to access this project');
+      }
+      return next();
     } catch (error) {
       return res.status(403).json({
         success: false,
@@ -146,17 +146,17 @@ export const requireOwnerRole = () => {
 // Middleware to check if the user has the manager role in a specific crm
 export const requireManagerRole = () => {
   return (req, res, next) => {
-    try{
+    try {
       const projectId = req.params.projectId || req.query.projectId;
-    if (!req.user) {
-      throw new Error('Authentication required');
-    }
+      if (!req.user) {
+        throw new Error('Authentication required');
+      }
 
-    const userRole = req.user.getProjectRole(projectId);
-    if (!userRole || !['admin', 'owner', 'manager'].includes(userRole)) {
-      throw new Error('Insufficient permissions to access this project');
-    }
-    return next();
+      const userRole = req.user.getProjectRole(projectId);
+      if (!userRole || !['admin', 'owner', 'manager'].includes(userRole)) {
+        throw new Error('Insufficient permissions to access this project');
+      }
+      return next();
     } catch (error) {
       return res.status(403).json({
         success: false,
@@ -170,16 +170,16 @@ export const requireManagerRole = () => {
 // Middleware to check if the user has the sales executive role in a specific crm
 export const requireSalesExecutiveRole = () => {
   return (req, res, next) => {
-    try{
+    try {
       const projectId = req.params.projectId || req.query.projectId;
-    if (!req.user) {
-      throw new Error('Authentication required');
-    }
-    const userRole = req.user.getProjectRole(projectId);
-    if (!userRole || !['admin', 'owner', 'manager', 'sales_executive'].includes(userRole)) {
-      throw new Error('Insufficient permissions to access this project');
-    }
-    return next();
+      if (!req.user) {
+        throw new Error('Authentication required');
+      }
+      const userRole = req.user.getProjectRole(projectId);
+      if (!userRole || !['admin', 'owner', 'manager', 'sales_executive'].includes(userRole)) {
+        throw new Error('Insufficient permissions to access this project');
+      }
+      return next();
     } catch (error) {
       return res.status(403).json({
         success: false,
@@ -193,16 +193,16 @@ export const requireSalesExecutiveRole = () => {
 // Middleware to check if the user has the support executive role in a specific crm
 export const requireSupportExecutiveRole = () => {
   return (req, res, next) => {
-    try{
+    try {
       const projectId = req.params.projectId || req.query.projectId;
-    if (!req.user) {
-      throw new Error('Authentication required');
-    }
-    const userRole = req.user.getProjectRole(projectId);
-    if (!userRole || !['admin', 'owner', 'manager', 'sales_executive', 'support_executive'].includes(userRole)) {
-      throw new Error('Insufficient permissions to access this project');
-    }
-    return next();
+      if (!req.user) {
+        throw new Error('Authentication required');
+      }
+      const userRole = req.user.getProjectRole(projectId);
+      if (!userRole || !['admin', 'owner', 'manager', 'sales_executive', 'support_executive'].includes(userRole)) {
+        throw new Error('Insufficient permissions to access this project');
+      }
+      return next();
     } catch (error) {
       return res.status(403).json({
         success: false,
@@ -216,18 +216,19 @@ export const requireSupportExecutiveRole = () => {
 // Middleware to check if the user has the viewer role in a specific crm
 export const requireViewerRole = () => {
   return (req, res, next) => {
-    try{
+    try {
       const projectId = req.params.projectId || req.query.projectId;
-    if (!req.user) {
-      throw new Error('Authentication required');
-    }
+      console.log(projectId)
+      if (!req.user) {
+        throw new Error('Authentication required');
+      }
 
-    const userRole = req.user.getProjectRole(projectId);
-    if (!userRole || !['admin', 'owner', 'manager', 'sales_executive', 'support_executive', 'viewer'].includes(userRole)) {
-      throw new Error('Insufficient permissions');
-    }
+      const userRole = req.user.getProjectRole(projectId);
+      if (!userRole || !['admin', 'owner', 'manager', 'sales_executive', 'support_executive', 'viewer'].includes(userRole)) {
+        throw new Error('Insufficient permissions');
+      }
 
-    return next();
+      return next();
     } catch (error) {
       return res.status(403).json({
         success: false,
@@ -273,11 +274,11 @@ export const optionalAuth = async (req, res, next) => {
 
     const decoded = verifyAccessToken(token);
     const user = await User.findById(decoded.userId).select('-password');
-    
+
     if (user && user.isActive) {
       req.user = user;
     }
-    
+
     next();
   } catch (error) {
     // Continue without authentication if token is invalid
@@ -292,12 +293,12 @@ export const addProjectContext = async (req, res, next) => {
   }
 
   const projectId = req.params?.projectId || req.body?.projectId || req.query?.projectId;
-  
+
   if (projectId) {
     req.projectId = projectId;
     req.userProjectRole = req.user.getProjectRole(projectId);
   }
-  
+
   next();
 };
 

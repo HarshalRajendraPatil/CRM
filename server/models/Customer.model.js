@@ -146,7 +146,6 @@ const customerSchema = new mongoose.Schema({
   // Customer Stage and Status
   stage: {
     type: String,
-    enum: ['prospect', 'lead', 'qualified', 'opportunity', 'customer', 'churned', 'inactive'],
     default: 'prospect',
     index: true
   },

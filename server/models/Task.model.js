@@ -54,7 +54,6 @@ const taskSchema = new mongoose.Schema(
     // Task Properties
     status: {
       type: String,
-      enum: ["pending", "in_progress", "completed", "cancelled", "on_hold"],
       default: "pending",
     },
     priority: {

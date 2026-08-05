@@ -2,7 +2,6 @@ import Lead from "../models/Lead.model.js";
 import Customer from "../models/Customer.model.js";
 import Company from "../models/Company.model.js";
 import Project from "../models/Project.model.js";
-import ScoreHistory from "../models/ScoreHistory.model.js";
 import mongoose from "mongoose";
 import {
   asyncHandler,
@@ -18,19 +17,6 @@ import {
   sendLeadAssignedEmail,
   sendLeadConvertedEmail,
 } from "../utils/emailService.js";
-import { computeLeadScore } from "../utils/leadScoringService.js";
-
-/**
- * Helper: get pipeline stages for a project's lead pipeline
- * Used to give the scoring service stage context.
- */
-async function getLeadStages(projectId) {
-  const project = await Project.findById(projectId).select('pipelines').lean();
-  const leadPipeline = project?.pipelines?.find(
-    p => p.type === 'lead' && p.isDefault
-  ) || project?.pipelines?.find(p => p.type === 'lead');
-  return leadPipeline?.stages || [];
-}
 
 // Create a new lead
 export const createLead = asyncHandler(async (req, res) => {
@@ -74,13 +60,6 @@ export const createLead = asyncHandler(async (req, res) => {
   });
 
   await lead.save();
-
-  // Trigger AI scoring asynchronously — does not block the response
-  getLeadStages(projectId).then(stages => {
-    computeLeadScore(lead.toObject(), stages, 'created', req.user).catch(err =>
-      console.error('[LeadScoring] Post-create scoring failed:', err)
-    );
-  }).catch(() => {});
 
   // Log activity
   try {
@@ -388,59 +367,33 @@ export const updateLead = asyncHandler(async (req, res) => {
   // Sanitize data
   const sanitizedData = sanitizeLeadData(updateData);
 
-  // Smart change tracking — only log fields that actually changed,
-  // with human-readable values (no raw ObjectIds, no [object Map])
-  const SKIP_FIELDS = new Set(['updatedAt', 'updatedBy', 'score', 'scoreReason', 'scoreUpdatedAt', 'scoreMethod']);
-
-  const toComparable = (val) => {
-    if (val === null || val === undefined) return '';
-    if (Array.isArray(val)) return JSON.stringify([...val].sort());
-    if (val instanceof Map) return JSON.stringify(Object.fromEntries(val));
-    if (typeof val === 'object' && val.toString().includes('[object')) return JSON.stringify(val);
-    return String(val);
-  };
-
-  const toReadable = (val) => {
-    if (val === null || val === undefined) return 'none';
-    if (Array.isArray(val)) return val.length ? val.join(', ') : '(empty)';
-    if (val instanceof Map) return JSON.stringify(Object.fromEntries(val));
-    if (typeof val === 'object' && val._id) return val.name || val._id.toString();
-    return String(val);
-  };
-
+  // Track changes for activity logging
   const changes = {};
   Object.keys(sanitizedData).forEach((key) => {
-    if (SKIP_FIELDS.has(key)) return;
-    const oldComp = toComparable(lead[key]);
-    const newComp = toComparable(sanitizedData[key]);
-    if (oldComp !== newComp) {
+    if (
+      lead[key] !== sanitizedData[key] &&
+      key !== "updatedAt" &&
+      key !== "updatedBy"
+    ) {
       changes[key] = {
-        oldValue: toReadable(lead[key]),
-        newValue: toReadable(sanitizedData[key]),
+        oldValue: lead[key],
+        newValue: sanitizedData[key],
       };
     }
   });
 
-  // Update lead — do NOT accept manual score overrides; score is AI-computed
+  // Update lead
   Object.assign(lead, {
     ...sanitizedData,
     updatedBy: req.user._id,
     assignedTo: sanitizedData.assignedTo || null,
     company: sanitizedData.company || null,
-    // Remove score from sanitizedData to prevent manual override
-    score: lead.score,
+    score: parseInt(sanitizedData.score) || 0,
     customFields: sanitizedData.customFields || lead.customFields,
     tags: sanitizedData.tags || lead.tags,
   });
 
   await lead.save();
-
-  // Trigger AI re-scoring asynchronously
-  getLeadStages(lead.project).then(stages => {
-    computeLeadScore(lead.toObject(), stages, 'updated', req.user).catch(err =>
-      console.error('[LeadScoring] Post-update scoring failed:', err)
-    );
-  }).catch(() => {});
 
   // Log activity if there were changes
   if (Object.keys(changes).length > 0) {
@@ -682,13 +635,6 @@ export const addLeadNote = asyncHandler(async (req, res) => {
   lead.notes.push(newNote);
   lead.updatedBy = req.user._id;
   await lead.save();
-
-  // Trigger AI re-scoring on note add — notes contain qualitative signals
-  getLeadStages(lead.project).then(stages => {
-    computeLeadScore(lead.toObject(), stages, 'note_added', req.user).catch(err =>
-      console.error('[LeadScoring] Post-note scoring failed:', err)
-    );
-  }).catch(() => {});
 
   // Log activity
   try {
@@ -1025,29 +971,13 @@ export const updateLeadStatus = asyncHandler(async (req, res) => {
   lead.status = status;
   lead.updatedBy = req.user._id;
   await lead.save();
-  // Resolve stage names from the pipeline for human-readable activity logging
-  let oldStatusName = oldStatus;
-  let newStatusName = status;
-  try {
-    const proj = await Project.findById(lead.project._id || lead.project)
-      .select('pipelines').lean();
-    const leadPipeline = proj?.pipelines?.find(p => p.type === 'lead' && p.isDefault)
-      || proj?.pipelines?.find(p => p.type === 'lead');
-    const allStages = leadPipeline?.stages || [];
-    const oldStage = allStages.find(s => s._id?.toString() === String(oldStatus));
-    const newStage = allStages.find(s => s._id?.toString() === String(status));
-    if (oldStage) oldStatusName = oldStage.name;
-    if (newStage) newStatusName = newStage.name;
-  } catch (e) {
-    // fallback to raw value — not critical
-  }
 
   // Log activity
   try {
     await ActivityService.logLeadStatusChanged(
       lead,
-      oldStatusName,
-      newStatusName,
+      oldStatus,
+      status,
       req.user
     );
   } catch (error) {
@@ -1184,64 +1114,6 @@ export const assignLeadToUser = asyncHandler(async (req, res) => {
 });
 
 // Stats for leads in a project
-// ─── AI Scoring Endpoints ─────────────────────────────────────────────────
-
-// @desc    Get score history for a lead
-// @route   GET /api/leads/:id/score-history
-// @access  Private (viewer+)
-export const getLeadScoreHistory = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const validation = validateObjectId(id);
-  if (!validation.isValid) throw new ValidationError(validation.message);
-
-  const lead = await Lead.findById(id);
-  if (!lead) throw new NotFoundError('Lead not found');
-
-  const project = await Project.findById(lead.project);
-  if (!project) throw new NotFoundError('Project not found');
-  if (!project.hasPermission(req.user._id, 'viewer') && req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('No permission to view this lead');
-  }
-
-  const history = await ScoreHistory.find({ lead: id })
-    .sort({ computedAt: -1 })
-    .limit(50)
-    .lean();
-
-  res.json({ success: true, data: { history, currentScore: lead.score, scoreReason: lead.scoreReason, scoreUpdatedAt: lead.scoreUpdatedAt, scoreMethod: lead.scoreMethod } });
-});
-
-// @desc    Manually trigger score recomputation for a lead
-// @route   POST /api/leads/:id/recompute-score
-// @access  Private (manager+)
-export const recomputeLeadScore = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const validation = validateObjectId(id);
-  if (!validation.isValid) throw new ValidationError(validation.message);
-
-  const lead = await Lead.findById(id).lean();
-  if (!lead) throw new NotFoundError('Lead not found');
-
-  const project = await Project.findById(lead.project);
-  if (!project) throw new NotFoundError('Project not found');
-  if (!project.hasPermission(req.user._id, 'manager') && req.user.roleGlobal !== 'system-admin') {
-    throw new ForbiddenError('Only managers can manually recompute scores');
-  }
-
-  const stages = await getLeadStages(lead.project);
-  const result = await computeLeadScore(lead, stages, 'manual_recompute', req.user);
-
-  if (!result) {
-    return res.status(500).json({ success: false, message: 'Scoring failed — check server logs' });
-  }
-
-  res.json({
-    success: true,
-    message: 'Score recomputed successfully',
-    data: { score: result.score, reason: result.reason, method: result.method },
-  });
-});
-
 export const getLeadStats = asyncHandler(async (req, res) => {
   const { projectId } = req.params;
   const projectValidation = validateObjectId(projectId);
@@ -1606,6 +1478,5 @@ export default {
   getLeadStats,
   getLeadInsights,
   cleanupArchivedLeads,
-  getLeadScoreHistory,
-  recomputeLeadScore,
+  getLeadForecast,
 };

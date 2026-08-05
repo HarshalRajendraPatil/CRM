@@ -2,71 +2,84 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { updateLeadStatus, getProjectLeads } from '../../../store/leadSlice';
-import Button from '../../../components/ui/Button';
+import { getProjectPipelines, clearPipelines } from '../../../store/projectSlice';
+import { useNavigate } from 'react-router-dom';
+import { 
+  CheckSquare, Square, Mail, Briefcase, Tag as TagIcon, 
+  MoreHorizontal, ChevronRight, GripVertical
+} from 'lucide-react';
 
 const LeadKanban = ({ projectId }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { leads, isLoading } = useSelector((state) => state.leads);
+  const { pipelines, currentProjectId } = useSelector((state) => state.projects);
   const [selectedLeads, setSelectedLeads] = useState([]);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [optimisticLeads, setOptimisticLeads] = useState([]);
 
-  const stages = [
-    { id: 'new', name: 'New', color: 'bg-gray-100' },
-    { id: 'contacted', name: 'Contacted', color: 'bg-blue-100' },
-    { id: 'qualified', name: 'Qualified', color: 'bg-green-100' },
-    { id: 'disqualified', name: 'Disqualified', color: 'bg-red-100' }
-  ];
-
   useEffect(() => {
+    if (projectId && projectId !== currentProjectId) {
+      dispatch(clearPipelines());
+      dispatch(getProjectPipelines(projectId));
+    }
     dispatch(getProjectLeads({ projectId }));
-  }, [dispatch, projectId]);
+  }, [dispatch, projectId, currentProjectId]);
 
-  // Update optimistic leads when actual leads change
+  const leadPipeline = pipelines?.filter(p => p.type === 'lead') || [];
+  const defaultPipeline = leadPipeline.find(p => p.isDefault) || leadPipeline[0];
+  const dynamicStages = defaultPipeline?.stages || [];
+
+  const stages = dynamicStages.length > 0 ? dynamicStages.slice().sort((a,b) => a.order - b.order).map(stage => ({
+    id: stage._id,
+    name: stage.name,
+    color: stage.color || '#6366f1' // indigo-500
+  })) : [];
+
+  const firstStageId = stages.length > 0 ? stages[0].id : null;
+
   useEffect(() => {
     setOptimisticLeads(leads);
   }, [leads]);
 
   const handleDragEnd = async (result) => {
     if (!result.destination) return;
-
     const { source, destination, draggableId } = result;
-    
     if (source.droppableId === destination.droppableId) return;
 
     const newStatus = destination.droppableId;
     const leadId = draggableId;
-    
-    // Find the lead being moved
     const leadToUpdate = optimisticLeads.find(lead => lead._id === leadId);
     if (!leadToUpdate) return;
 
-    // Optimistic update - immediately update the local state
     const updatedLead = { ...leadToUpdate, status: newStatus, stage: newStatus };
-    const newOptimisticLeads = optimisticLeads.map(lead => 
+    const newOptimisticLeads = optimisticLeads.map(lead =>
       lead._id === leadId ? updatedLead : lead
     );
     setOptimisticLeads(newOptimisticLeads);
-    
+
     try {
       await dispatch(updateLeadStatus({ projectId, id: leadId, status: newStatus })).unwrap();
-      // No need to refresh - the Redux state is already updated
     } catch (error) {
       console.error('Failed to update lead status:', error);
-      // Revert optimistic update on error
       setOptimisticLeads(leads);
     }
   };
 
   const getLeadsByStage = (stageId) => {
-    return optimisticLeads.filter(lead => (lead.stage || lead.status) === stageId);
+    return optimisticLeads.filter(lead => {
+      const status = lead.stage || lead.status;
+      const matchesStage = status === stageId;
+      if (matchesStage) return true;
+      const isUnmapped = !stages.some(s => s.id === status);
+      return isUnmapped && stageId === firstStageId;
+    });
   };
 
-  const handleLeadSelect = (leadId) => {
-    setSelectedLeads(prev => 
-      prev.includes(leadId) 
-        ? prev.filter(id => id !== leadId)
-        : [...prev, leadId]
+  const handleLeadSelect = (e, leadId) => {
+    e.stopPropagation();
+    setSelectedLeads(prev =>
+      prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
     );
   };
 
@@ -85,138 +98,146 @@ const LeadKanban = ({ projectId }) => {
       }
       setSelectedLeads([]);
       setShowBulkActions(false);
-      // No need to refresh - the Redux state is already updated
     } catch (error) {
       console.error('Failed to update leads:', error);
     }
   };
 
-  const LeadCard = ({ lead, index }) => (
-    <Draggable draggableId={lead._id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          className={`bg-white rounded-lg shadow-sm border p-4 mb-3 cursor-pointer hover:shadow-md transition-shadow ${
-            snapshot.isDragging ? 'shadow-lg' : ''
-          } ${selectedLeads.includes(lead._id) ? 'ring-2 ring-blue-500' : ''}`}
-          onClick={() => handleLeadSelect(lead._id)}
-        >
-          <div className="flex items-start justify-between mb-2">
-            <h4 className="font-medium text-gray-900 truncate">{lead.name}</h4>
-            <input
-              type="checkbox"
-              checked={selectedLeads.includes(lead._id)}
-              onChange={() => handleLeadSelect(lead._id)}
-              className="ml-2"
-            />
-          </div>
-          
-          {lead.email && (
-            <p className="text-sm text-gray-600 mb-1">{lead.email}</p>
-          )}
-          
-          {lead.jobTitle && (
-            <p className="text-sm text-gray-500 mb-2">{lead.jobTitle}</p>
-          )}
-          
-          {lead.assignedTo && (
-            <div className="flex items-center mb-2">
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-xs">
-                {lead.assignedTo.name.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-sm text-gray-600 ml-2">{lead.assignedTo.name}</span>
-            </div>
-          )}
-          
-          {lead.score !== undefined && lead.score !== null && (
-            <div className="flex items-center mb-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                lead.score >= 75 ? 'bg-green-100 text-green-800' :
-                lead.score >= 50 ? 'bg-yellow-100 text-yellow-800' :
-                lead.score >= 25 ? 'bg-orange-100 text-orange-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                Score: {lead.score}
-              </span>
-            </div>
-          )}
-          
-          {lead.tags && lead.tags.length > 0 && (
-            <div className="flex flex-wrap gap-1 mb-2">
-              {lead.tags.slice(0, 2).map(tag => (
-                <span
-                  key={tag}
-                  className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded"
+  const LeadCard = ({ lead, index }) => {
+    const isSelected = selectedLeads.includes(lead._id);
+    
+    return (
+      <Draggable draggableId={lead._id} index={index}>
+        {(provided, snapshot) => (
+          <div
+            ref={provided.innerRef}
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            onClick={() => navigate(`/crm/${projectId}/leads/${lead._id}`)}
+            className={`group bg-white rounded-xl border p-4 mb-3 cursor-pointer transition-all duration-200
+              ${snapshot.isDragging ? 'shadow-xl ring-2 ring-indigo-500/50 scale-[1.02] rotate-1 z-50' : 'shadow-sm hover:shadow-md hover:border-indigo-300'}
+              ${isSelected ? 'border-indigo-500 ring-1 ring-indigo-500 bg-indigo-50/10' : 'border-slate-200'}
+            `}
+          >
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => handleLeadSelect(e, lead._id)}
+                  className={`flex-shrink-0 transition-colors ${isSelected ? 'text-indigo-600' : 'text-slate-300 hover:text-slate-400 opacity-0 group-hover:opacity-100'}`}
                 >
-                  {tag}
-                </span>
-              ))}
-              {lead.tags.length > 2 && (
-                <span className="inline-block px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                  +{lead.tags.length - 2}
-                </span>
+                  {isSelected ? <CheckSquare size={18} /> : <Square size={18} />}
+                </button>
+                <h4 className="font-semibold text-slate-800 truncate" title={lead.name}>
+                  {lead.name}
+                </h4>
+              </div>
+              <GripVertical size={16} className="text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+
+            <div className="space-y-2 mb-3">
+              {lead.email && (
+                <div className="flex items-center text-xs text-slate-500">
+                  <Mail size={12} className="mr-1.5" />
+                  <span className="truncate">{lead.email}</span>
+                </div>
+              )}
+              {lead.jobTitle && (
+                <div className="flex items-center text-xs text-slate-500">
+                  <Briefcase size={12} className="mr-1.5" />
+                  <span className="truncate">{lead.jobTitle}</span>
+                </div>
               )}
             </div>
-          )}
-          
-          <div className="flex items-center justify-between text-xs text-gray-500">
-            <span className="capitalize">{lead.source}</span>
-            <span>{new Date(lead.createdAt).toLocaleDateString()}</span>
+
+            <div className="flex items-center justify-between mt-4">
+              <div className="flex items-center">
+                {lead.assignedTo ? (
+                  <div 
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow-sm"
+                    style={{ backgroundColor: '#6366f1' }}
+                    title={`Assigned to: ${lead.assignedTo.name}`}
+                  >
+                    {lead.assignedTo.name.charAt(0).toUpperCase()}
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full border border-dashed border-slate-300 flex items-center justify-center text-slate-400 bg-slate-50 text-[10px]" title="Unassigned">
+                    ?
+                  </div>
+                )}
+                {lead.score > 0 && (
+                  <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] font-semibold
+                    ${lead.score >= 75 ? 'bg-emerald-100 text-emerald-700' : 
+                      lead.score >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}
+                  >
+                    ★ {lead.score}
+                  </span>
+                )}
+              </div>
+
+              {lead.tags?.length > 0 && (
+                <div className="flex items-center text-slate-400">
+                  <TagIcon size={12} className="mr-1" />
+                  <span className="text-[10px] font-medium">{lead.tags.length}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-    </Draggable>
-  );
+        )}
+      </Draggable>
+    );
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-gray-500">Loading kanban board...</div>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
       </div>
     );
   }
 
+  // Dynamic grid cols based on stage count (max 5 for tailwind default, though we can use flex)
   return (
-    <div className="h-full">
+    <div className="h-[calc(100vh-200px)] flex flex-col">
       {/* Header with bulk actions */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="flex items-center justify-between mb-6 flex-shrink-0">
         <div className="flex items-center gap-4">
-          <h2 className="text-2xl font-bold text-gray-900">Lead Pipeline</h2>
           <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={selectedLeads.length === optimisticLeads.length && optimisticLeads.length > 0}
-              onChange={handleSelectAll}
-              className="rounded"
-            />
-            <span className="text-sm text-gray-600">
-              {selectedLeads.length} of {optimisticLeads.length} selected
+            <button
+              type="button"
+              onClick={handleSelectAll}
+              className={`flex items-center justify-center transition-colors ${selectedLeads.length === optimisticLeads.length && optimisticLeads.length > 0 ? 'text-indigo-600' : 'text-slate-400 hover:text-slate-600'}`}
+            >
+              {selectedLeads.length === optimisticLeads.length && optimisticLeads.length > 0 ? <CheckSquare size={20} /> : <Square size={20} />}
+            </button>
+            <span className="text-sm font-medium text-slate-600 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-sm">
+              {selectedLeads.length} selected
             </span>
           </div>
         </div>
-        
+
         {selectedLeads.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
+          <div className="flex items-center gap-2 relative">
+            <button
               onClick={() => setShowBulkActions(!showBulkActions)}
+              className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors shadow-sm flex items-center"
             >
-              Bulk Actions
-            </Button>
+              Move {selectedLeads.length} leads <ChevronRight size={16} className={`ml-2 transition-transform ${showBulkActions ? 'rotate-90' : ''}`} />
+            </button>
             {showBulkActions && (
-              <div className="flex gap-2">
+              <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                <div className="px-3 py-2 text-xs font-semibold text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-100">
+                  Move to Stage
+                </div>
                 {stages.map(stage => (
-                  <Button
+                  <button
                     key={stage.id}
-                    variant="outline"
-                    size="sm"
                     onClick={() => handleBulkStatusUpdate(stage.id)}
+                    className="w-full text-left px-4 py-2.5 text-sm text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition-colors flex items-center"
                   >
-                    Move to {stage.name}
-                  </Button>
+                    <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: stage.color }}></div>
+                    {stage.name}
+                  </button>
                 ))}
               </div>
             )}
@@ -224,40 +245,50 @@ const LeadKanban = ({ projectId }) => {
         )}
       </div>
 
-      {/* Kanban Board */}
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 h-full">
-          {stages.map(stage => (
-            <div key={stage.id} className="flex flex-col">
-              <div className={`${stage.color} rounded-lg p-4 mb-4`}>
-                <h3 className="font-semibold text-gray-900">{stage.name}</h3>
-                <p className="text-sm text-gray-600">
-                  {getLeadsByStage(stage.id).length} leads
-                </p>
-              </div>
-              
-              <Droppable droppableId={stage.id}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`flex-1 min-h-[500px] p-2 rounded-lg ${
-                      snapshot.isDraggingOver ? 'bg-blue-50' : 'bg-gray-50'
-                    }`}
-                  >
-                    {getLeadsByStage(stage.id).map((lead, index) => (
-                      <LeadCard key={lead._id} lead={lead} index={index} />
-                    ))}
-                    {provided.placeholder}
+      {/* Kanban Board Container */}
+      <div className="flex-1 overflow-x-auto overflow-y-hidden">
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <div className="flex gap-6 h-full items-start pb-4 px-1" style={{ minWidth: 'min-content' }}>
+            {stages.map(stage => {
+              const columnLeads = getLeadsByStage(stage.id);
+              return (
+                <div key={stage.id} className="flex flex-col w-80 h-full flex-shrink-0">
+                  {/* Column Header */}
+                  <div className="flex items-center justify-between mb-4 px-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full shadow-sm" style={{ backgroundColor: stage.color }}></div>
+                      <h3 className="font-semibold text-slate-800">{stage.name}</h3>
+                    </div>
+                    <span className="bg-slate-200 text-slate-700 py-0.5 px-2.5 rounded-full text-xs font-semibold">
+                      {columnLeads.length}
+                    </span>
                   </div>
-                )}
-              </Droppable>
-            </div>
-          ))}
-        </div>
-      </DragDropContext>
+
+                  {/* Droppable Area */}
+                  <Droppable droppableId={stage.id}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`flex-1 overflow-y-auto rounded-2xl p-3 transition-colors duration-200 
+                          ${snapshot.isDraggingOver ? 'bg-indigo-50/50 ring-2 ring-indigo-200 ring-inset' : 'bg-slate-100/50'}`}
+                      >
+                        {columnLeads.map((lead, index) => (
+                          <LeadCard key={lead._id} lead={lead} index={index} />
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
+                </div>
+              );
+            })}
+          </div>
+        </DragDropContext>
+      </div>
     </div>
   );
 };
 
 export default LeadKanban;
+

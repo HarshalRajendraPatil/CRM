@@ -328,28 +328,9 @@ activitySchema.statics.logActivity = async function (activityData) {
   return await activity.save();
 };
 
-activitySchema.statics.getEntityActivities = async function (
-  entityType,
-  entityId,
-  options = {}
-) {
-  const {
-    limit = 50,
-    skip = 0,
-    category,
-    activityType,
-    performedBy,
-    startDate,
-    endDate,
-    sort = "createdAt",
-    order = "desc",
-  } = options;
-
-  const query = {
-    entityType,
-    entityId,
-  };
-
+const buildEntityQuery = (entityType, entityId, options) => {
+  const { category, activityType, performedBy, startDate, endDate } = options;
+  const query = { entityType, entityId };
   if (category) query.category = category;
   if (activityType) query.activityType = activityType;
   if (performedBy) query.performedBy = performedBy;
@@ -358,6 +339,37 @@ activitySchema.statics.getEntityActivities = async function (
     if (startDate) query.createdAt.$gte = new Date(startDate);
     if (endDate) query.createdAt.$lte = new Date(endDate);
   }
+  return query;
+};
+
+const buildProjectQuery = (projectId, options) => {
+  const { entityType, category, activityType, performedBy, startDate, endDate } = options;
+  const query = { project: projectId };
+  if (entityType) query.entityType = entityType;
+  if (category) query.category = category;
+  if (activityType) query.activityType = activityType;
+  if (performedBy) query.performedBy = performedBy;
+  if (startDate || endDate) {
+    query.createdAt = {};
+    if (startDate) query.createdAt.$gte = new Date(startDate);
+    if (endDate) query.createdAt.$lte = new Date(endDate);
+  }
+  return query;
+};
+
+activitySchema.statics.getEntityActivities = async function (
+  entityType,
+  entityId,
+  options = {}
+) {
+  const {
+    limit = 50,
+    skip = 0,
+    sort = "createdAt",
+    order = "desc",
+  } = options;
+
+  const query = buildEntityQuery(entityType, entityId, options);
 
   const sortOption = {};
   sortOption[sort] = order === "asc" ? 1 : -1;
@@ -371,6 +383,15 @@ activitySchema.statics.getEntityActivities = async function (
     .lean();
 };
 
+activitySchema.statics.countEntityActivities = async function (
+  entityType,
+  entityId,
+  options = {}
+) {
+  const query = buildEntityQuery(entityType, entityId, options);
+  return await this.countDocuments(query);
+};
+
 activitySchema.statics.getProjectActivities = async function (
   projectId,
   options = {}
@@ -378,27 +399,11 @@ activitySchema.statics.getProjectActivities = async function (
   const {
     limit = 100,
     skip = 0,
-    entityType,
-    category,
-    activityType,
-    performedBy,
-    startDate,
-    endDate,
     sort = "createdAt",
     order = "desc",
   } = options;
 
-  const query = { project: projectId };
-
-  if (entityType) query.entityType = entityType;
-  if (category) query.category = category;
-  if (activityType) query.activityType = activityType;
-  if (performedBy) query.performedBy = performedBy;
-  if (startDate || endDate) {
-    query.createdAt = {};
-    if (startDate) query.createdAt.$gte = new Date(startDate);
-    if (endDate) query.createdAt.$lte = new Date(endDate);
-  }
+  const query = buildProjectQuery(projectId, options);
 
   const sortOption = {};
   sortOption[sort] = order === "asc" ? 1 : -1;

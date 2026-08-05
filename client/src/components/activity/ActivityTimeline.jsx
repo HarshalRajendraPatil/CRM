@@ -70,17 +70,6 @@ const ActivityTimeline = ({ entityType, entityId, projectId }) => {
     dispatch(resetEntityPagination());
   };
 
-  const handleLoadMore = () => {
-    const newSkip = entityPagination.skip + entityPagination.limit;
-    dispatch(setEntityPagination({ skip: newSkip }));
-    dispatch(fetchEntityActivities({ 
-      projectId,
-      entityType, 
-      entityId, 
-      params: { ...entityFilters, skip: newSkip }
-    }));
-  };
-
   const handlePageChange = (page) => {
     setCurrentPage(page);
   };
@@ -487,26 +476,6 @@ const ActivityTimeline = ({ entityType, entityId, projectId }) => {
               </nav>
             </div>
           </div>
-        </div>
-      )}
-
-      {/* Load more button (alternative to pagination) */}
-      {entityPagination.hasMore && (
-        <div className="text-center">
-          <button
-            onClick={handleLoadMore}
-            disabled={entityActivitiesLoading}
-            className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {entityActivitiesLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-                Loading...
-              </>
-            ) : (
-              'Load More Activities'
-            )}
-          </button>
         </div>
       )}
     </div>

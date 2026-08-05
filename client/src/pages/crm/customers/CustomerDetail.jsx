@@ -18,7 +18,7 @@ import {
   fetchCustomerDeals,
   fetchCustomerDealStats
 } from '../../../store/customerSlice';
-import { getProjectById } from '../../../store/projectSlice';
+import { getProjectById, getProjectPipelines } from '../../../store/projectSlice';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Alert from '../../../components/ui/Alert';
@@ -41,7 +41,10 @@ const CustomerDetail = () => {
     customerDeals,
     customerDealStats
   } = useSelector((state) => state.customers);
-  const { project } = useSelector((state) => state.projects);
+  const { project, pipelines } = useSelector((state) => state.projects);
+  const customerPipelines = pipelines?.filter(p => p.type === 'customer') || [];
+  const defaultPipeline = customerPipelines.find(p => p.isDefault) || customerPipelines[0];
+  const customerStages = defaultPipeline?.stages || [];
   const [activeTab, setActiveTab] = useState('overview');
   const [showNoteForm, setShowNoteForm] = useState(false);
   const [showInteractionForm, setShowInteractionForm] = useState(false);
@@ -73,6 +76,7 @@ const CustomerDetail = () => {
         dispatch(fetchCustomerDeals({ projectId, customerId }));
         dispatch(fetchCustomerDealStats({ projectId, customerId }));
       }
+      dispatch(getProjectPipelines(projectId));
     }
     if (projectId) {
       dispatch(getProjectById(projectId));
@@ -496,17 +500,18 @@ const CustomerDetail = () => {
             {hasSupportExecutiveAccess ? <select
               value={currentCustomer.stage}
               onChange={(e) => handleStageChange(e.target.value)}
-              className={`px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500 ${getStageColor(currentCustomer.stage)}`}
+              className="px-3 py-1 text-sm font-semibold rounded-full border-0 focus:ring-2 focus:ring-blue-500"
+              style={{ backgroundColor: customerStages.find(s => s._id === currentCustomer.stage)?.color || '#e5e7eb', color: '#1f2937' }}
             >
-              <option value="prospect">Prospect</option>
-              <option value="lead">Lead</option>
-              <option value="qualified">Qualified</option>
-              <option value="opportunity">Opportunity</option>
-              <option value="customer">Customer</option>
-              <option value="churned">Churned</option>
-              <option value="inactive">Inactive</option>
-            </select> : <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getStageColor(currentCustomer.stage)}`}>
-              {currentCustomer.stage}
+              <option value="">Select Stage</option>
+              {customerStages.map(stage => (
+                <option key={stage._id} value={stage._id}>{stage.name}</option>
+              ))}
+            </select> : <span 
+                className="inline-flex px-3 py-1 text-sm font-semibold rounded-full"
+                style={{ backgroundColor: customerStages.find(s => s._id === currentCustomer.stage)?.color || '#e5e7eb', color: '#1f2937' }}
+              >
+              {customerStages.find(s => s._id === currentCustomer.stage)?.name || currentCustomer.stage}
             </span>}
           </div>
 
@@ -629,8 +634,11 @@ const CustomerDetail = () => {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700">Stage</label>
-                        <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full capitalize ${getStageColor(currentCustomer.stage)}`}>
-                          {currentCustomer.stage}
+                        <span 
+                          className="inline-flex px-3 py-1 text-sm font-semibold rounded-full"
+                          style={{ backgroundColor: customerStages.find(s => s._id === currentCustomer.stage)?.color || '#e5e7eb', color: '#1f2937' }}
+                        >
+                          {customerStages.find(s => s._id === currentCustomer.stage)?.name || currentCustomer.stage}
                         </span>
                       </div>
                       <div>

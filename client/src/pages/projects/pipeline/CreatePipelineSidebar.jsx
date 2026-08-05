@@ -8,6 +8,7 @@ import Alert from '../../../components/ui/Alert';
 const CreatePipelineSidebar = ({ projectId, onClose }) => {
   const [formData, setFormData] = useState({
     name: '',
+    type: 'deal',
     description: '',
     stages: [
       { name: 'Lead In', color: '#60A5FA', order: 1 },
@@ -248,6 +249,23 @@ const CreatePipelineSidebar = ({ projectId, onClose }) => {
                           error={errors.name}
                           required
                         />
+                        
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Pipeline Type*
+                          </label>
+                          <select
+                            name="type"
+                            value={formData.type}
+                            onChange={handleChange}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                          >
+                            <option value="lead">Lead Pipeline</option>
+                            <option value="customer">Customer Pipeline</option>
+                            <option value="deal">Deal Pipeline</option>
+                            <option value="task">Task Pipeline</option>
+                          </select>
+                        </div>
                         
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">

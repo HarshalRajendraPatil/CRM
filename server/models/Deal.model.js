@@ -128,7 +128,6 @@ const dealSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['open', 'qualified', 'proposal', 'negotiation', 'closed-won', 'closed-lost', 'on-hold'],
     default: 'open',
     index: true
   },

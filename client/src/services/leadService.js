@@ -52,10 +52,6 @@ export const getLeadInsights = async (projectId) => {
   return axios.get(`/leads/project/${projectId}/insights`);
 };
 
-export const getLeadForecast = async (projectId, params = {}) => {
-  return axios.get(`/leads/project/${projectId}/forecast`, { params });
-};
-
 export const getArchivedLeads = async (projectId, params = {}) => {
   return axios.get(`/leads/project/${projectId}/archived`, { params });
 };
@@ -80,6 +76,14 @@ export const deleteLeadNote = async (projectId, leadId, noteId) => {
   );
 };
 
+export const getLeadScoreHistory = async (leadId, projectId) => {
+  return axios.get(`/leads/${leadId}/score-history?projectId=${projectId}`);
+};
+
+export const recomputeLeadScore = async (leadId, projectId) => {
+  return axios.post(`/leads/${leadId}/recompute-score?projectId=${projectId}`);
+};
+
 export default {
   getProjectLeads,
   fetchLead,
@@ -93,10 +97,11 @@ export default {
   convertLead,
   getLeadStats,
   getLeadInsights,
-  getLeadForecast,
   getArchivedLeads,
   unarchiveLead,
   cleanupArchivedLeads,
   updateLeadNote,
   deleteLeadNote,
+  getLeadScoreHistory,
+  recomputeLeadScore,
 };
